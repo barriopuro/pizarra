@@ -478,3 +478,30 @@ function toggleLoop() {
     
     if (isLooping) playFullPlay(true);
 }
+
+// ========================================================
+// LIBERACIÓN DEL BOTÓN DE AUDIO DURANTE LA GRABACIÓN
+// ========================================================
+
+function updateStepUI() {
+    const delBtn = document.getElementById('delStepBtn');
+    if(delBtn) delBtn.style.display = currentStep === 0 ? "none" : "block";
+    
+    if(statusLabel) {
+        statusLabel.innerText = currentStep === 0 ? "UBICACIÓN" : "GRABANDO P." + currentStep;
+        statusLabel.style.borderColor = currentStep === 0 ? "#ff6600" : "#CC0000"; 
+        statusLabel.style.color = currentStep === 0 ? "#ff6600" : "#CC0000";
+    }
+    
+    activeObj = null; 
+    if (typeof updateFloatingUI === "function") updateFloatingUI();
+    
+    // Sacamos al botón de mute de la lista de bloqueo para que quede libre SIEMPRE
+    const selectors = [rs, bs, fs, document.getElementById('ballBtn')];
+    selectors.forEach(el => { 
+        if(el) { 
+            el.style.opacity = currentStep === 0 ? "1" : "0.3"; 
+            el.style.pointerEvents = currentStep === 0 ? "auto" : "none"; 
+        } 
+    });
+}
