@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Pizarra Oeste v114.2</title>
+    <title>Pizarra Oeste v114.4</title>
     <link rel="icon" type="image/svg+xml" href="logo.svg">
     <link rel="stylesheet" href="estilos.css">
     <script src="pizarra.js" defer></script>
@@ -36,16 +36,24 @@
             <option value="custom">-- FORMACIÓN --</option>
         </select>
         
-        <div style="display: flex; gap: 6px; width: 100%; flex-shrink: 0;">
-            <button id="ballBtn" class="snd-btn" onclick="toggleBall()" title="Pelota" style="flex: 1; padding: 10px 2px; font-size: 14px;">🏀</button>
-            <button id="muteBtn" class="snd-btn" onclick="toggleMute()" title="Silenciar" style="flex: 1; padding: 10px 2px; font-size: 14px;">🔊</button>
+        <div style="display: table; width: 100%; table-layout: fixed; border-spacing: 4px 0; margin-bottom: 5px;">
+            <div style="display: table-cell; width: 50%;">
+                <button id="ballBtn" class="snd-btn" onclick="toggleBall()" title="Pelota" style="width: 100%; padding: 10px 2px; font-size: 14px; margin: 0;">🏀</button>
+            </div>
+            <div style="display: table-cell; width: 50%;">
+                <button id="muteBtn" class="snd-btn" onclick="toggleMute()" title="Silenciar" style="width: 100%; padding: 10px 2px; font-size: 14px; margin: 0;">🔊</button>
+            </div>
         </div>
         
         <hr>
         
-        <div style="display: flex; gap: 6px; width: 100%; flex-shrink: 0;">
-            <button class="btn-arch snd-btn" onclick="exportPlay()" title="Guardar" style="flex: 1; padding: 10px 2px; font-size: 14px;">💾</button>
-            <button class="btn-arch snd-btn" onclick="document.getElementById('importFile').click()" title="Cargar" style="flex: 1; padding: 10px 2px; font-size: 14px;">📂</button>
+        <div style="display: table; width: 100%; table-layout: fixed; border-spacing: 4px 0; margin-bottom: 5px;">
+            <div style="display: table-cell; width: 50%;">
+                <button class="btn-arch snd-btn" onclick="exportPlay()" title="Guardar" style="width: 100%; padding: 10px 2px; font-size: 14px; margin: 0;">💾</button>
+            </div>
+            <div style="display: table-cell; width: 50%;">
+                <button class="btn-arch snd-btn" onclick="document.getElementById('importFile').click()" title="Cargar" style="width: 100%; padding: 10px 2px; font-size: 14px; margin: 0;">📂</button>
+            </div>
         </div>
         
         <input type="file" id="importFile" style="display:none" accept=".json" onchange="importPlay(event)">
@@ -107,7 +115,7 @@
                     <button id="mainLoopBtn" class="btn-loop snd-btn" onclick="toggleLoop()" title="Loop" style="flex: 1; height: 36px; padding: 0; font-size: 14px;">🔄</button>
                 </div>
                 <div style="display: flex; gap: 4px; width: 100%;">
-                    <button class="btn-fullscreen snd-btn" onclick="toggleFullscreenPlay(true)" title="Pantalla Completa" style="flex: 1; height: 34px; padding: 0; font-size: 13px;">📺</button>
+                    <button class="btn-fullscreen snd-btn" onclick="toggleFullscreenPlay(true)" title="Pantalla Completa" style="flex: 1; height: 34px; padding: 0; font-size: 14px;">⤢</button>
                     <button class="snd-btn" onclick="backToEdit()" title="Modificar" style="background:#555; color:white; flex: 1; height: 34px; padding: 0; font-size: 13px;">✎</button>
                 </div>
             </div>

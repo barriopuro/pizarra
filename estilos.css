@@ -88,3 +88,21 @@ select, button { padding: 10px 4px; border-radius: 6px; border: none; font-weigh
     #app-wrapper { display: none; }
     #landscape-forcer { display: flex; }
 }
+
+/* ========================================================
+/* CORRECCIONES VISUALES DE INTERFAZ
+/* ======================================================== */
+
+/* CORRECCIÓN PUNTO 2: Mueve el menú de pantalla completa al lado derecho */
+#fullscreen-floating-menu {
+    left: auto !important;
+    right: 15px !important;
+    bottom: 15px !important;
+}
+
+/* CORRECCIÓN PUNTO 3: Quita el color naranja de fondo del botón pelota */
+#ballBtn { 
+    background: #333 !important; 
+    color: white !important; 
+    font-size: 13px !important; 
+}

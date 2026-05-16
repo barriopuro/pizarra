@@ -505,3 +505,43 @@ function updateStepUI() {
         } 
     });
 }
+
+// ========================================================
+// CORRECCIÓN DE FLUJO DE EDICIÓN Y BOTÓN DE PELOTA
+// ========================================================
+
+// CORRECCIÓN PUNTO 5: Restaura los botones de finalizar/borrar paso al volver a editar
+function backToEdit() {
+    shouldStopLoop = true; 
+    isLooping = false; 
+    
+    const mainLoopBtn = document.getElementById('mainLoopBtn');
+    const floatLoopBtn = document.getElementById('floatLoopBtn');
+    if (mainLoopBtn) mainLoopBtn.innerText = "🔄";
+    if (floatLoopBtn) floatLoopBtn.innerText = "🔄 LOOP: OFF";
+    
+    isEditionFinished = false; 
+    
+    // Mostramos los controles de edición y ocultamos los de reproducción
+    document.getElementById('playback-controls').style.display = "none"; 
+    document.getElementById('edit-controls').style.display = "flex";
+    
+    if (addStepBtn) addStepBtn.style.display = "block"; 
+    
+    updateStepUI(); 
+    draw(); 
+    renderTimeline(); 
+    if (typeof attachButtonSounds === "function") attachButtonSounds();
+}
+
+// CORRECCIÓN PUNTO 3: Saca el fondo naranja fijo en el script para mantener el estilo base
+function toggleBall() { 
+    ball.active = !ball.active; 
+    const btn = document.getElementById('ballBtn');
+    if (btn) {
+        btn.innerText = ball.active ? "🏀" : "🚫";
+        // Ahora se comporta gris oscuro (#333) o más apagado (#222) como el resto, sin naranja
+        btn.style.background = ball.active ? "#333" : "#222";
+    }
+    draw(); 
+}
