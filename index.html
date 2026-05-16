@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Pizarra Oeste v114.2</title>
+    <link rel="icon" type="image/svg+xml" href="logo.svg">
+    <link rel="stylesheet" href="estilos.css">
+    <script src="pizarra.js" defer></script>
+</head>
+<body>
+
+<div id="landscape-forcer">
+    <div>🔄</div>
+    <p>POR FAVOR, GIRÁ TU CELULAR</p>
+    <p style="font-size: 13px; color: #666;">LA PIZARRA REQUIERE MODO HORIZONTAL</p>
+</div>
+
+<div id="loading-screen">
+    <div id="logo-container">
+        <img src="logo.svg" alt="Escudo Casanova Oeste">
+    </div>
+    <div class="progress-bar-wrap">
+        <div id="loading-bar" class="progress-bar-fill"></div>
+    </div>
+    <div id="loading-percentage">0%</div>
+    <div class="brand-credits">POWERED BY BARRIO PURO</div>
+</div>
+
+<div id="app-wrapper" style="display: flex; width: 100%; height: 100%;">
+    <div id="col-izquierda">
+        <div id="status-box" class="status-container">UBICACIÓN</div>
+        <select id="countRed" class="snd-btn" onchange="syncPlayers()"></select>
+        <select id="countBlue" class="snd-btn" onchange="syncPlayers()"></select>
+        <select id="formationSelect" class="snd-btn" onchange="applyFormation()">
+            <option value="custom">-- FORMACIÓN --</option>
+        </select>
+        
+        <div style="display: flex; gap: 6px; width: 100%; flex-shrink: 0;">
+            <button id="ballBtn" class="snd-btn" onclick="toggleBall()" title="Pelota" style="flex: 1; padding: 10px 2px; font-size: 14px;">🏀</button>
+            <button id="muteBtn" class="snd-btn" onclick="toggleMute()" title="Silenciar" style="flex: 1; padding: 10px 2px; font-size: 14px;">🔊</button>
+        </div>
+        
+        <hr>
+        
+        <div style="display: flex; gap: 6px; width: 100%; flex-shrink: 0;">
+            <button class="btn-arch snd-btn" onclick="exportPlay()" title="Guardar" style="flex: 1; padding: 10px 2px; font-size: 14px;">💾</button>
+            <button class="btn-arch snd-btn" onclick="document.getElementById('importFile').click()" title="Cargar" style="flex: 1; padding: 10px 2px; font-size: 14px;">📂</button>
+        </div>
+        
+        <input type="file" id="importFile" style="display:none" accept=".json" onchange="importPlay(event)">
+        <button class="btn-danger snd-btn" onclick="newPlay()">⚠️ NUEVA</button>
+    </div>
+
+    <div id="col-cancha">
+        <div id="fullscreen-floating-menu">
+            <button id="floatPlayBtn" class="btn-play fs-float-btn snd-btn" onclick="playFullPlay(false)">▶ PLAY</button>
+            <button id="floatLoopBtn" class="btn-loop fs-float-btn snd-btn" onclick="toggleLoop()">🔄 LOOP: OFF</button>
+            <button class="fs-float-btn snd-btn" onclick="toggleFullscreenPlay(false)" style="background:#700; color:white;">❌ SALIR</button>
+        </div>
+
+        <div id="canvas-wrap-outer">
+            <div id="canvas-wrap">
+                <div id="floating-ui">
+                    <div class="f-btn snd-btn" onclick="toggleCurrentPlayerScreen()" title="Cambiar modo">⇄</div>
+                    <div id="rot-btn" class="f-btn snd-btn" onclick="rotateCurrentPlayer()" style="color:#0044cc; font-size:20px;">⟳</div>
+                    <div id="txt-btn" class="f-btn snd-btn" onclick="labelCurrentPlayer()">✎</div>
+                </div>
+                <svg id="court-layer" xmlns="http://www.w3.org/2000/svg">
+                    <g stroke="white" stroke-width="4" fill="none">
+                        <rect id="paint" x="0" y="0" width="0" height="0" />
+                        <path id="key-markers" d="" stroke="white" stroke-width="3" />
+                        <path id="free-throw" d="" />
+                        <path id="free-throw-dashed" d="" stroke-dasharray="6,6" />
+                        <path id="triple" d="" />
+                        <line id="backboard" x1="0" y1="0" x2="0" y2="0" stroke="white" stroke-width="5" />
+                        <circle id="rim" cx="0" cy="0" r="0" stroke="#ff6600" stroke-width="3.5" />
+                    </g>
+                </svg>
+                <canvas id="canvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div id="col-linea-tiempo">
+        <h2></h2>
+        <div class="toggle-container">
+            <span>👁️ HISTORIAL</span>
+            <label class="switch">
+                <input type="checkbox" id="historyToggle" checked onchange="draw()">
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div id="steps-container">
+            <div id="steps-list" style="display: flex; flex-direction: column; gap: 4px;"></div>
+            <button id="addStepBtn" class="btn-add snd-btn" onclick="addNewStep()">+ SIG. PASO</button>
+        </div>
+        <div id="actions-timeline">
+            <div id="edit-controls" style="display: flex; flex-direction: column; gap: 5px;">
+                <button id="delStepBtn" class="btn-del snd-btn" onclick="deleteLastStep()" style="display:none;">🗑️ BORRAR PASO</button>
+                <button id="finishBtn" class="btn-finish snd-btn" onclick="finishEdition()">🏁 FINALIZAR</button>
+            </div>
+            
+            <div id="playback-controls" style="display:none; flex-direction: column; gap: 5px;">
+                <div style="display: flex; gap: 4px; width: 100%;">
+                    <button id="mainPlayBtn" class="btn-play snd-btn" onclick="playFullPlay(false)" title="Play" style="flex: 2; height: 36px; padding: 0;">▶ PLAY</button>
+                    <button id="mainLoopBtn" class="btn-loop snd-btn" onclick="toggleLoop()" title="Loop" style="flex: 1; height: 36px; padding: 0; font-size: 14px;">🔄</button>
+                </div>
+                <div style="display: flex; gap: 4px; width: 100%;">
+                    <button class="btn-fullscreen snd-btn" onclick="toggleFullscreenPlay(true)" title="Pantalla Completa" style="flex: 1; height: 34px; padding: 0; font-size: 13px;">📺</button>
+                    <button class="snd-btn" onclick="backToEdit()" title="Modificar" style="background:#555; color:white; flex: 1; height: 34px; padding: 0; font-size: 13px;">✎</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
