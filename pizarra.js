@@ -714,7 +714,7 @@ function renderAnim() {
 }
 
 // ========================================================
-// NUEVO SISTEMA DE JAVASCRIPT 116.3 (REDIMENSIÓN DE SOLAPAS FLUIDA REAL)
+// NUEVO SISTEMA DE JAVASCRIPT 116.4 (RESOLUCIÓN DE REDIMENSIÓN REAL)
 // ========================================================
 
 // 1. FUNCIÓN INTERNA: Actualiza la visibilidad del menú flotante de reproducción
@@ -731,7 +731,7 @@ function verificarMenuFlotante() {
     }
 }
 
-// 2. CONTROL DE SOLAPAS LATERALES CON REDIBUJADO FLUIDO REAL (60 FPS)
+// 2. CONTROL DE SOLAPAS LATERALES CON LLAMADO AL RESIZE ORIGINAL (resize)
 function toggleSidebar(lado) {
     const contenedor = document.getElementById(lado === 'izq' ? 'col-izquierda-container' : 'col-linea-tiempo-container');
     const boton = document.getElementById(lado === 'izq' ? 'solapa-izq' : 'solapa-der');
@@ -748,29 +748,16 @@ function toggleSidebar(lado) {
     
     verificarMenuFlotante();
     
-    // REPARACIÓN DEFINITIVA: Ciclo de redibujado fluido real
-    let start;
-    const duracionAnimacion = 350; // Mismo tiempo que el CSS (.35s)
-    
-    // Esta función corre en cada frame de la animación
-    function step(timestamp) {
-        if (start === undefined) start = timestamp;
-        const elapsed = timestamp - start;
-        
-        // Redibujamos la cancha en este cuadro exacto del movimiento
-        if (typeof resizeCanvas === 'function') resizeCanvas();
-        
-        // Si no se cumplió el tiempo, pedimos el siguiente cuadro
-        if (elapsed < duracionAnimacion) {
-            requestAnimationFrame(step);
-        } else {
-            // Un resize final para asegurar clavado métrico
-            if (typeof resizeCanvas === 'function') resizeCanvas();
+    // CORRECCIÓN DEFINITIVA: Usamos tu función real 'resize()' en bucle mientras dura la animación
+    let pasosAnim = 0;
+    const intervaloResize = setInterval(() => {
+        if (typeof resize === "function") resize();
+        pasosAnim++;
+        if (pasosAnim >= 25) {
+            clearInterval(intervaloResize);
+            if (typeof resize === "function") resize(); // Ajuste final de cierre
         }
-    }
-    
-    // Iniciamos la animación
-    requestAnimationFrame(step);
+    }, 16);
 }
 
 // 3. CONTROL DE PANTALLA COMPLETA REAL (API GLOBAL)
@@ -781,8 +768,8 @@ function toggleRealFullscreen() {
         document.documentElement.requestFullscreen()
             .then(() => {
                 if (btn) btn.innerText = "❌";
-                setTimeout(resizeCanvas, 100);
-                setTimeout(resizeCanvas, 400);
+                setTimeout(() => { if (typeof resize === "function") resize(); }, 100);
+                setTimeout(() => { if (typeof resize === "function") resize(); }, 400);
             })
             .catch(err => {
                 console.log(`Error de hardware full screen: ${err.message}`);
@@ -791,13 +778,13 @@ function toggleRealFullscreen() {
         document.exitFullscreen()
             .then(() => {
                 if (btn) btn.innerText = "⤢";
-                setTimeout(resizeCanvas, 100);
-                setTimeout(resizeCanvas, 400);
+                setTimeout(() => { if (typeof resize === "function") resize(); }, 100);
+                setTimeout(() => { if (typeof resize === "function") resize(); }, 400);
             });
     }
 }
 
-// Escuchador de hardware para cambios de pantalla completa o rotaciones en el celu
+// Escuchador de hardware para cambios de pantalla completa o rotaciones
 document.addEventListener('fullscreenchange', () => {
     const btn = document.getElementById('realFsBtn');
     if (btn) {
@@ -807,14 +794,14 @@ document.addEventListener('fullscreenchange', () => {
             btn.innerText = "⤢";
         }
     }
-    setTimeout(resizeCanvas, 150);
-    setTimeout(resizeCanvas, 500);
+    setTimeout(() => { if (typeof resize === "function") resize(); }, 150);
+    setTimeout(() => { if (typeof resize === "function") resize(); }, 500);
 });
 
-// ESCUCHADOR GLOBAL DE RESIZE
+// ESCUCHADOR GLOBAL DE RESIZE DEL NAVEGADOR
 window.addEventListener('resize', () => {
-    resizeCanvas();
-    setTimeout(resizeCanvas, 200);
+    if (typeof resize === "function") resize();
+    setTimeout(() => { if (typeof resize === "function") resize(); }, 200);
 });
 
 // 4. RE-ESCRITURA: Modificar jugada
@@ -839,7 +826,7 @@ function backToEdit() {
     draw(); 
     renderTimeline(); 
     if (typeof attachButtonSounds === "function") attachButtonSounds();
-    setTimeout(resizeCanvas, 100);
+    setTimeout(() => { if (typeof resize === "function") resize(); }, 100);
 }
 
 // 5. RE-ESCRITURA: Finalizar jugada
@@ -853,11 +840,11 @@ function toggleFullscreenPlay(goFS) {
         backToEdit();
     }
     verificarMenuFlotante();
-    resizeCanvas();
-    setTimeout(resizeCanvas, 100);
+    if (typeof resize === "function") resize();
+    setTimeout(() => { if (typeof resize === "function") resize(); }, 100);
 }
 
-// 6. VIGILANTE ULTRA-PRECISO: Despierta las solapas SOLO cuando el loader muere del todo
+// 6. VIGILANTE DEL LOADER
 const loaderTarget = document.getElementById('loading-screen');
 if (loaderTarget) {
     const observer = new MutationObserver(() => {
@@ -866,7 +853,7 @@ if (loaderTarget) {
             const sDer = document.getElementById('solapa-der');
             if (sIzq) sIzq.classList.add('solapa-activa');
             if (sDer) sDer.classList.add('solapa-activa');
-            if (typeof resizeCanvas === 'function') resizeCanvas();
+            if (typeof resize === "function") resize();
             observer.disconnect(); 
         }
     });
