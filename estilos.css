@@ -106,3 +106,14 @@ select, button { padding: 10px 4px; border-radius: 6px; border: none; font-weigh
     color: white !important; 
     font-size: 13px !important; 
 }
+
+/* ========================================================
+/* OPTIMIZACIÓN DE ESPACIO VERTICAL EN LA TIMELINE
+/* ======================================================== */
+
+/* Quita el espacio muerto que dejaba el h2 vacío */
+#col-linea-tiempo h2 {
+    margin: 0 !important;
+    padding: 0 !important;
+    height: 0 !important;
+}
