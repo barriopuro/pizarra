@@ -714,7 +714,7 @@ function renderAnim() {
 }
 
 // ========================================================
-// NUEVO SISTEMA DE JAVASCRIPT 116.6 (SISTEMA INTEGRADO LIMPIO)
+// NUEVO SISTEMA DE JAVASCRIPT 116.7 (REDIMENSIÓN PROPORCIONAL CALIBRADA)
 // ========================================================
 
 // 1. FUNCIÓN INTERNA: Actualiza la visibilidad del menú flotante de reproducción
@@ -731,7 +731,7 @@ function verificarMenuFlotante() {
     }
 }
 
-// 2. CONTROL DE SOLAPAS LATERALES (El estiramiento lo hace el CSS de forma elástica)
+// 2. CONTROL DE SOLAPAS LATERALES CON RE-ESCALADO NATIVO POR RETARDO
 function toggleSidebar(lado) {
     const contenedor = document.getElementById(lado === 'izq' ? 'col-izquierda-container' : 'col-linea-tiempo-container');
     const boton = document.getElementById(lado === 'izq' ? 'solapa-izq' : 'solapa-der');
@@ -748,9 +748,18 @@ function toggleSidebar(lado) {
     
     verificarMenuFlotante();
     
-    // Un llamado rápido para limpiar trazos
+    // Ejecutamos tu función resize nativa en ráfaga táctica para acompañar 
+    // el deslizamiento de la solapa sin deformar un solo gráfico
     if (typeof resize === "function") resize();
-    if (typeof draw === "function") draw();
+    
+    setTimeout(() => { if (typeof resize === "function") resize(); }, 100);
+    setTimeout(() => { if (typeof resize === "function") resize(); }, 200);
+    setTimeout(() => { 
+        if (typeof resize === "function") resize(); 
+        if (typeof draw === "function") draw(); // Redibuja el escudo centrado
+    }, 360); // Clavado exacto cuando termina la animación CSS (0.35s)
+    
+    setTimeout(() => { if (typeof resize === "function") resize(); }, 550); // Resguardo final por lag
 }
 
 // 3. CONTROL DE PANTALLA COMPLETA REAL (API GLOBAL)
@@ -762,6 +771,7 @@ function toggleRealFullscreen() {
             .then(() => {
                 if (btn) btn.innerText = "❌";
                 setTimeout(() => { if (typeof resize === "function") resize(); }, 150);
+                setTimeout(() => { if (typeof resize === "function") resize(); }, 450);
             })
             .catch(err => {
                 console.log(`Error de hardware full screen: ${err.message}`);
@@ -771,6 +781,7 @@ function toggleRealFullscreen() {
             .then(() => {
                 if (btn) btn.innerText = "⤢";
                 setTimeout(() => { if (typeof resize === "function") resize(); }, 150);
+                setTimeout(() => { if (typeof resize === "function") resize(); }, 450);
             });
     }
 }
@@ -786,11 +797,13 @@ document.addEventListener('fullscreenchange', () => {
         }
     }
     setTimeout(() => { if (typeof resize === "function") resize(); }, 150);
+    setTimeout(() => { if (typeof resize === "function") resize(); }, 500);
 });
 
 // ESCUCHADOR GLOBAL DE RESIZE DEL NAVEGADOR
 window.addEventListener('resize', () => {
     if (typeof resize === "function") resize();
+    setTimeout(() => { if (typeof resize === "function") resize(); }, 200);
 });
 
 // 4. RE-ESCRITURA: Modificar jugada
@@ -815,6 +828,7 @@ function backToEdit() {
     draw(); 
     renderTimeline(); 
     if (typeof attachButtonSounds === "function") attachButtonSounds();
+    setTimeout(() => { if (typeof resize === "function") resize(); }, 100);
 }
 
 // 5. RE-ESCRITURA: Finalizar jugada
@@ -829,6 +843,7 @@ function toggleFullscreenPlay(goFS) {
     }
     verificarMenuFlotante();
     if (typeof resize === "function") resize();
+    setTimeout(() => { if (typeof resize === "function") resize(); }, 100);
 }
 
 // 6. VIGILANTE DEL LOADER

@@ -119,10 +119,10 @@ select, button { padding: 10px 4px; border-radius: 6px; border: none; font-weigh
 }
 
 /* ========================================================
-/* NUEVO SISTEMA DE SOLAPAS 116.6 (ESTIRAMIENTO POR HARDWARE)
+/* NUEVO SISTEMA DE SOLAPAS 116.7 (ESTRUCTURA PROPORCIONAL)
 /* ======================================================== */
 
-/* 1. Contenedores laterales: control de ancho mediante max-width */
+/* Contenedores laterales: control de ancho elástico mediante max-width */
 #col-izquierda-container, #col-linea-tiempo-container {
     transition: max-width 0.35s cubic-bezier(0.4, 0, 0.2, 1), width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
@@ -137,7 +137,7 @@ select, button { padding: 10px 4px; border-radius: 6px; border: none; font-weigh
     max-width: 0px !important;
 }
 
-/* 2. Desplazamiento horizontal de las barras */
+/* Desplazamiento horizontal de las barras (Slide out/in) */
 #col-izquierda, #col-linea-tiempo {
     transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
     transform: translateX(0);
@@ -155,7 +155,7 @@ select, button { padding: 10px 4px; border-radius: 6px; border: none; font-weigh
     opacity: 0 !important;
 }
 
-/* 3. Diseño de las solapas: invisibles por defecto con opacidad cero */
+/* Diseño estético de las solapas grises */
 .solapa-interfaz {
     position: absolute !important;
     top: 25% !important; 
@@ -177,7 +177,7 @@ select, button { padding: 10px 4px; border-radius: 6px; border: none; font-weigh
     visibility: hidden !important;
 }
 
-/* Sincronización pos-loader */
+/* Sincronización limpia pos-loader */
 #col-izquierda-container .solapa-interfaz.solapa-activa,
 #col-linea-tiempo-container .solapa-interfaz.solapa-activa {
     opacity: 1 !important;
@@ -210,20 +210,4 @@ select, button { padding: 10px 4px; border-radius: 6px; border: none; font-weigh
 
 #landscape-forcer {
     z-index: 999999 !important;
-}
-
-/* ========================================================
-/* FORZADO ELÁSTICO POR CSS (CANCHA GIGANTE OBLIGATORIA)
-/* ======================================================== */
-#col-cancha {
-    flex-grow: 1 !important;
-    width: auto !important;
-    transition: width 0.35s ease;
-}
-
-#canvas-wrap-outer, #canvas-wrap, #canvas {
-    width: 100% !important;
-    height: 100% !important;
-    max-width: 100% !important;
-    max-height: 100% !important;
 }
