@@ -117,3 +117,98 @@ select, button { padding: 10px 4px; border-radius: 6px; border: none; font-weigh
     padding: 0 !important;
     height: 0 !important;
 }
+
+/* ========================================================
+/* NUEVO SISTEMA DE SOLAPAS 116 (SINCRONIZACIÓN Y ANIMACIÓN)
+/* ======================================================== */
+
+/* 1. Contenedores laterales: control de ancho mediante max-width para forzar la animación */
+#col-izquierda-container, #col-linea-tiempo-container {
+    transition: max-width 0.35s cubic-bezier(0.4, 0, 0.2, 1), width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    display: flex;
+    width: 240px; 
+    max-width: 300px;
+}
+
+/* Al colapsar, reducimos el max-width de forma suave para que el navegador acompañe la salida */
+#col-izquierda-container.colapsado,
+#col-linea-tiempo-container.colapsado {
+    width: 0px !important;
+    max-width: 0px !important;
+    transition: max-width 0.35s cubic-bezier(0.4, 0, 0.2, 1), width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 2. Desplazamiento horizontal de las barras */
+#col-izquierda, #col-linea-tiempo {
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+    transform: translateX(0);
+    opacity: 1;
+    width: 100%;
+}
+
+.colapsado #col-izquierda {
+    transform: translateX(-100%) !important; 
+    opacity: 0 !important;
+}
+
+.colapsado #col-linea-tiempo {
+    transform: translateX(100%) !important; 
+    opacity: 0 !important;
+}
+
+/* 3. Diseño de las solapas: invisibles por defecto con opacidad cero */
+.solapa-interfaz {
+    position: absolute !important;
+    top: 25% !important; 
+    transform: translateY(-50%) !important;
+    width: 20px !important;
+    height: 45px !important;
+    background: #222222 !important;
+    color: #aaaaaa !important;
+    border: 1px solid #444444 !important;
+    font-size: 11px !important;
+    cursor: pointer !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 99999 !important;
+    padding: 0 !important;
+    border-radius: 0 4px 4px 0 !important;
+    transition: background 0.2s, opacity 0.4s ease, visibility 0.4s ease;
+
+    /* Nacen invisibles para que el loader las tape */
+    opacity: 0 !important;
+    visibility: hidden !important;
+}
+
+/* Clave de sincronización: solo se muestran si tienen la clase activa Y el loader ya liberó las columnas */
+#col-izquierda-container .solapa-interfaz.solapa-activa,
+#col-linea-tiempo-container .solapa-interfaz.solapa-activa {
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+.solapa-interfaz:hover {
+    background: #333333 !important;
+    color: #ffffff !important;
+}
+
+/* Ubicación magnética en los bordes */
+#solapa-izq {
+    left: 100% !important;
+}
+
+#solapa-der {
+    right: 100% !important;
+    border-radius: 4px 0 0 4px !important;
+}
+
+.interfaz-escondida #fullscreen-floating-menu {
+    display: flex !important;
+}
+
+#col-linea-tiempo h2 {
+    margin: 0 !important;
+    padding: 0 !important;
+    height: 0 !important;
+}

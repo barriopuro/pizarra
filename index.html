@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Pizarra Oeste v114.5</title>
+    <title>Pizarra Oeste v116.0</title>
     <link rel="icon" type="image/svg+xml" href="logo.svg">
     <link rel="stylesheet" href="estilos.css">
     <script src="pizarra.js" defer></script>
@@ -28,43 +28,49 @@
 </div>
 
 <div id="app-wrapper" style="display: flex; width: 100%; height: 100%;">
-    <div id="col-izquierda">
-        <div id="status-box" class="status-container">UBICACIÓN</div>
-        <select id="countRed" class="snd-btn" onchange="syncPlayers()"></select>
-        <select id="countBlue" class="snd-btn" onchange="syncPlayers()"></select>
-        <select id="formationSelect" class="snd-btn" onchange="applyFormation()">
-            <option value="custom">-- FORMACIÓN --</option>
-        </select>
-        
-        <div style="display: table; width: 100%; table-layout: fixed; border-spacing: 4px 0; margin-bottom: 5px;">
-            <div style="display: table-cell; width: 50%;">
-                <button id="ballBtn" class="snd-btn" onclick="toggleBall()" title="Pelota" style="width: 100%; padding: 10px 2px; font-size: 14px; margin: 0;">🏀</button>
+    
+    <div id="col-izquierda-container" style="display: flex; position: relative; height: 100%; flex-shrink: 0;">
+        <div id="col-izquierda">
+            <div id="status-box" class="status-container">UBICACIÓN</div>
+            <select id="countRed" class="snd-btn" onchange="syncPlayers()"></select>
+            <select id="countBlue" class="snd-btn" onchange="syncPlayers()"></select>
+            <select id="formationSelect" class="snd-btn" onchange="applyFormation()">
+                <option value="custom">-- FORMACIÓN --</option>
+            </select>
+            
+            <div style="display: table; width: 100%; table-layout: fixed; border-spacing: 4px 0; margin-bottom: 5px;">
+                <div style="display: table-cell; width: 33.33%;">
+                    <button id="ballBtn" class="snd-btn" onclick="toggleBall()" title="Pelota" style="width: 100%; padding: 10px 2px; font-size: 14px; margin: 0;">🏀</button>
+                </div>
+                <div style="display: table-cell; width: 33.33%;">
+                    <button id="muteBtn" class="snd-btn" onclick="toggleMute()" title="Silenciar" style="width: 100%; padding: 10px 2px; font-size: 14px; margin: 0;">🔊</button>
+                </div>
+                <div style="display: table-cell; width: 33.33%;">
+                    <button id="realFsBtn" class="snd-btn" onclick="toggleRealFullscreen()" title="Pantalla Completa Real" style="width: 100%; padding: 10px 2px; font-size: 14px; margin: 0; background: #222; color: #fff; font-weight: bold;">⤢</button>
+                </div>
             </div>
-            <div style="display: table-cell; width: 50%;">
-                <button id="muteBtn" class="snd-btn" onclick="toggleMute()" title="Silenciar" style="width: 100%; padding: 10px 2px; font-size: 14px; margin: 0;">🔊</button>
+            
+            <hr>
+            
+            <div style="display: table; width: 100%; table-layout: fixed; border-spacing: 4px 0; margin-bottom: 5px;">
+                <div style="display: table-cell; width: 50%;">
+                    <button class="btn-arch snd-btn" onclick="exportPlay()" title="Guardar" style="width: 100%; padding: 10px 2px; font-size: 14px; margin: 0;">💾</button>
+                </div>
+                <div style="display: table-cell; width: 50%;">
+                    <button class="btn-arch snd-btn" onclick="document.getElementById('importFile').click()" title="Cargar" style="width: 100%; padding: 10px 2px; font-size: 14px; margin: 0;">📂</button>
+                </div>
             </div>
+            
+            <input type="file" id="importFile" style="display:none" accept=".json" onchange="importPlay(event)">
+            <button class="btn-danger snd-btn" onclick="newPlay()">⚠️ NUEVA</button>
         </div>
-        
-        <hr>
-        
-        <div style="display: table; width: 100%; table-layout: fixed; border-spacing: 4px 0; margin-bottom: 5px;">
-            <div style="display: table-cell; width: 50%;">
-                <button class="btn-arch snd-btn" onclick="exportPlay()" title="Guardar" style="width: 100%; padding: 10px 2px; font-size: 14px; margin: 0;">💾</button>
-            </div>
-            <div style="display: table-cell; width: 50%;">
-                <button class="btn-arch snd-btn" onclick="document.getElementById('importFile').click()" title="Cargar" style="width: 100%; padding: 10px 2px; font-size: 14px; margin: 0;">📂</button>
-            </div>
-        </div>
-        
-        <input type="file" id="importFile" style="display:none" accept=".json" onchange="importPlay(event)">
-        <button class="btn-danger snd-btn" onclick="newPlay()">⚠️ NUEVA</button>
+        <button id="solapa-izq" class="solapa-interfaz" onclick="toggleSidebar('izq')">◀</button>
     </div>
 
     <div id="col-cancha">
         <div id="fullscreen-floating-menu">
             <button id="floatPlayBtn" class="btn-play fs-float-btn snd-btn" onclick="playFullPlay(false)">▶ PLAY</button>
             <button id="floatLoopBtn" class="btn-loop fs-float-btn snd-btn" onclick="toggleLoop()">🔄 LOOP: OFF</button>
-            <button class="fs-float-btn snd-btn" onclick="toggleFullscreenPlay(false)" style="background:#700; color:white;">❌ SALIR</button>
         </div>
 
         <div id="canvas-wrap-outer">
@@ -90,32 +96,34 @@
         </div>
     </div>
 
-    <div id="col-linea-tiempo">
-        <div class="toggle-container">
-            <span>👁️ HISTORIAL</span>
-            <label class="switch">
-                <input type="checkbox" id="historyToggle" checked onchange="draw()">
-                <span class="slider"></span>
-            </label>
-        </div>
-        <div id="steps-container">
-            <div id="steps-list" style="display: flex; flex-direction: column; gap: 4px;"></div>
-            <button id="addStepBtn" class="btn-add snd-btn" onclick="addNewStep()">+ SIG. PASO</button>
-        </div>
-        <div id="actions-timeline">
-            <div id="edit-controls" style="display: flex; flex-direction: column; gap: 5px;">
-                <button id="delStepBtn" class="btn-del snd-btn" onclick="deleteLastStep()" style="display:none;">🗑️ BORRAR PASO</button>
-                <button id="finishBtn" class="btn-finish snd-btn" onclick="finishEdition()">🏁 FINALIZAR</button>
+    <div id="col-linea-tiempo-container" style="display: flex; position: relative; height: 100%; flex-shrink: 0;">
+        <button id="solapa-der" class="solapa-interfaz" onclick="toggleSidebar('der')">▶</button>
+        <div id="col-linea-tiempo">
+            <div class="toggle-container">
+                <span>👁️ HISTORIAL</span>
+                <label class="switch">
+                    <input type="checkbox" id="historyToggle" checked onchange="draw()">
+                    <span class="slider"></span>
+                </label>
             </div>
-            
-            <div id="playback-controls" style="display:none; flex-direction: column; gap: 5px;">
-                <div style="display: flex; gap: 4px; width: 100%;">
-                    <button id="mainPlayBtn" class="btn-play snd-btn" onclick="playFullPlay(false)" title="Play" style="flex: 2; height: 36px; padding: 0;">▶ PLAY</button>
-                    <button id="mainLoopBtn" class="btn-loop snd-btn" onclick="toggleLoop()" title="Loop" style="flex: 1; height: 36px; padding: 0; font-size: 14px;">🔄</button>
+            <div id="steps-container">
+                <div id="steps-list" style="display: flex; flex-direction: column; gap: 4px;"></div>
+                <button id="addStepBtn" class="btn-add snd-btn" onclick="addNewStep()">+ SIG. PASO</button>
+            </div>
+            <div id="actions-timeline">
+                <div id="edit-controls" style="display: flex; flex-direction: column; gap: 5px;">
+                    <button id="delStepBtn" class="btn-del snd-btn" onclick="deleteLastStep()" style="display:none;">🗑️ BORRAR PASO</button>
+                    <button id="finishBtn" class="btn-finish snd-btn" onclick="finishEdition()">🏁 FINALIZAR</button>
                 </div>
-                <div style="display: flex; gap: 4px; width: 100%;">
-                    <button class="btn-fullscreen snd-btn" onclick="toggleFullscreenPlay(true)" title="Pantalla Completa" style="flex: 1; height: 34px; padding: 0; font-size: 14px;">⤢</button>
-                    <button class="snd-btn" onclick="backToEdit()" title="Modificar" style="background:#555; color:white; flex: 1; height: 34px; padding: 0; font-size: 13px;">✎</button>
+                
+                <div id="playback-controls" style="display:none; flex-direction: column; gap: 5px;">
+                    <div style="display: flex; gap: 4px; width: 100%;">
+                        <button id="mainPlayBtn" class="btn-play snd-btn" onclick="playFullPlay(false)" title="Play" style="flex: 2; height: 36px; padding: 0;">▶ PLAY</button>
+                        <button id="mainLoopBtn" class="btn-loop snd-btn" onclick="toggleLoop()" title="Loop" style="flex: 1; height: 36px; padding: 0; font-size: 14px;">🔄</button>
+                    </div>
+                    <div style="display: flex; gap: 4px; width: 100%;">
+                        <button class="snd-btn" onclick="backToEdit()" title="Modificar" style="background:#555; color:white; flex: 1; height: 34px; padding: 0; font-size: 13px; font-weight: bold;">✎ MODIFICAR JUGADA</button>
+                    </div>
                 </div>
             </div>
         </div>

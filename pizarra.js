@@ -649,3 +649,205 @@ function draw() {
         ctx.restore();
     });
 }
+
+// ========================================================
+// REPARACIÓN DE ANIMACIÓN: LOGO DE CANCHA CONTINUO EN PLAY
+// ========================================================
+
+function renderAnim() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height); 
+    if (typeof drawParquetTexture === "function") drawParquetTexture();
+    
+    // --- INTEGRACIÓN DEL ESCUDO EN EL MOTOR DE ANIMACIÓN ---
+    if (logoCanchaImg.complete && logoCanchaImg.naturalWidth !== 0) {
+        ctx.save();
+        const anchoDeseado = 95 * sF; 
+        const proporcion = logoCanchaImg.naturalHeight / logoCanchaImg.naturalWidth;
+        const altoCalculado = anchoDeseado * proporcion;
+        
+        const centroX = canvas.width / 2;
+        const centroY = canvas.height * 0.52; 
+        
+        ctx.translate(centroX, centroY);
+        ctx.globalCompositeOperation = 'source-over'; 
+        ctx.filter = 'brightness(0.3) contrast(1.2)';
+        ctx.globalAlpha = 0.15; 
+        
+        ctx.drawImage(logoCanchaImg, -anchoDeseado / 2, -altoCalculado / 2, anchoDeseado, altoCalculado);
+        ctx.restore();
+    }
+    // ------------------------------------------------------------
+    
+    const r = 15 * sF, activeColor = stepColors[currentStep % stepColors.length];
+    
+    // Trayectorias fijas de fondo durante el play
+    [...players, ball].forEach(p => {
+        if(p === ball && !ball.active) return;
+        const path = p.steps[currentStep];
+        if(currentStep > 0 && path.length > 1) {
+            ctx.beginPath(); ctx.strokeStyle = activeColor; ctx.lineWidth = 3.5 * sF;
+            if(p === ball) ctx.setLineDash([5, 5]);
+            ctx.moveTo(path[0].x, path[0].y); 
+            for(let i=1; i<path.length; i++) ctx.lineTo(path[i].x, path[i].y);
+            ctx.stroke(); ctx.setLineDash([]);
+        }
+    });
+    
+    // Dibujado interpolado de fichas en movimiento
+    [...players, ball].forEach(p => { 
+        if(p === ball && !ball.active) return; 
+        ctx.save(); ctx.translate(p.ax, p.ay); 
+        if(p === ball) { 
+            ctx.font = `${r * 1.6}px Arial`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("🏀", 0, 0); 
+        } else {
+            if(p.as) {
+                ctx.rotate(p.aa * Math.PI / 180); ctx.fillStyle = (p.team === 'red' ? '#CC0000' : '#0044CC');
+                ctx.fillRect(-r*1.2, -r*0.4, r*2.4, r*0.8); ctx.strokeStyle = "#fff"; ctx.lineWidth = 2 * sF; ctx.strokeRect(-r*1.2, -r*0.4, r*2.4, r*0.8);
+                const pl = players.find(x => x === p);
+                if(pl && pl.label) { ctx.rotate(-p.aa * Math.PI / 180); ctx.fillStyle = "white"; ctx.font = `bold ${r * 0.8}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(pl.label, 0, 1); }
+            } else { 
+                const pl = players.find(x => x === p); drawJersey(p.team === 'red' ? '#CC0000' : '#0044CC', r, pl ? pl.label : ''); 
+            }
+        }
+        ctx.restore(); 
+    });
+}
+
+// ========================================================
+// NUEVO SISTEMA DE JAVASCRIPT 116 (SOLAPAS Y FULLSCREEN GLOBAL)
+// ========================================================
+
+// 1. FUNCIÓN INTERNA: Actualiza la visibilidad del menú flotante de reproducción
+function verificarMenuFlotante() {
+    const derEscondido = document.getElementById('col-linea-tiempo-container').classList.contains('colapsado');
+    const menuFlotante = document.getElementById('fullscreen-floating-menu');
+    
+    if (menuFlotante) {
+        if (isEditionFinished && derEscondido) {
+            menuFlotante.style.display = "flex";
+        } else {
+            menuFlotante.style.display = "none";
+        }
+    }
+}
+
+// 2. CONTROL DE SOLAPAS LATERALES INDEPENDIENTES
+function toggleSidebar(lado) {
+    const contenedor = document.getElementById(lado === 'izq' ? 'col-izquierda-container' : 'col-linea-tiempo-container');
+    const boton = document.getElementById(lado === 'izq' ? 'solapa-izq' : 'solapa-der');
+    
+    if (!contenedor || !boton) return;
+    
+    const estaColapsado = contenedor.classList.toggle('colapsado');
+    
+    if (lado === 'izq') {
+        boton.innerText = estaColapsado ? "▶" : "◀";
+    } else {
+        boton.innerText = estaColapsado ? "◀" : "▶";
+    }
+    
+    verificarMenuFlotante();
+    
+    const tiempoInicio = performance.now();
+    const duracionAnimacion = 350; 
+    
+    function animarCanvas() {
+        resizeCanvas();
+        const tiempoActual = performance.now();
+        if (tiempoActual - tiempoInicio < duracionAnimacion) {
+            requestAnimationFrame(animarCanvas); 
+        } else {
+            resizeCanvas(); 
+        }
+    }
+    requestAnimationFrame(animarCanvas);
+}
+
+// 3. CONTROL DE PANTALLA COMPLETA REAL (API GLOBAL)
+function toggleRealFullscreen() {
+    const btn = document.getElementById('realFsBtn');
+    
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen()
+            .then(() => {
+                if (btn) btn.innerText = "❌";
+            })
+            .catch(err => {
+                console.log(`Error de hardware full screen: ${err.message}`);
+            });
+    } else {
+        document.exitFullscreen()
+            .then(() => {
+                if (btn) btn.innerText = "⤢";
+            });
+    }
+}
+
+// Escuchador de hardware para el botón de salir del celular
+document.addEventListener('fullscreenchange', () => {
+    const btn = document.getElementById('realFsBtn');
+    if (btn) {
+        if (document.fullscreenElement) {
+            btn.innerText = "❌";
+        } else {
+            btn.innerText = "⤢";
+        }
+    }
+    setTimeout(resizeCanvas, 150);
+});
+
+// 4. RE-ESCRITURA: Modificar jugada
+function backToEdit() {
+    shouldStopLoop = true; 
+    isLooping = false; 
+    
+    const mainLoopBtn = document.getElementById('mainLoopBtn');
+    const floatLoopBtn = document.getElementById('floatLoopBtn');
+    if (mainLoopBtn) mainLoopBtn.innerText = "🔄";
+    if (floatLoopBtn) floatLoopBtn.innerText = "🔄 LOOP: OFF";
+    
+    isEditionFinished = false; 
+    
+    document.getElementById('playback-controls').style.display = "none"; 
+    document.getElementById('edit-controls').style.display = "flex";
+    if (addStepBtn) addStepBtn.style.display = "block"; 
+    
+    verificarMenuFlotante();
+    
+    updateStepUI(); 
+    draw(); 
+    renderTimeline(); 
+    if (typeof attachButtonSounds === "function") attachButtonSounds();
+}
+
+// 5. RE-ESCRITURA: Finalizar jugada
+function toggleFullscreenPlay(goFS) {
+    if(goFS) {
+        isEditionFinished = true;
+        document.getElementById('edit-controls').style.display = "none";
+        document.getElementById('playback-controls').style.display = "flex";
+        if(addStepBtn) addStepBtn.style.display = "none";
+    } else {
+        backToEdit();
+    }
+    verificarMenuFlotante();
+    resizeCanvas();
+}
+
+// 6. VIGILANTE ULTRA-PRECISO: Despierta las solapas SOLO cuando el loader muere del todo
+const loaderTarget = document.getElementById('loading-screen');
+if (loaderTarget) {
+    const observer = new MutationObserver(() => {
+        // Si el loader pasó a display: none o ya no está visible
+        if (loaderTarget.style.display === 'none' || loaderTarget.style.opacity === '0') {
+            const sIzq = document.getElementById('solapa-izq');
+            const sDer = document.getElementById('solapa-der');
+            if (sIzq) sIzq.classList.add('solapa-activa');
+            if (sDer) sDer.classList.add('solapa-activa');
+            resizeCanvas();
+            observer.disconnect(); // El vigilante se apaga para ahorrar memoria
+        }
+    });
+    // Le decimos al vigilante que mire los cambios de estilo del loader
+    observer.observe(loaderTarget, { attributes: true, attributeFilter: ['style'] });
+}
