@@ -714,7 +714,7 @@ function renderAnim() {
 }
 
 // ========================================================
-// NUEVO SISTEMA DE JAVASCRIPT 116.7 (REDIMENSIÓN PROPORCIONAL CALIBRADA)
+// NUEVO SISTEMA DE JAVASCRIPT 116.8 (DISPARADOR DE EVENTO NATIVO)
 // ========================================================
 
 // 1. FUNCIÓN INTERNA: Actualiza la visibilidad del menú flotante de reproducción
@@ -731,7 +731,17 @@ function verificarMenuFlotante() {
     }
 }
 
-// 2. CONTROL DE SOLAPAS LATERALES CON RE-ESCALADO NATIVO POR RETARDO
+// 2. FUNCIÓN INTERNA: Provoca un evento resize artificial para despertar al navegador del celular
+function despabilarNavegadorCelular() {
+    // Creamos y disparamos un evento 'resize' nativo global del sistema
+    window.dispatchEvent(new Event('resize'));
+    
+    // Si tus funciones originales están accesibles, las reforzamos por las dudas
+    if (typeof resize === "function") resize();
+    if (typeof draw === "function") draw();
+}
+
+// 3. CONTROL DE SOLAPAS LATERALES CON DESPABILADOR POR RETARDO
 function toggleSidebar(lado) {
     const contenedor = document.getElementById(lado === 'izq' ? 'col-izquierda-container' : 'col-linea-tiempo-container');
     const boton = document.getElementById(lado === 'izq' ? 'solapa-izq' : 'solapa-der');
@@ -748,21 +758,15 @@ function toggleSidebar(lado) {
     
     verificarMenuFlotante();
     
-    // Ejecutamos tu función resize nativa en ráfaga táctica para acompañar 
-    // el deslizamiento de la solapa sin deformar un solo gráfico
-    if (typeof resize === "function") resize();
-    
-    setTimeout(() => { if (typeof resize === "function") resize(); }, 100);
-    setTimeout(() => { if (typeof resize === "function") resize(); }, 200);
-    setTimeout(() => { 
-        if (typeof resize === "function") resize(); 
-        if (typeof draw === "function") draw(); // Redibuja el escudo centrado
-    }, 360); // Clavado exacto cuando termina la animación CSS (0.35s)
-    
-    setTimeout(() => { if (typeof resize === "function") resize(); }, 550); // Resguardo final por lag
+    // Mandamos una ráfaga de eventos nativos artificiales mientras dura la animación CSS
+    despabilarNavegadorCelular();
+    setTimeout(despabilarNavegadorCelular, 100);
+    setTimeout(despabilarNavegadorCelular, 200);
+    setTimeout(despabilarNavegadorCelular, 360); // Clavado exacto al terminar el recorrido (.35s)
+    setTimeout(despabilarNavegadorCelular, 550); // Resguardo final por lag del teléfono
 }
 
-// 3. CONTROL DE PANTALLA COMPLETA REAL (API GLOBAL)
+// 4. CONTROL DE PANTALLA COMPLETA REAL (API GLOBAL)
 function toggleRealFullscreen() {
     const btn = document.getElementById('realFsBtn');
     
@@ -770,8 +774,8 @@ function toggleRealFullscreen() {
         document.documentElement.requestFullscreen()
             .then(() => {
                 if (btn) btn.innerText = "❌";
-                setTimeout(() => { if (typeof resize === "function") resize(); }, 150);
-                setTimeout(() => { if (typeof resize === "function") resize(); }, 450);
+                setTimeout(despabilarNavegadorCelular, 150);
+                setTimeout(despabilarNavegadorCelular, 450);
             })
             .catch(err => {
                 console.log(`Error de hardware full screen: ${err.message}`);
@@ -780,8 +784,8 @@ function toggleRealFullscreen() {
         document.exitFullscreen()
             .then(() => {
                 if (btn) btn.innerText = "⤢";
-                setTimeout(() => { if (typeof resize === "function") resize(); }, 150);
-                setTimeout(() => { if (typeof resize === "function") resize(); }, 450);
+                setTimeout(despabilarNavegadorCelular, 150);
+                setTimeout(despabilarNavegadorCelular, 450);
             });
     }
 }
@@ -796,8 +800,8 @@ document.addEventListener('fullscreenchange', () => {
             btn.innerText = "⤢";
         }
     }
-    setTimeout(() => { if (typeof resize === "function") resize(); }, 150);
-    setTimeout(() => { if (typeof resize === "function") resize(); }, 500);
+    setTimeout(despabilarNavegadorCelular, 150);
+    setTimeout(despabilarNavegadorCelular, 500);
 });
 
 // ESCUCHADOR GLOBAL DE RESIZE DEL NAVEGADOR
@@ -806,7 +810,7 @@ window.addEventListener('resize', () => {
     setTimeout(() => { if (typeof resize === "function") resize(); }, 200);
 });
 
-// 4. RE-ESCRITURA: Modificar jugada
+// 5. RE-ESCRITURA: Modificar jugada
 function backToEdit() {
     shouldStopLoop = true; 
     isLooping = false; 
@@ -828,10 +832,10 @@ function backToEdit() {
     draw(); 
     renderTimeline(); 
     if (typeof attachButtonSounds === "function") attachButtonSounds();
-    setTimeout(() => { if (typeof resize === "function") resize(); }, 100);
+    setTimeout(despabilarNavegadorCelular, 100);
 }
 
-// 5. RE-ESCRITURA: Finalizar jugada
+// 6. RE-ESCRITURA: Finalizar jugada
 function toggleFullscreenPlay(goFS) {
     if(goFS) {
         isEditionFinished = true;
@@ -842,11 +846,11 @@ function toggleFullscreenPlay(goFS) {
         backToEdit();
     }
     verificarMenuFlotante();
-    if (typeof resize === "function") resize();
-    setTimeout(() => { if (typeof resize === "function") resize(); }, 100);
+    despabilarNavegadorCelular();
+    setTimeout(despabilarNavegadorCelular, 100);
 }
 
-// 6. VIGILANTE DEL LOADER
+// 7. VIGILANTE DEL LOADER
 const loaderTarget = document.getElementById('loading-screen');
 if (loaderTarget) {
     const observer = new MutationObserver(() => {
@@ -855,7 +859,7 @@ if (loaderTarget) {
             const sDer = document.getElementById('solapa-der');
             if (sIzq) sIzq.classList.add('solapa-activa');
             if (sDer) sDer.classList.add('solapa-activa');
-            if (typeof resize === "function") resize();
+            despabilarNavegadorCelular();
             observer.disconnect(); 
         }
     });
