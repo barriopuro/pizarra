@@ -714,7 +714,7 @@ function renderAnim() {
 }
 
 // ========================================================
-// NUEVO SISTEMA DE JAVASCRIPT 116.2 (REDIMENSIÓN DE SOLAPAS CALIBRADA)
+// NUEVO SISTEMA DE JAVASCRIPT 116.3 (REDIMENSIÓN DE SOLAPAS FLUIDA REAL)
 // ========================================================
 
 // 1. FUNCIÓN INTERNA: Actualiza la visibilidad del menú flotante de reproducción
@@ -731,7 +731,7 @@ function verificarMenuFlotante() {
     }
 }
 
-// 2. CONTROL DE SOLAPAS LATERALES INDEPENDIENTES CON AJUSTE DE CANCHA FINAL
+// 2. CONTROL DE SOLAPAS LATERALES CON REDIBUJADO FLUIDO REAL (60 FPS)
 function toggleSidebar(lado) {
     const contenedor = document.getElementById(lado === 'izq' ? 'col-izquierda-container' : 'col-linea-tiempo-container');
     const boton = document.getElementById(lado === 'izq' ? 'solapa-izq' : 'solapa-der');
@@ -748,26 +748,29 @@ function toggleSidebar(lado) {
     
     verificarMenuFlotante();
     
-    // Forzamos redibujado continuo durante la transición (350ms)
-    const tiempoInicio = performance.now();
-    const duracionAnimacion = 350; 
+    // REPARACIÓN DEFINITIVA: Ciclo de redibujado fluido real
+    let start;
+    const duracionAnimacion = 350; // Mismo tiempo que el CSS (.35s)
     
-    function animarCanvas() {
-        resizeCanvas();
-        const tiempoActual = performance.now();
-        if (tiempoActual - tiempoInicio < duracionAnimacion) {
-            requestAnimationFrame(animarCanvas); 
+    // Esta función corre en cada frame de la animación
+    function step(timestamp) {
+        if (start === undefined) start = timestamp;
+        const elapsed = timestamp - start;
+        
+        // Redibujamos la cancha en este cuadro exacto del movimiento
+        if (typeof resizeCanvas === 'function') resizeCanvas();
+        
+        // Si no se cumplió el tiempo, pedimos el siguiente cuadro
+        if (elapsed < duracionAnimacion) {
+            requestAnimationFrame(step);
         } else {
-            resizeCanvas(); 
+            // Un resize final para asegurar clavado métrico
+            if (typeof resizeCanvas === 'function') resizeCanvas();
         }
     }
-    requestAnimationFrame(animarCanvas);
-
-    // SOLUCIÓN AL PROBLEMA: Metemos repeticiones con delay para cuando la barra 
-    // termine de ocultarse o restaurarse del todo en el celular
-    setTimeout(resizeCanvas, 150);
-    setTimeout(resizeCanvas, 360); // Justo cuando termina la animación CSS
-    setTimeout(resizeCanvas, 500); // Resguardo final por si el cel tiene lag
+    
+    // Iniciamos la animación
+    requestAnimationFrame(step);
 }
 
 // 3. CONTROL DE PANTALLA COMPLETA REAL (API GLOBAL)
@@ -808,7 +811,7 @@ document.addEventListener('fullscreenchange', () => {
     setTimeout(resizeCanvas, 500);
 });
 
-// ESCUCHADOR GLOBAL DE RESIZE: Si el navegador cambia de tamaño físico, la cancha se amolda
+// ESCUCHADOR GLOBAL DE RESIZE
 window.addEventListener('resize', () => {
     resizeCanvas();
     setTimeout(resizeCanvas, 200);
@@ -863,7 +866,7 @@ if (loaderTarget) {
             const sDer = document.getElementById('solapa-der');
             if (sIzq) sIzq.classList.add('solapa-activa');
             if (sDer) sDer.classList.add('solapa-activa');
-            resizeCanvas();
+            if (typeof resizeCanvas === 'function') resizeCanvas();
             observer.disconnect(); 
         }
     });
