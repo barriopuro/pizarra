@@ -119,7 +119,7 @@ select, button { padding: 10px 4px; border-radius: 6px; border: none; font-weigh
 }
 
 /* ========================================================
-/* NUEVO SISTEMA DE SOLAPAS 116.4 (REPARACIÓN DE INTERFAZ)
+/* NUEVO SISTEMA DE SOLAPAS 116.6 (ESTIRAMIENTO POR HARDWARE)
 /* ======================================================== */
 
 /* 1. Contenedores laterales: control de ancho mediante max-width */
@@ -135,7 +135,6 @@ select, button { padding: 10px 4px; border-radius: 6px; border: none; font-weigh
 #col-linea-tiempo-container.colapsado {
     width: 0px !important;
     max-width: 0px !important;
-    transition: max-width 0.35s cubic-bezier(0.4, 0, 0.2, 1), width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* 2. Desplazamiento horizontal de las barras */
@@ -170,7 +169,7 @@ select, button { padding: 10px 4px; border-radius: 6px; border: none; font-weigh
     cursor: pointer !important;
     align-items: center !important;
     justify-content: center !important;
-    z-index: 1000 !important; /* CORRECCIÓN: z-index normalizado para que no tape alertas */
+    z-index: 1000 !important; 
     padding: 0 !important;
     border-radius: 0 4px 4px 0 !important;
     transition: background 0.2s, opacity 0.4s ease, visibility 0.4s ease;
@@ -209,7 +208,22 @@ select, button { padding: 10px 4px; border-radius: 6px; border: none; font-weigh
     height: 0 !important;
 }
 
-/* CORRECCIÓN: Forzamos que el cartel de rotación tape absolutamente toda la pantalla */
 #landscape-forcer {
     z-index: 999999 !important;
+}
+
+/* ========================================================
+/* FORZADO ELÁSTICO POR CSS (CANCHA GIGANTE OBLIGATORIA)
+/* ======================================================== */
+#col-cancha {
+    flex-grow: 1 !important;
+    width: auto !important;
+    transition: width 0.35s ease;
+}
+
+#canvas-wrap-outer, #canvas-wrap, #canvas {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
 }

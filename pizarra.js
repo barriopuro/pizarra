@@ -714,7 +714,7 @@ function renderAnim() {
 }
 
 // ========================================================
-// NUEVO SISTEMA DE JAVASCRIPT 116.5 (FORZADO MÉTRICO DE CANCHA)
+// NUEVO SISTEMA DE JAVASCRIPT 116.6 (SISTEMA INTEGRADO LIMPIO)
 // ========================================================
 
 // 1. FUNCIÓN INTERNA: Actualiza la visibilidad del menú flotante de reproducción
@@ -731,57 +731,29 @@ function verificarMenuFlotante() {
     }
 }
 
-// 2. FUNCIÓN INTERNA: Fuerza al Canvas a medir el espacio real libre de la columna central
-function forzarRedimensionadoReal() {
-    const colCancha = document.getElementById('col-cancha');
-    const canvasElement = document.getElementById('canvas');
-    
-    if (colCancha && canvasElement) {
-        // Obtenemos el ancho real en píxeles que tiene la zona de la cancha en este instante
-        const anchoDisponible = colCancha.clientWidth;
-        
-        // Si tu función resize original existe, la ejecutamos primero
-        if (typeof resize === "function") resize();
-        
-        // HACHAZO DE AUXILIO: Si el canvas no se estiró al ancho disponible, lo obligamos por código
-        if (canvasElement.width !== anchoDisponible && anchoDisponible > 0) {
-            // Forzamos la actualización métrica del entorno adaptando tu función original
-            if (typeof updateLayout === "function") updateLayout();
-            if (typeof draw === "function") draw();
-        }
-    }
-}
-
-// 3. CONTROL DE SOLAPAS LATERALES CON ANIMACIÓN Y FORZADO MÉTRICO
+// 2. CONTROL DE SOLAPAS LATERALES (El estiramiento lo hace el CSS de forma elástica)
 function toggleSidebar(lado) {
     const contenedor = document.getElementById(lado === 'izq' ? 'col-izquierda-container' : 'col-linea-tiempo-container');
     const boton = document.getElementById(lado === 'izq' ? 'solapa-izq' : 'solapa-der');
     
     if (!contenedor || !boton) return;
     
-    const estaColapsado = contenedor.classList.toggle('colapsado');
+    contenedor.classList.toggle('colapsado');
     
     if (lado === 'izq') {
-        boton.innerText = estaColapsado ? "▶" : "◀";
+        boton.innerText = contenedor.classList.contains('colapsado') ? "▶" : "◀";
     } else {
-        boton.innerText = estaColapsado ? "◀" : "▶";
+        boton.innerText = contenedor.classList.contains('colapsado') ? "◀" : "▶";
     }
     
     verificarMenuFlotante();
     
-    // Corremos el forzado métrico en bucle mientras dura el slide de la solapa (.35s)
-    let pasosAnim = 0;
-    const intervaloResize = setInterval(() => {
-        forzarRedimensionadoReal();
-        pasosAnim++;
-        if (pasosAnim >= 25) {
-            clearInterval(intervaloResize);
-            forzarRedimensionadoReal(); // Ajuste final de cierre
-        }
-    }, 16);
+    // Un llamado rápido para limpiar trazos
+    if (typeof resize === "function") resize();
+    if (typeof draw === "function") draw();
 }
 
-// 4. CONTROL DE PANTALLA COMPLETA REAL (API GLOBAL)
+// 3. CONTROL DE PANTALLA COMPLETA REAL (API GLOBAL)
 function toggleRealFullscreen() {
     const btn = document.getElementById('realFsBtn');
     
@@ -789,8 +761,7 @@ function toggleRealFullscreen() {
         document.documentElement.requestFullscreen()
             .then(() => {
                 if (btn) btn.innerText = "❌";
-                setTimeout(forzarRedimensionadoReal, 100);
-                setTimeout(forzarRedimensionadoReal, 400);
+                setTimeout(() => { if (typeof resize === "function") resize(); }, 150);
             })
             .catch(err => {
                 console.log(`Error de hardware full screen: ${err.message}`);
@@ -799,8 +770,7 @@ function toggleRealFullscreen() {
         document.exitFullscreen()
             .then(() => {
                 if (btn) btn.innerText = "⤢";
-                setTimeout(forzarRedimensionadoReal, 100);
-                setTimeout(forzarRedimensionadoReal, 400);
+                setTimeout(() => { if (typeof resize === "function") resize(); }, 150);
             });
     }
 }
@@ -815,17 +785,15 @@ document.addEventListener('fullscreenchange', () => {
             btn.innerText = "⤢";
         }
     }
-    setTimeout(forzarRedimensionadoReal, 150);
-    setTimeout(forzarRedimensionadoReal, 500);
+    setTimeout(() => { if (typeof resize === "function") resize(); }, 150);
 });
 
 // ESCUCHADOR GLOBAL DE RESIZE DEL NAVEGADOR
 window.addEventListener('resize', () => {
-    forzarRedimensionadoReal();
-    setTimeout(forzarRedimensionadoReal, 200);
+    if (typeof resize === "function") resize();
 });
 
-// 5. RE-ESCRITURA: Modificar jugada
+// 4. RE-ESCRITURA: Modificar jugada
 function backToEdit() {
     shouldStopLoop = true; 
     isLooping = false; 
@@ -847,10 +815,9 @@ function backToEdit() {
     draw(); 
     renderTimeline(); 
     if (typeof attachButtonSounds === "function") attachButtonSounds();
-    setTimeout(forzarRedimensionadoReal, 100);
 }
 
-// 6. RE-ESCRITURA: Finalizar jugada
+// 5. RE-ESCRITURA: Finalizar jugada
 function toggleFullscreenPlay(goFS) {
     if(goFS) {
         isEditionFinished = true;
@@ -861,11 +828,10 @@ function toggleFullscreenPlay(goFS) {
         backToEdit();
     }
     verificarMenuFlotante();
-    forzarRedimensionadoReal();
-    setTimeout(forzarRedimensionadoReal, 100);
+    if (typeof resize === "function") resize();
 }
 
-// 7. VIGILANTE DEL LOADER
+// 6. VIGILANTE DEL LOADER
 const loaderTarget = document.getElementById('loading-screen');
 if (loaderTarget) {
     const observer = new MutationObserver(() => {
@@ -874,7 +840,7 @@ if (loaderTarget) {
             const sDer = document.getElementById('solapa-der');
             if (sIzq) sIzq.classList.add('solapa-activa');
             if (sDer) sDer.classList.add('solapa-activa');
-            forzarRedimensionadoReal();
+            if (typeof resize === "function") resize();
             observer.disconnect(); 
         }
     });
