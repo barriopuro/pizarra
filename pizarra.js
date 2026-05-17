@@ -714,7 +714,7 @@ function renderAnim() {
 }
 
 // ========================================================
-// NUEVO SISTEMA DE JAVASCRIPT 116 (SOLAPAS Y FULLSCREEN GLOBAL)
+// NUEVO SISTEMA DE JAVASCRIPT 116.1 (CALIBRADO DISPOSITIVOS MÓVILES)
 // ========================================================
 
 // 1. FUNCIÓN INTERNA: Actualiza la visibilidad del menú flotante de reproducción
@@ -748,6 +748,7 @@ function toggleSidebar(lado) {
     
     verificarMenuFlotante();
     
+    // Forzamos redibujado continuo durante la transición
     const tiempoInicio = performance.now();
     const duracionAnimacion = 350; 
     
@@ -771,6 +772,9 @@ function toggleRealFullscreen() {
         document.documentElement.requestFullscreen()
             .then(() => {
                 if (btn) btn.innerText = "❌";
+                // Fuerza un reajuste inmediato y otro desfasado para cuando el celu termine de esconder sus barras
+                setTimeout(resizeCanvas, 100);
+                setTimeout(resizeCanvas, 400);
             })
             .catch(err => {
                 console.log(`Error de hardware full screen: ${err.message}`);
@@ -779,11 +783,13 @@ function toggleRealFullscreen() {
         document.exitFullscreen()
             .then(() => {
                 if (btn) btn.innerText = "⤢";
+                setTimeout(resizeCanvas, 100);
+                setTimeout(resizeCanvas, 400);
             });
     }
 }
 
-// Escuchador de hardware para el botón de salir del celular
+// Escuchador de hardware para cambios de pantalla completa o rotaciones en el celu
 document.addEventListener('fullscreenchange', () => {
     const btn = document.getElementById('realFsBtn');
     if (btn) {
@@ -793,7 +799,16 @@ document.addEventListener('fullscreenchange', () => {
             btn.innerText = "⤢";
         }
     }
+    // Repetimos el ajuste para ganarle al lag de transición del sistema operativo móvil
     setTimeout(resizeCanvas, 150);
+    setTimeout(resizeCanvas, 500);
+});
+
+// ESCUCHADOR GLOBAL DE RESIZE: Si el navegador cambia de tamaño físico (ocultamiento de barras en celu), la cancha se estira
+window.addEventListener('resize', () => {
+    resizeCanvas();
+    // Re-chequeo por si el teclado virtual o la barra del sistema generaron lag
+    setTimeout(resizeCanvas, 200);
 });
 
 // 4. RE-ESCRITURA: Modificar jugada
@@ -818,6 +833,7 @@ function backToEdit() {
     draw(); 
     renderTimeline(); 
     if (typeof attachButtonSounds === "function") attachButtonSounds();
+    setTimeout(resizeCanvas, 100);
 }
 
 // 5. RE-ESCRITURA: Finalizar jugada
@@ -832,22 +848,21 @@ function toggleFullscreenPlay(goFS) {
     }
     verificarMenuFlotante();
     resizeCanvas();
+    setTimeout(resizeCanvas, 100);
 }
 
 // 6. VIGILANTE ULTRA-PRECISO: Despierta las solapas SOLO cuando el loader muere del todo
 const loaderTarget = document.getElementById('loading-screen');
 if (loaderTarget) {
     const observer = new MutationObserver(() => {
-        // Si el loader pasó a display: none o ya no está visible
         if (loaderTarget.style.display === 'none' || loaderTarget.style.opacity === '0') {
             const sIzq = document.getElementById('solapa-izq');
             const sDer = document.getElementById('solapa-der');
             if (sIzq) sIzq.classList.add('solapa-activa');
             if (sDer) sDer.classList.add('solapa-activa');
             resizeCanvas();
-            observer.disconnect(); // El vigilante se apaga para ahorrar memoria
+            observer.disconnect(); 
         }
     });
-    // Le decimos al vigilante que mire los cambios de estilo del loader
     observer.observe(loaderTarget, { attributes: true, attributeFilter: ['style'] });
 }
