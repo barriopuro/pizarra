@@ -714,7 +714,7 @@ function renderAnim() {
 }
 
 // ========================================================
-// NUEVO SISTEMA DE JAVASCRIPT 116.1 (CALIBRADO DISPOSITIVOS MÓVILES)
+// NUEVO SISTEMA DE JAVASCRIPT 116.2 (REDIMENSIÓN DE SOLAPAS CALIBRADA)
 // ========================================================
 
 // 1. FUNCIÓN INTERNA: Actualiza la visibilidad del menú flotante de reproducción
@@ -731,7 +731,7 @@ function verificarMenuFlotante() {
     }
 }
 
-// 2. CONTROL DE SOLAPAS LATERALES INDEPENDIENTES
+// 2. CONTROL DE SOLAPAS LATERALES INDEPENDIENTES CON AJUSTE DE CANCHA FINAL
 function toggleSidebar(lado) {
     const contenedor = document.getElementById(lado === 'izq' ? 'col-izquierda-container' : 'col-linea-tiempo-container');
     const boton = document.getElementById(lado === 'izq' ? 'solapa-izq' : 'solapa-der');
@@ -748,7 +748,7 @@ function toggleSidebar(lado) {
     
     verificarMenuFlotante();
     
-    // Forzamos redibujado continuo durante la transición
+    // Forzamos redibujado continuo durante la transición (350ms)
     const tiempoInicio = performance.now();
     const duracionAnimacion = 350; 
     
@@ -762,6 +762,12 @@ function toggleSidebar(lado) {
         }
     }
     requestAnimationFrame(animarCanvas);
+
+    // SOLUCIÓN AL PROBLEMA: Metemos repeticiones con delay para cuando la barra 
+    // termine de ocultarse o restaurarse del todo en el celular
+    setTimeout(resizeCanvas, 150);
+    setTimeout(resizeCanvas, 360); // Justo cuando termina la animación CSS
+    setTimeout(resizeCanvas, 500); // Resguardo final por si el cel tiene lag
 }
 
 // 3. CONTROL DE PANTALLA COMPLETA REAL (API GLOBAL)
@@ -772,7 +778,6 @@ function toggleRealFullscreen() {
         document.documentElement.requestFullscreen()
             .then(() => {
                 if (btn) btn.innerText = "❌";
-                // Fuerza un reajuste inmediato y otro desfasado para cuando el celu termine de esconder sus barras
                 setTimeout(resizeCanvas, 100);
                 setTimeout(resizeCanvas, 400);
             })
@@ -799,15 +804,13 @@ document.addEventListener('fullscreenchange', () => {
             btn.innerText = "⤢";
         }
     }
-    // Repetimos el ajuste para ganarle al lag de transición del sistema operativo móvil
     setTimeout(resizeCanvas, 150);
     setTimeout(resizeCanvas, 500);
 });
 
-// ESCUCHADOR GLOBAL DE RESIZE: Si el navegador cambia de tamaño físico (ocultamiento de barras en celu), la cancha se estira
+// ESCUCHADOR GLOBAL DE RESIZE: Si el navegador cambia de tamaño físico, la cancha se amolda
 window.addEventListener('resize', () => {
     resizeCanvas();
-    // Re-chequeo por si el teclado virtual o la barra del sistema generaron lag
     setTimeout(resizeCanvas, 200);
 });
 
