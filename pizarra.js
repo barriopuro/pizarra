@@ -714,7 +714,7 @@ function renderAnim() {
 }
 
 // ========================================================
-// NUEVO SISTEMA DE JAVASCRIPT 116.8 (DISPARADOR DE EVENTO NATIVO)
+// NUEVO SISTEMA DE JAVASCRIPT 116.9 (REUBICACIÓN PROPORCIONAL DE JUGADORES)
 // ========================================================
 
 // 1. FUNCIÓN INTERNA: Actualiza la visibilidad del menú flotante de reproducción
@@ -731,17 +731,23 @@ function verificarMenuFlotante() {
     }
 }
 
-// 2. FUNCIÓN INTERNA: Provoca un evento resize artificial para despertar al navegador del celular
+// 2. FUNCIÓN INTERNA: Fuerza al navegador a recalcular la cancha y reacomodar los jugadores
 function despabilarNavegadorCelular() {
-    // Creamos y disparamos un evento 'resize' nativo global del sistema
+    // Disparamos el evento nativo del sistema para actualizar la ventana
     window.dispatchEvent(new Event('resize'));
     
-    // Si tus funciones originales están accesibles, las reforzamos por las dudas
+    // Ejecutamos tus funciones nativas de escala y dibujo
     if (typeof resize === "function") resize();
+    
+    // CLAVE DE REPARACIÓN: Forzamos la reubicación proporcional de fichas y pelota
+    if (typeof updateLayout === "function") updateLayout();
+    if (typeof updatePlayerPositions === "function") updatePlayerPositions();
+    
+    // Redibujamos todo el parqué con los elementos en sus nuevos puestos correctos
     if (typeof draw === "function") draw();
 }
 
-// 3. CONTROL DE SOLAPAS LATERALES CON DESPABILADOR POR RETARDO
+// 3. CONTROL DE SOLAPAS LATERALES CON DESPABILADOR EN RÁFAGA
 function toggleSidebar(lado) {
     const contenedor = document.getElementById(lado === 'izq' ? 'col-izquierda-container' : 'col-linea-tiempo-container');
     const boton = document.getElementById(lado === 'izq' ? 'solapa-izq' : 'solapa-der');
@@ -758,12 +764,12 @@ function toggleSidebar(lado) {
     
     verificarMenuFlotante();
     
-    // Mandamos una ráfaga de eventos nativos artificiales mientras dura la animación CSS
+    // Ráfaga táctica para que los jugadores acompañen el movimiento elástico sin desfasarse
     despabilarNavegadorCelular();
     setTimeout(despabilarNavegadorCelular, 100);
     setTimeout(despabilarNavegadorCelular, 200);
-    setTimeout(despabilarNavegadorCelular, 360); // Clavado exacto al terminar el recorrido (.35s)
-    setTimeout(despabilarNavegadorCelular, 550); // Resguardo final por lag del teléfono
+    setTimeout(despabilarNavegadorCelular, 360); // Clavado exacto al terminar el slide CSS (.35s)
+    setTimeout(despabilarNavegadorCelular, 550); // Resguardo final por lag
 }
 
 // 4. CONTROL DE PANTALLA COMPLETA REAL (API GLOBAL)
@@ -807,7 +813,12 @@ document.addEventListener('fullscreenchange', () => {
 // ESCUCHADOR GLOBAL DE RESIZE DEL NAVEGADOR
 window.addEventListener('resize', () => {
     if (typeof resize === "function") resize();
-    setTimeout(() => { if (typeof resize === "function") resize(); }, 200);
+    if (typeof updateLayout === "function") updateLayout();
+    if (typeof updatePlayerPositions === "function") updatePlayerPositions();
+    setTimeout(() => { 
+        if (typeof resize === "function") resize(); 
+        if (typeof draw === "function") draw();
+    }, 200);
 });
 
 // 5. RE-ESCRITURA: Modificar jugada
