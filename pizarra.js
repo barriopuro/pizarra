@@ -545,3 +545,107 @@ function toggleBall() {
     }
     draw(); 
 }
+
+// ========================================================
+// CAPA DE ESCUDO CENTRAL CORREGIDA: MADERAS SÓLIDAS Y DETALLES INTERNOS
+// ========================================================
+
+const logoCanchaImg = new Image();
+logoCanchaImg.src = 'logo.svg';
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height); 
+    if (typeof drawParquetTexture === "function") drawParquetTexture();
+    
+    // --- DIBUJADO DEL ESCUDO EN ARMONÍA CON EL PARQUET ---
+    if (logoCanchaImg.complete && logoCanchaImg.naturalWidth !== 0) {
+        ctx.save();
+        
+        // Mantenemos la proporción vertical real
+        const anchoDeseado = 95 * sF; 
+        const proporcion = logoCanchaImg.naturalHeight / logoCanchaImg.naturalWidth;
+        const altoCalculado = anchoDeseado * proporcion;
+        
+        // Mantenemos la ubicación exacta en el eje de libres (pH = h * 0.52)
+        const centroX = canvas.width / 2;
+        const centroY = canvas.height * 0.52; 
+        
+        ctx.translate(centroX, centroY);
+        
+        // REPARACIÓN COMPLETA: 
+        // 1. Usamos 'source-over' (el modo normal) para NO romper el parqué de fondo.
+        ctx.globalCompositeOperation = 'source-over'; 
+        
+        // 2. Apagamos los brillos del blanco/rojo y lo llevamos a un tono oscuro sutil con filtros.
+        ctx.filter = 'brightness(0.3) contrast(1.2)';
+        
+        // 3. Le damos una opacidad bien baja para que las vetas de la madera pasen a través del logo.
+        ctx.globalAlpha = 0.15; 
+        
+        // Dibujamos el logo centrado
+        ctx.drawImage(logoCanchaImg, -anchoDeseado / 2, -altoCalculado / 2, anchoDeseado, altoCalculado);
+        
+        ctx.restore();
+    }
+    // ------------------------------------------------------------
+
+    const radius = 15 * sF, showHistory = historyToggle.checked;
+    
+    // Historial translúcido
+    if(showHistory && currentStep > 0) {
+        ctx.save(); ctx.globalAlpha = 0.22;
+        for (let stepIdx = 0; stepIdx < currentStep; stepIdx++) {
+            const colorTáctico = stepColors[stepIdx % stepColors.length];
+            [...players, ball].forEach(p => {
+                if(p === ball && !ball.active) return;
+                const path = p.steps[stepIdx]; if(!path || path.length === 0) return;
+                const last = path[path.length - 1];
+                if(stepIdx > 0 && path.length > 1) {
+                    ctx.beginPath(); ctx.strokeStyle = colorTáctico; ctx.lineWidth = 2 * sF;
+                    if(p === ball) ctx.setLineDash([4, 4]);
+                    ctx.moveTo(path[0].x, path[0].y); for(let j=1; j<path.length; j++) ctx.lineTo(path[j].x, path[j].y);
+                    ctx.stroke(); ctx.setLineDash([]);
+                }
+                ctx.save(); ctx.translate(last.x, last.y);
+                if(p === ball) { ctx.font = `${radius * 1.3}px Arial`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("🏀", 0, 0); } 
+                else {
+                    if(last.isScreen) {
+                        ctx.rotate(last.angle * Math.PI / 180); ctx.fillStyle = (p.team === 'red' ? '#CC0000' : '#0044CC');
+                        ctx.fillRect(-radius*1.2, -radius*0.4, radius*2.4, radius*0.8); ctx.strokeStyle="#fff"; ctx.lineWidth = 2*sF; ctx.strokeRect(-radius*1.2, -radius*0.4, radius*2.4, radius*0.8);
+                    } else { drawJersey(p.team === 'red' ? '#CC0000' : '#0044CC', radius, p.label); }
+                }
+                ctx.restore();
+            });
+        }
+        ctx.restore();
+    }
+
+    // Fichas del Paso Activo
+    const activeColor = stepColors[currentStep % stepColors.length];
+    [...players, ball].forEach(p => {
+        if(p === ball && !ball.active) return;
+        const path = p.steps[currentStep]; if (!path || path.length === 0) return;
+        const last = path[path.length - 1];
+        if(activeObj === p) {
+            ctx.save(); ctx.beginPath(); ctx.arc(last.x, last.y, (p === ball ? radius * 1.15 : radius * 1.6), 0, Math.PI * 2);
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.85)"; ctx.lineWidth = 3*sF; ctx.setLineDash([4, 4]); ctx.stroke(); ctx.restore();
+        }
+        if(currentStep > 0 && path.length > 1) {
+            ctx.beginPath(); ctx.strokeStyle = activeColor; ctx.lineWidth = 3.5 * sF;
+            if(p === ball) ctx.setLineDash([5, 5]);
+            ctx.moveTo(path[0].x, path[0].y); 
+            for(let k=1; k<path.length; k++) { ctx.lineTo(path[k].x, path[k].y); }
+            ctx.stroke(); ctx.setLineDash([]);
+        }
+        ctx.save(); ctx.translate(last.x, last.y);
+        if(p === ball) { ctx.font = `${radius * 1.6}px Arial`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("🏀", 0, 0); } 
+        else {
+            if(last.isScreen) {
+                ctx.rotate(last.angle * Math.PI / 180); ctx.fillStyle = (p.team === 'red' ? '#CC0000' : '#0044CC');
+                ctx.fillRect(-radius*1.2, -radius*0.4, radius*2.4, radius*0.8); ctx.strokeStyle="#fff"; ctx.lineWidth=2*sF; ctx.strokeRect(-radius*1.2, -radius*0.4, radius*2.4, radius*0.8);
+                if(last.label) { ctx.rotate(-last.angle * Math.PI / 180); ctx.fillStyle = "white"; ctx.font = `bold ${radius * 0.8}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(last.label, 0, 1); }
+            } else { drawJersey(p.team === 'red' ? '#CC0000' : '#0044CC', radius, p.label); }
+        }
+        ctx.restore();
+    });
+}
