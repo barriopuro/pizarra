@@ -589,7 +589,7 @@ function renderAnim() {
         const anchoDeseado = 95 * sF, proporcion = logoCanchaImg.naturalHeight / logoCanchaImg.naturalWidth;
         const altoCalculado = anchoDeseado * proporcion;
         ctx.translate(canvas.width / 2, canvas.height * 0.52);
-        ctx.globalCompositeOperation = 'source-over'; ctx.filter = 'brightness(0.3) contrast(1.2)'; ctx.globalAlpha = 0.15; 
+        ctx.globalCompositeOperation = 'source-over'; ctx.filter = 'brightness(0.3) contrast(1.2)'; ctx.globalAlpha = 0.35; 
         ctx.drawImage(logoCanchaImg, -anchoDeseado / 2, -altoCalculado / 2, anchoDeseado, altoCalculado);
         ctx.restore();
     }
@@ -659,7 +659,7 @@ function attachButtonSounds() {
 
 // Carga asincrónica del escudo central para el parqué
 const logoCanchaImg = new Image();
-logoCanchaImg.src = "logo.svg";
+logoCanchaImg.src = "logocancha.svg";
 logoCanchaImg.onload = () => { draw(); };
 
 // --- FUNCIÓN DE DIBUJADO PRINCIPAL (CANVAS) ---
@@ -673,7 +673,7 @@ function draw() {
         const anchoDeseado = 95 * sF, proporcion = logoCanchaImg.naturalHeight / logoCanchaImg.naturalWidth;
         const altoCalculado = anchoDeseado * proporcion;
         ctx.translate(canvas.width / 2, canvas.height * 0.52);
-        ctx.globalCompositeOperation = 'source-over'; ctx.filter = 'brightness(0.3) contrast(1.2)'; ctx.globalAlpha = 0.15; 
+        ctx.globalCompositeOperation = 'source-over'; ctx.filter = 'brightness(0.3) contrast(1.2)'; ctx.globalAlpha = 0.35; 
         ctx.drawImage(logoCanchaImg, -anchoDeseado / 2, -altoCalculado / 2, anchoDeseado, altoCalculado);
         ctx.restore();
     }
