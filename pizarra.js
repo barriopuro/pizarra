@@ -321,11 +321,21 @@ function handleStart(e) {
 function handleMove(e) {
     if(!isDragging || !activeObj) return; e.preventDefault();
     const pos = getPos(e); const path = activeObj.steps[currentStep], last = path[path.length-1];
-    if(currentStep === 0) path[0] = {x: pos.x, y: pos.y, isScreen: last.isScreen, angle: last.angle};
-    else path.push({x: pos.x, y: pos.y, isScreen: last.isScreen, angle: last.angle});
+    
+    if(currentStep === 0) {
+        // En el paso inicial (Ubicación) movemos la ficha directo sin restricciones
+        path[0] = {x: pos.x, y: pos.y, isScreen: last.isScreen, angle: last.angle};
+    } else {
+        // Filtro para el Paso 1 en adelante: calculamos la distancia con el último punto guardado
+        const distanciaSurgida = Math.hypot(pos.x - last.x, pos.y - last.y);
+        
+        // Solo guardamos la coordenada si se movió más de 12 píxeles (limpia el temblequeo pero respeta giros)
+        if (distanciaSurgida > 12 * sF) {
+            path.push({x: pos.x, y: pos.y, isScreen: last.isScreen, angle: last.angle});
+        }
+    }
     draw(); updateFloatingUI();
 }
-
 function handleEnd() {
     if (isDragging && activeObj) { if (activeObj === ball) playSound('bounceBall'); else playSound('dropJersey'); }
     isDragging = false; draw();
@@ -378,16 +388,25 @@ async function playFullPlay(loopMode) {
             if(shouldStopLoop) break; currentStep = i; renderTimeline();
             if(i === 0) { draw(); await new Promise(r => setTimeout(r, 600)); continue; }
             await new Promise(res => {
-                let totalFrames = 140, f = 0;
+                let totalFrames = 240, f = 0;
                 function frame() {
                     if(shouldStopLoop) return res();
                     let t = f / totalFrames; let ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
                     [...players, ball].forEach(p => { 
                         if(p.steps[i]) { 
                             const s = p.steps[i]; if(s.length === 0) return;
-                            let targetIdx = Math.floor(ease * (s.length - 1));
-                            targetIdx = Math.max(0, Math.min(s.length - 1, targetIdx));
-                            const currentPt = s[targetIdx]; p.ax = currentPt.x; p.ay = currentPt.y;
+                            // INTERPOLACIÓN LINEAL SUAVE (LERP) RECALIBRADA
+                            const progresoFlotante = ease * (s.length - 1);
+                            const indiceBase = Math.floor(progresoFlotante);
+                            const indiceSiguiente = Math.min(s.length - 1, indiceBase + 1);
+                            const factorInterpolacion = progresoFlotante - indiceBase;
+                            
+                            const ptoA = s[indiceBase];
+                            const ptoB = s[indiceSiguiente];
+                            
+                            // Deslizamiento continuo entre puntos para eliminar la rigidez
+                            p.ax = ptoA.x + (ptoB.x - ptoA.x) * factorInterpolacion;
+                            p.ay = ptoA.y + (ptoB.y - ptoA.y) * factorInterpolacion;
                             const startPt = s[0], endPt = s[s.length - 1];
                             const seMueve = Math.hypot(endPt.x - startPt.x, endPt.y - startPt.y) > 2;
                             if (seMueve) { if (f < totalFrames) { p.as = false; p.aa = 0; } else { p.as = endPt.isScreen; p.aa = endPt.angle; } } 
