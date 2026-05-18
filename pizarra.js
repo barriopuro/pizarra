@@ -737,7 +737,12 @@ logoCanchaImg.onload = () => { draw(); };
 // --- FUNCIÓN DE DIBUJADO PRINCIPAL (CANVAS) ---
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height); 
+    
+    // FIJACIÓN v120: Pintamos el fondo marrón en los píxeles para que no salga negro en el video WebM
+    ctx.fillStyle = "#c19a6b"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
     drawParquetTexture();
+
     
     // Renderizado del escudo de Casanova
     if (logoCanchaImg.complete && logoCanchaImg.naturalWidth !== 0) {
