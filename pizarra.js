@@ -291,8 +291,31 @@ function labelCurrentPlayer() { if(!activeObj || activeObj === ball) return; let
 function updateFloatingUI() {
     if(!activeObj || activeObj === ball || isEditionFinished) { floatingUI.style.display = "none"; return; }
     const last = activeObj.steps[currentStep][activeObj.steps[currentStep].length - 1];
-    floatingUI.style.left = Math.max(10, Math.min(canvas.width - 110, (last.x - 50))) + "px"; floatingUI.style.top = (last.y - 65) + "px";
+    
+    // Forzado absoluto del contenedor madre
     floatingUI.style.display = "flex";
+    floatingUI.style.flexDirection = "row";
+    floatingUI.style.gap = "6px";
+    floatingUI.style.position = "absolute";
+    
+    // Posicionamos el contenedor directamente en el punto X del jugador
+    floatingUI.style.left = last.x + "px";
+    floatingUI.style.top = (last.y - 55) + "px";
+    floatingUI.style.transform = "none"; // Limpiamos cualquier rastro anterior
+    
+    // EL HACHAZO: Forzamos a los botones internos a desfasarse hacia la derecha desde el eje
+    // Le aplicamos un margen izquierdo que compensa el ancho para que queden centrados sobre el cuello
+    const botones = floatingUI.querySelectorAll('.f-btn');
+    if (botones.length > 0) {
+        // Si hay dos botones (Paso 0), los empujamos un total de 12px a la derecha para centrar el bloque
+        // Si hay un solo botón (Paso 1+), lo empujamos 20px para que quede al medio de la camiseta
+        const empujeX = (botones.length === 2) ? "12px" : "20px";
+        botones.forEach((b, idx) => {
+            b.style.margin = "0";
+            if (idx === 0) b.style.marginLeft = empujeX; // Empujamos el grupo desde el primer botón
+        });
+    }
+    
     rotBtn.style.display = last.isScreen ? "flex" : "none"; txtBtn.style.display = (currentStep === 0) ? "flex" : "none";
 }
 
