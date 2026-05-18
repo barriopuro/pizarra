@@ -817,3 +817,176 @@ function changeSpeed() {
         factorVelocidad = parseFloat(selector.value);
     }
 }
+
+// ========================================================
+// EXPORTACIÓN A VIDEO WebM v1.0
+// ========================================================
+let isExporting = false;
+
+async function exportVideo() {
+    if (isExporting) return;
+
+    // Verificar soporte del browser
+    if (!canvas.captureStream || !window.MediaRecorder) {
+        alert("Tu browser no soporta grabación de video. Probá con Chrome o Firefox actualizado.");
+        return;
+    }
+
+    // Detectar el mejor codec disponible
+    const codecsAProbar = [
+        'video/webm;codecs=vp9',
+        'video/webm;codecs=vp8',
+        'video/webm',
+    ];
+    let mimeTypeElegido = '';
+    for (const codec of codecsAProbar) {
+        if (MediaRecorder.isTypeSupported(codec)) {
+            mimeTypeElegido = codec;
+            break;
+        }
+    }
+    if (!mimeTypeElegido) {
+        alert("Tu browser no soporta ningún formato de grabación. Probá con Chrome actualizado.");
+        return;
+    }
+
+    const exportBtn = document.getElementById('exportVideoBtn');
+    isExporting = true;
+    if (exportBtn) {
+        exportBtn.innerText = "⏳ GRABANDO...";
+        exportBtn.disabled = true;
+        exportBtn.style.opacity = "0.6";
+    }
+
+    // Guardar estado actual para restaurarlo después
+    const stepAntes = currentStep;
+    const loopingAntes = isLooping;
+
+    // Frenar cualquier reproducción activa
+    shouldStopLoop = true;
+    isLooping = false;
+    isPlaying = false;
+    await new Promise(r => setTimeout(r, 80));
+
+    const resetBtn = () => {
+        isExporting = false;
+        if (exportBtn) {
+            exportBtn.innerText = "🎬 EXPORTAR VIDEO";
+            exportBtn.disabled = false;
+            exportBtn.style.opacity = "1";
+        }
+    };
+
+    // Arrancar grabación del canvas
+    let stream;
+    try {
+        stream = canvas.captureStream(30);
+    } catch(err) {
+        alert("Error al capturar el canvas: " + err.message);
+        resetBtn();
+        return;
+    }
+
+    let recorder;
+    try {
+        recorder = new MediaRecorder(stream, {
+            mimeType: mimeTypeElegido,
+            videoBitsPerSecond: 4000000
+        });
+    } catch(err) {
+        alert("Error al iniciar el grabador: " + err.message);
+        resetBtn();
+        return;
+    }
+
+    const chunks = [];
+    recorder.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+
+    recorder.onerror = (e) => {
+        console.error("MediaRecorder error:", e);
+        resetBtn();
+        currentStep = stepAntes;
+        isLooping = loopingAntes;
+        draw(); renderTimeline();
+        alert("Error durante la grabación. Intentá de nuevo.");
+    };
+
+    recorder.onstop = () => {
+        if (chunks.length === 0) {
+            alert("No se capturaron datos de video. Intentá de nuevo.");
+            resetBtn();
+            currentStep = stepAntes;
+            isLooping = loopingAntes;
+            draw(); renderTimeline();
+            return;
+        }
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'jugada_oeste.webm';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+        // Restaurar estado
+        currentStep = stepAntes;
+        isLooping = loopingAntes;
+        resetBtn();
+        draw();
+        renderTimeline();
+    };
+
+    // Arrancamos con timeslice de 100ms para que ondataavailable se dispare periódicamente
+    recorder.start(100);
+    shouldStopLoop = false;
+
+    // Reproducir la jugada completa a velocidad 1x para grabarla
+    const velocidadOriginal = factorVelocidad;
+    factorVelocidad = 1;
+
+    for (let i = 0; i < ball.steps.length; i++) {
+        currentStep = i;
+        renderTimeline();
+        if (i === 0) {
+            draw();
+            await new Promise(r => setTimeout(r, 700));
+            continue;
+        }
+        await new Promise(res => {
+            let totalFrames = 170, f = 0;
+            function frame() {
+                let t = f / totalFrames;
+                let ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+                [...players, ball].forEach(p => {
+                    if (p.steps[i]) {
+                        const s = p.steps[i]; if (s.length === 0) return;
+                        const progresoFlotante = ease * (s.length - 1);
+                        const indiceBase = Math.floor(progresoFlotante);
+                        const indiceSiguiente = Math.min(s.length - 1, indiceBase + 1);
+                        const factorInterpolacion = progresoFlotante - indiceBase;
+                        const ptoA = s[indiceBase], ptoB = s[indiceSiguiente];
+                        p.ax = ptoA.x + (ptoB.x - ptoA.x) * factorInterpolacion;
+                        p.ay = ptoA.y + (ptoB.y - ptoA.y) * factorInterpolacion;
+                        const startPt = s[0], endPt = s[s.length - 1];
+                        const seMueve = Math.hypot(endPt.x - startPt.x, endPt.y - startPt.y) > 2;
+                        if (seMueve) { if (f < totalFrames) { p.as = false; p.aa = 0; } else { p.as = endPt.isScreen; p.aa = endPt.angle; } }
+                        else { p.as = endPt.isScreen; p.aa = endPt.angle; }
+                    }
+                });
+                renderAnim();
+                f++;
+                if (f <= totalFrames) requestAnimationFrame(frame); else res();
+            }
+            frame();
+        });
+        await new Promise(r => setTimeout(r, 400));
+    }
+
+    // Pausa final antes de cortar para que el último frame quede visible
+    await new Promise(r => setTimeout(r, 800));
+
+    factorVelocidad = velocidadOriginal;
+    recorder.stop();
+}
