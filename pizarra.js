@@ -310,7 +310,11 @@ function handleStart(e) {
         activeObj = found; isDragging = true; 
         if(currentStep > 0 && (!activeObj.steps[currentStep] || activeObj.steps[currentStep].length <= 1)) {
             const lastPrev = activeObj.steps[currentStep - 1][activeObj.steps[currentStep - 1].length - 1];
-            activeObj.steps[currentStep] = [{x: lastPrev.x, y: lastPrev.y, isScreen: lastPrev.isScreen, angle: lastPrev.angle}]; 
+            // Corrección táctica: Si el objeto ya tiene un punto en este paso, preservamos su estado de cortina (isScreen) actual
+            const esCortinaActual = activeObj.steps[currentStep] && activeObj.steps[currentStep][0] ? activeObj.steps[currentStep][0].isScreen : lastPrev.isScreen;
+            const anguloActual = activeObj.steps[currentStep] && activeObj.steps[currentStep][0] ? activeObj.steps[currentStep][0].angle : lastPrev.angle;
+            
+            activeObj.steps[currentStep] = [{x: lastPrev.x, y: lastPrev.y, isScreen: esCortinaActual, angle: anguloActual}]; 
         }
         updateFloatingUI();
         if (activeObj === ball) playSound('bounceBall'); else playSound('grabJersey');
@@ -388,7 +392,7 @@ async function playFullPlay(loopMode) {
             if(shouldStopLoop) break; currentStep = i; renderTimeline();
             if(i === 0) { draw(); await new Promise(r => setTimeout(r, 600)); continue; }
             await new Promise(res => {
-                let totalFrames = 190, f = 0;
+                let totalFrames = 170, f = 0;
                 function frame() {
                     if(shouldStopLoop) return res();
                     let t = f / totalFrames; let ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
