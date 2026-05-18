@@ -340,16 +340,22 @@ function handleStart(e) {
 
 function handleMove(e) {
     if(!isDragging || !activeObj) return; e.preventDefault();
-    const pos = getPos(e); const path = activeObj.steps[currentStep], last = path[path.length-1];
+    let pos = getPos(e); const path = activeObj.steps[currentStep], last = path[path.length-1];
+    
+    // CONTROL DE LÍMITES v119.2: Definimos un radio de seguridad (12px) para que la ficha no asome la mitad afuera
+    const radioMargen = 12 * sF;
+    
+    // Clavamos la posición X e Y estrictamente adentro de las maderas del parqué
+    pos.x = Math.max(radioMargen, Math.min(canvas.width - radioMargen, pos.x));
+    pos.y = Math.max(radioMargen, Math.min(canvas.height - radioMargen, pos.y));
     
     if(currentStep === 0) {
-        // En el paso inicial (Ubicación) movemos la ficha directo sin restricciones
+        // En el paso inicial (Ubicación) movemos la ficha directo con los límites aplicados
         path[0] = {x: pos.x, y: pos.y, isScreen: last.isScreen, angle: last.angle};
     } else {
-        // Filtro para el Paso 1 en adelante: calculamos la distancia con el último punto guardado
+        // Filtro para el Paso 1 en adelante con distancia mínima anti-temblequeo
         const distanciaSurgida = Math.hypot(pos.x - last.x, pos.y - last.y);
         
-        // Solo guardamos la coordenada si se movió más de 12 píxeles (limpia el temblequeo pero respeta giros)
         if (distanciaSurgida > 12 * sF) {
             path.push({x: pos.x, y: pos.y, isScreen: last.isScreen, angle: last.angle});
         }
