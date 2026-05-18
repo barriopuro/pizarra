@@ -291,7 +291,7 @@ select, button {
 .btn-del { background: #700; color: #ffcccc; }
 .btn-finish { background: #ffc107; color: #000; font-weight: 900; }
 .btn-play { background: #28a745; color: white; height: 40px; font-size: 13px; }
-.btn-loop { background: #17a2b8; color: white; }
+.btn-loop { background: #333; color: white; border: 1px solid #555; }
 .btn-arch { background: #333; color: #fff; border: 1px solid #444; font-size: 10px; }
 .btn-danger { background: #222; color: #999; border: 1px solid #333; font-size: 10px; margin-top: 10px; }
 
@@ -459,3 +459,5 @@ select, button {
     height: 0 !important;
     border: none !important;
 }
+
+#speedSelect { background: #333; color: white; border: 1px solid #555; font-size: 11px; height: 34px; border-radius: 4px; }

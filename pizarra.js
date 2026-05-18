@@ -24,6 +24,7 @@ let currentStep = 0,
 
 let sF = 1, 
     isMuted = localStorage.getItem('pizarraMuted') === 'true';
+let factorVelocidad = 1;
 
 const stepColors = ["#ffffff", "#38b000", "#00b4d8", "#ffb703", "#e040fb", "#ff5722"];
 let audioCtx = null;
@@ -406,22 +407,46 @@ function renderTimeline() {
     if(stepsCont) stepsCont.scrollTop = stepsCont.scrollHeight;
 }
 
-// --- MOTOR DE ANIMACIÓN INTERPOLADO (PLAY) ---
+// MOTOR DE ANIMACIÓN INTERPOLADO CON FRENO DIRECTO v119.4
+let isPlaying = false; // Variable para controlar el estado del botón
+
+function togglePlay() {
+    const playBtn = document.getElementById('mainPlayBtn');
+    
+    // Si ya está reproduciendo, tiramos el hachazo para frenar
+    if (isPlaying) {
+        shouldStopLoop = true;
+        isLooping = false; // Por seguridad frenamos también el loop
+        isPlaying = false;
+        if (playBtn) playBtn.innerText = "▶ PLAY";
+        const mainLoopBtn = document.getElementById('mainLoopBtn');
+	if (mainLoopBtn) mainLoopBtn.style.background = "#333"; // Reseteamos color de loop si estaba activo
+        draw();
+        return;
+    }
+    
+    // Si estaba quieto, arranca la reproducción normal
+    isPlaying = true;
+    if (playBtn) playBtn.innerText = "⏹ STOP";
+    playFullPlay(false);
+}
+
 async function playFullPlay(loopMode) {
     shouldStopLoop = false;
+    const playBtn = document.getElementById('mainPlayBtn');
+    
     do {
         for(let i=0; i < ball.steps.length; i++) {
             if(shouldStopLoop) break; currentStep = i; renderTimeline();
             if(i === 0) { draw(); await new Promise(r => setTimeout(r, 600)); continue; }
             await new Promise(res => {
-                let totalFrames = 170, f = 0;
+                let totalFrames = Math.round(170 / factorVelocidad), f = 0;
                 function frame() {
                     if(shouldStopLoop) return res();
                     let t = f / totalFrames; let ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
                     [...players, ball].forEach(p => { 
                         if(p.steps[i]) { 
                             const s = p.steps[i]; if(s.length === 0) return;
-                            // INTERPOLACIÓN LINEAL SUAVE (LERP) RECALIBRADA
                             const progresoFlotante = ease * (s.length - 1);
                             const indiceBase = Math.floor(progresoFlotante);
                             const indiceSiguiente = Math.min(s.length - 1, indiceBase + 1);
@@ -430,7 +455,6 @@ async function playFullPlay(loopMode) {
                             const ptoA = s[indiceBase];
                             const ptoB = s[indiceSiguiente];
                             
-                            // Deslizamiento continuo entre puntos para eliminar la rigidez
                             p.ax = ptoA.x + (ptoB.x - ptoA.x) * factorInterpolacion;
                             p.ay = ptoA.y + (ptoB.y - ptoA.y) * factorInterpolacion;
                             const startPt = s[0], endPt = s[s.length - 1];
@@ -445,7 +469,13 @@ async function playFullPlay(loopMode) {
             });
             if(!shouldStopLoop) await new Promise(r => setTimeout(r, 350));
         }
+        // Si no está en modo bucle, forzamos la salida al terminar el último paso
+        if (!isLooping) break;
     } while (isLooping && !shouldStopLoop);
+
+    // Al salir del bucle (porque terminó o se frenó), reseteamos el botón a su estado inicial
+    isPlaying = false;
+    if (playBtn) playBtn.innerText = "▶ PLAY";
 }
 
 // --- CONTROLES DE ARCHIVOS EXPORTAR / IMPORTAR ---
@@ -474,6 +504,11 @@ function finishEdition() {
     document.getElementById('edit-controls').style.display = "none";
     if(addStepBtn) addStepBtn.style.display = "none"; 
     statusLabel.innerText = "REPRODUCCIÓN"; statusLabel.style.borderColor = "#28a745"; statusLabel.style.color = "#28a745";
+    
+    // DESBLOQUEO DE VELOCIDAD v119.3: Nos aseguramos de que el selector esté 100% activo al reproducir
+    const spdSel = document.getElementById('speedSelect');
+    if(spdSel) { spdSel.disabled = false; spdSel.style.opacity = "1"; spdSel.style.pointerEvents = "auto"; }
+
     verificarMenuFlotante(); attachButtonSounds();
 }
 
@@ -543,13 +578,21 @@ window.addEventListener('resize', () => {
 });
 
 function backToEdit() {
-    shouldStopLoop = true; isLooping = false; 
+    shouldStopLoop = true; isLooping = false; isPlaying = false; // Limpieza v119.4
+    const playBtn = document.getElementById('mainPlayBtn');
+    if (playBtn) playBtn.innerText = "▶ PLAY";
+    
     const mainLoopBtn = document.getElementById('mainLoopBtn');
     if (mainLoopBtn) mainLoopBtn.innerText = "🔄 LOOP";
     isEditionFinished = false; 
     document.getElementById('playback-controls').style.display = "none"; 
     document.getElementById('edit-controls').style.display = "flex";
     if (addStepBtn) addStepBtn.style.display = "block"; 
+    
+    factorVelocidad = 1;
+    const spdSel = document.getElementById('speedSelect');
+    if(spdSel) spdSel.value = "1";
+
     verificarMenuFlotante(); updateStepUI(); draw(); renderTimeline(); 
     if (typeof attachButtonSounds === "function") attachButtonSounds();
 }
@@ -599,7 +642,7 @@ function updateStepUI() {
 
     // CONTROL DE BLOQUEO DE CONTROLES FUERA DEL PASO 0
     const esPasoInicial = (currentStep === 0 && !isEditionFinished);
-    const controlesBloqueables = [rs, bs, fs, document.getElementById('ballBtn')];
+const controlesBloqueables = [rs, bs, fs, document.getElementById('ballBtn')];
     
     controlesBloqueables.forEach(control => {
         if(control) {
@@ -673,7 +716,7 @@ function renderAnim() {
     });
 }
 function toggleBall() { ball.active = !ball.active; draw(); const bBtn = document.getElementById('ballBtn'); if(bBtn) bBtn.style.background = ball.active ? "#333" : "#111"; }
-function toggleLoop() { isLooping = !isLooping; const mL = document.getElementById('mainLoopBtn'); if(mL) mL.style.background = isLooping ? "#ff6600" : "#17a2b8"; }
+function toggleLoop() { isLooping = !isLooping; const mL = document.getElementById('mainLoopBtn'); if(mL) mL.style.background = isLooping ? "#ff6600" : "#333"; }
 function toggleMute() { isMuted = !isMuted; localStorage.setItem('pizarraMuted', isMuted); updateMuteBtnUI(); }
 function updateMuteBtnUI() { const mB = document.getElementById('muteBtn'); if(mB) { if(isMuted) { mB.innerText = "🔇"; mB.classList.add('muted'); } else { mB.innerText = "🔊"; mB.classList.remove('muted'); } } }
 
@@ -765,4 +808,12 @@ function draw() {
         }
         ctx.restore();
     });
+}
+
+// CONTROL DE VELOCIDAD TÁCTICA v119.3
+function changeSpeed() {
+    const selector = document.getElementById('speedSelect');
+    if (selector) {
+        factorVelocidad = parseFloat(selector.value);
+    }
 }
