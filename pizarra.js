@@ -388,7 +388,7 @@ async function playFullPlay(loopMode) {
             if(shouldStopLoop) break; currentStep = i; renderTimeline();
             if(i === 0) { draw(); await new Promise(r => setTimeout(r, 600)); continue; }
             await new Promise(res => {
-                let totalFrames = 240, f = 0;
+                let totalFrames = 190, f = 0;
                 function frame() {
                     if(shouldStopLoop) return res();
                     let t = f / totalFrames; let ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
