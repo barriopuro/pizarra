@@ -654,6 +654,10 @@ const controlesBloqueables = [rs, bs, fs, document.getElementById('ballBtn')];
 }
 function renderAnim() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // FIJACIÓN DEFINTIVA: Pintamos el fondo acá para que el video grabe madera en cada frame
+    ctx.fillStyle = "#c19a6b"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
     drawParquetTexture();
     
     if (logoCanchaImg.complete && logoCanchaImg.naturalWidth !== 0) {
@@ -737,10 +741,6 @@ logoCanchaImg.onload = () => { draw(); };
 // --- FUNCIÓN DE DIBUJADO PRINCIPAL (CANVAS) ---
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height); 
-    
-    // FIJACIÓN v120: Pintamos el fondo marrón en los píxeles para que no salga negro en el video WebM
-    ctx.fillStyle = "#c19a6b"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
     drawParquetTexture();
 
     
