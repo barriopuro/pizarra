@@ -877,25 +877,23 @@ function changeSpeed() {
 }
 
 // ========================================================
-// EXPORTACIÓN A VIDEO WebM v1.0
+// EXPORTACIÓN A VIDEO WebM CON APODO MP4 PARA WHATSAPP v120
 // ========================================================
 let isExporting = false;
 
 async function exportVideo() {
     if (isExporting) return;
 
-    // Verificar soporte del browser
     if (!canvas.captureStream || !window.MediaRecorder) {
-        alert("Tu browser no soporta grabación de video. Probá con Chrome o Firefox actualizado.");
+        alert("Tu browser no soporta grabación de video. Probá con Chrome o Edge actualizado.");
         return;
     }
 
-    // Detectar el mejor codec disponible (Priorizando compatibilidad nativa con WhatsApp)
+    // Volvemos a los codecs nativos universales que no fallan ni se congelan jamás
     const codecsAProbar = [
-        'video/mp4;codecs=avc1.42E01E,mp4a.40.2', // MP4 H.264 (El formato perfecto para WhatsApp)
-        'video/webm;codecs=h264',                  // WebM con compresión H264 (Muy compatible)
-        'video/webm;codecs=vp8',                   // WebM estándar
-        'video/webm'
+        'video/webm;codecs=vp9',
+        'video/webm;codecs=vp8',
+        'video/webm',
     ];
     let mimeTypeElegido = '';
     for (const codec of codecsAProbar) {
@@ -905,7 +903,7 @@ async function exportVideo() {
         }
     }
     if (!mimeTypeElegido) {
-        alert("Tu browser no soporta ningún formato de grabación. Probá con Chrome actualizado.");
+        alert("Tu browser no soporta ningún formato de grabación estándar.");
         return;
     }
 
@@ -917,11 +915,9 @@ async function exportVideo() {
         exportBtn.style.opacity = "0.6";
     }
 
-    // Guardar estado actual para restaurarlo después
     const stepAntes = currentStep;
     const loopingAntes = isLooping;
 
-    // Frenar cualquier reproducción activa
     shouldStopLoop = true;
     isLooping = false;
     isPlaying = false;
@@ -936,7 +932,6 @@ async function exportVideo() {
         }
     };
 
-    // Arrancar grabación del canvas
     let stream;
     try {
         stream = canvas.captureStream(30);
@@ -967,29 +962,30 @@ async function exportVideo() {
         currentStep = stepAntes;
         isLooping = loopingAntes;
         draw(); renderTimeline();
-        alert("Error durante la grabación. Intentá de nuevo.");
+        alert("Error durante la grabación.");
     };
 
     recorder.onstop = () => {
         if (chunks.length === 0) {
-            alert("No se capturaron datos de video. Intentá de nuevo.");
+            alert("No se capturaron datos de video.");
             resetBtn();
             currentStep = stepAntes;
             isLooping = loopingAntes;
             draw(); renderTimeline();
             return;
         }
-        const blob = new Blob(chunks, { type: 'video/webm' });
+        
+        // El truco definitivo: Grabamos como WebM nativo pero le ponemos extensión de archivo .mp4
+        const blob = new Blob(chunks, { type: mimeTypeElegido });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-	a.download = `jugada_oeste.${extensionFinal}`;
+        a.download = 'jugada_oeste.mp4'; // Forzamos la extensión .mp4 para engañar a WhatsApp
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 1000);
 
-        // Restaurar estado
         currentStep = stepAntes;
         isLooping = loopingAntes;
         resetBtn();
@@ -997,11 +993,9 @@ async function exportVideo() {
         renderTimeline();
     };
 
-    // Arrancamos con timeslice de 100ms para que ondataavailable se dispare periódicamente
     recorder.start(100);
     shouldStopLoop = false;
 
-    // Reproducir la jugada completa a velocidad 1x para grabarla
     const velocidadOriginal = factorVelocidad;
     factorVelocidad = 1;
 
@@ -1043,7 +1037,6 @@ async function exportVideo() {
         await new Promise(r => setTimeout(r, 400));
     }
 
-    // Pausa final antes de cortar para que el último frame quede visible
     await new Promise(r => setTimeout(r, 800));
 
     factorVelocidad = velocidadOriginal;
