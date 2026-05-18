@@ -890,11 +890,12 @@ async function exportVideo() {
         return;
     }
 
-    // Detectar el mejor codec disponible
+    // Detectar el mejor codec disponible (Priorizando compatibilidad nativa con WhatsApp)
     const codecsAProbar = [
-        'video/webm;codecs=vp9',
-        'video/webm;codecs=vp8',
-        'video/webm',
+        'video/mp4;codecs=avc1.42E01E,mp4a.40.2', // MP4 H.264 (El formato perfecto para WhatsApp)
+        'video/webm;codecs=h264',                  // WebM con compresión H264 (Muy compatible)
+        'video/webm;codecs=vp8',                   // WebM estándar
+        'video/webm'
     ];
     let mimeTypeElegido = '';
     for (const codec of codecsAProbar) {
@@ -982,7 +983,7 @@ async function exportVideo() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'jugada_oeste.webm';
+	a.download = `jugada_oeste.${extensionFinal}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
