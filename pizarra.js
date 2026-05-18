@@ -234,9 +234,29 @@ function syncPlayers() {
         if(teamList.length > count) players = players.filter(p => !(p.team === team && teamList.indexOf(p) >= count));
         else for(let i=teamList.length; i<count; i++) {
             let s = []; 
+            let tx = x * sF;
             let ty = (50 + i * (radius * 2.8));
-            let tx = x*sF;
-            if(team === 'blue' && players.filter(p=>p.team==='red')[i]) { tx = players.filter(p=>p.team==='red')[i].steps[0][0].x + (25*sF); ty = players.filter(p=>p.team==='red')[i].steps[0][0].y; }
+            
+            // Si es el equipo rojo (atacantes), los distribuimos en el arco de 3 puntos de entrada (5 exteriores)
+            if (team === 'red') {
+                const w = canvas.width, h = canvas.height;
+                const posicionesExteriores = [
+                    { x: w * 0.12, y: h * 0.38 }, // Esquina izquierda
+                    { x: w * 0.22, y: h * 0.70 }, // Alero izquierdo
+                    { x: w * 0.50, y: h * 0.82 }, // Base / Central
+                    { x: w * 0.78, y: h * 0.70 }, // Alero derecho
+                    { x: w * 0.88, y: h * 0.38 }  // Esquina derecha
+                ];
+                if (posicionesExteriores[i]) {
+                    tx = posicionesExteriores[i].x;
+                    ty = posicionesExteriores[i].y;
+                }
+            }
+            
+            if(team === 'blue' && players.filter(p=>p.team==='red')[i]) { 
+                tx = players.filter(p=>p.team==='red')[i].steps[0][0].x + (25*sF); 
+                ty = players.filter(p=>p.team==='red')[i].steps[0][0].y; 
+            }
             for(let j=0; j<=currentStep; j++) s.push([{x:tx, y:ty, isScreen:false, angle:0}]);
             players.push({team: team, steps: s, label: savedLabels[team][i] || ''});
         }
@@ -476,9 +496,8 @@ window.addEventListener('resize', () => {
 
 function backToEdit() {
     shouldStopLoop = true; isLooping = false; 
-    const mainLoopBtn = document.getElementById('mainLoopBtn'), floatLoopBtn = document.getElementById('floatLoopBtn');
-    if (mainLoopBtn) mainLoopBtn.innerText = "🔄";
-    if (floatLoopBtn) floatLoopBtn.innerText = "🔄 LOOP: OFF";
+    const mainLoopBtn = document.getElementById('mainLoopBtn');
+    if (mainLoopBtn) mainLoopBtn.innerText = "🔄 LOOP";
     isEditionFinished = false; 
     document.getElementById('playback-controls').style.display = "none"; 
     document.getElementById('edit-controls').style.display = "flex";
@@ -529,8 +548,19 @@ function updateStepUI() {
     }
     const delBtn = document.getElementById('delStepBtn');
     if(delBtn) delBtn.style.display = (currentStep > 0 && !isEditionFinished) ? "block" : "none";
-}
 
+    // CONTROL DE BLOQUEO DE CONTROLES FUERA DEL PASO 0
+    const esPasoInicial = (currentStep === 0 && !isEditionFinished);
+    const controlesBloqueables = [rs, bs, fs, document.getElementById('ballBtn')];
+    
+    controlesBloqueables.forEach(control => {
+        if(control) {
+            control.disabled = !esPasoInicial;
+            control.style.opacity = esPasoInicial ? "1" : "0.35";
+            control.style.pointerEvents = esPasoInicial ? "auto" : "none";
+        }
+    });
+}
 function renderAnim() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawParquetTexture();
