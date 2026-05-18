@@ -655,11 +655,64 @@ const controlesBloqueables = [rs, bs, fs, document.getElementById('ballBtn')];
 function renderAnim() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // FIJACIÓN DEFINTIVA: Pintamos el fondo acá para que el video grabe madera en cada frame
-    ctx.fillStyle = "#c19a6b"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Si el botón de Claude está grabando, forzamos el dibujado de la cancha adentro del video
+    const exportBtn = document.getElementById('exportVideoBtn');
+    const estaGrabandoVideo = exportBtn && exportBtn.innerText.includes("GRABANDO");
     
-    drawParquetTexture();
-    
+    if (estaGrabandoVideo) {
+        // 1. Pintamos el fondo marrón madera en el video
+        ctx.fillStyle = "#c19a6b"; 
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // 2. Dibujamos la textura del parquet
+        drawParquetTexture();
+        
+        // 3. Dibujamos las líneas de la cancha (Copia exacta de tu layout SVG)
+        ctx.save();
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 4 * sF;
+        ctx.fillStyle = "rgba(0, 0, 0, 0.05)"; // Color de la pintura
+        
+        const pW = canvas.width * 0.33, radiusLibre = pW / 2, pH = canvas.height * 0.52;
+        const sX = canvas.width * 0.06, tR = (canvas.width / 2) - sX, stH = pH + radiusLibre - tR;
+        const startX = (canvas.width - pW) / 2, endX = (canvas.width + pW) / 2;
+        
+        // Pintamos la zona (llave)
+        ctx.fillRect(startX, 0, pW, pH);
+        ctx.strokeRect(startX, 0, pW, pH);
+        
+        // Línea de triple
+        ctx.beginPath();
+        ctx.moveTo(sX, 0);
+        ctx.lineTo(sX, stH);
+        ctx.arc(canvas.width / 2, stH, tR, Math.PI, 0, true);
+        ctx.lineTo(canvas.width - sX, 0);
+        ctx.stroke();
+        
+        // Línea de libres (Semicírculo)
+        ctx.beginPath();
+        ctx.arc(canvas.width / 2, pH, radiusLibre, 0, Math.PI);
+        ctx.stroke();
+        
+        // Tablero y Aro
+        const boardY = 25 * sF, rimY = 42 * sF, boardW = 65 * sF, rimRadius = 11 * sF;
+        ctx.lineWidth = 5 * sF;
+        ctx.beginPath();
+        ctx.moveTo((canvas.width / 2) - (boardW / 2), boardY);
+        ctx.lineTo((canvas.width / 2) + (boardW / 2), boardY);
+        ctx.stroke();
+        
+        ctx.lineWidth = 3.5 * sF;
+        ctx.strokeStyle = "#ff6600";
+        ctx.beginPath();
+        ctx.arc(canvas.width / 2, rimY, rimRadius, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        ctx.restore();
+    } else {
+        // Si no está grabando el video, solo dibuja el parquet transparente normal de tu editor
+        drawParquetTexture();
+    }    
     if (logoCanchaImg.complete && logoCanchaImg.naturalWidth !== 0) {
         ctx.save();
         const anchoDeseado = 95 * sF, proporcion = logoCanchaImg.naturalHeight / logoCanchaImg.naturalWidth;
