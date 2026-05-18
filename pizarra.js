@@ -975,12 +975,12 @@ async function exportVideo() {
             return;
         }
         
-        // El truco definitivo: Grabamos como WebM nativo pero le ponemos extensión de archivo .mp4
-        const blob = new Blob(chunks, { type: mimeTypeElegido });
+       // Forzamos al celular a creer que el tipo de datos ya es MP4 desde la raíz
+        const blob = new Blob(chunks, { type: 'video/mp4' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'jugada_oeste.mp4'; // Forzamos la extensión .mp4 para engañar a WhatsApp
+        a.download = 'jugada_oeste.mp4'; // Nombre limpio y definitivo
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
