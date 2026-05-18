@@ -121,10 +121,10 @@
                     <button id="finishBtn" class="btn-finish snd-btn" onclick="finishEdition()">🏁 FINALIZAR</button>
                 </div>
                 
-                <div id="playback-controls" style="display: none; flex-direction: column; gap: 5px;">
+             <div id="playback-controls" style="display: none; flex-direction: column; gap: 5px;">
                     <div style="display: flex; gap: 4px; width: 100%;">
-                        <button id="mainPlayBtn" class="btn-play snd-btn" onclick="playFullPlay(false)">▶ PLAY</button>
-                        <button id="mainLoopBtn" class="btn-loop snd-btn" onclick="toggleLoop()">🔄 LOOP</button>
+                        <button id="mainPlayBtn" class="btn-play snd-btn" onclick="playFullPlay(false)" style="width: calc(50% - 2px);">▶ PLAY</button>
+                        <button id="mainLoopBtn" class="btn-loop snd-btn" onclick="toggleLoop()" style="width: calc(50% - 2px);">🔄 LOOP</button>
                     </div>
                     <button class="snd-btn" onclick="backToEdit()" style="background:#555; color:white;">✏️ MODIFICAR</button>
                 </div>

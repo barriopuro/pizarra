@@ -344,8 +344,10 @@ function renderTimeline() {
         btn.onclick = () => { currentStep = i; updateStepUI(); draw(); renderTimeline(); attachButtonSounds(); };
         timelineList.appendChild(btn);
     });
-    if(addStepBtn && !isEditionFinished) timelineList.appendChild(addStepBtn); 
-    timelineList.scrollTop = timelineList.scrollHeight;
+   if(addStepBtn && !isEditionFinished) timelineList.appendChild(addStepBtn); 
+    
+    const stepsCont = document.getElementById('steps-container');
+    if(stepsCont) stepsCont.scrollTop = stepsCont.scrollHeight;
 }
 
 // --- MOTOR DE ANIMACIÓN INTERPOLADO (PLAY) ---
@@ -533,7 +535,6 @@ function renderAnim() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawParquetTexture();
     
-    // RE-INYECCIÓN DEL ESCUDO EN LA ANIMACIÓN DE LOS PASOS
     if (logoCanchaImg.complete && logoCanchaImg.naturalWidth !== 0) {
         ctx.save();
         const anchoDeseado = 95 * sF, proporcion = logoCanchaImg.naturalHeight / logoCanchaImg.naturalWidth;
@@ -544,7 +545,35 @@ function renderAnim() {
         ctx.restore();
     }
 
-    const radius = 15 * sF;
+    const radius = 15 * sF, showHistory = historyToggle.checked;
+
+    if (showHistory) {
+        ctx.save();
+        for (let stepIdx = 0; stepIdx <= currentStep; stepIdx++) {
+            const colorTactico = stepColors[stepIdx % stepColors.length];
+            const esPasoActual = (stepIdx === currentStep);
+            ctx.globalAlpha = esPasoActual ? 1.0 : 0.22;
+
+            [...players, ball].forEach(p => {
+                if (p === ball && !ball.active) return;
+                const path = p.steps[stepIdx]; if (!path || path.length === 0) return;
+                
+                if (stepIdx > 0 && path.length > 1) {
+                    ctx.beginPath(); 
+                    ctx.strokeStyle = colorTactico; 
+                    ctx.lineWidth = esPasoActual ? (3.5 * sF) : (2 * sF);
+                    if (p === ball) ctx.setLineDash(esPasoActual ? [5, 5] : [4, 4]);
+                    
+                    ctx.moveTo(path[0].x, path[0].y);
+                    for (let j = 1; j < path.length; j++) ctx.lineTo(path[j].x, path[j].y);
+                    ctx.stroke(); 
+                    ctx.setLineDash([]);
+                }
+            });
+        }
+        ctx.restore();
+    }
+
     [...players, ball].forEach(p => {
         if(p === ball && !ball.active) return;
         ctx.save();
@@ -565,7 +594,6 @@ function renderAnim() {
         ctx.restore();
     });
 }
-
 function toggleBall() { ball.active = !ball.active; draw(); const bBtn = document.getElementById('ballBtn'); if(bBtn) bBtn.style.background = ball.active ? "#333" : "#111"; }
 function toggleLoop() { isLooping = !isLooping; const mL = document.getElementById('mainLoopBtn'); if(mL) mL.style.background = isLooping ? "#ff6600" : "#17a2b8"; }
 function toggleMute() { isMuted = !isMuted; localStorage.setItem('pizarraMuted', isMuted); updateMuteBtnUI(); }
