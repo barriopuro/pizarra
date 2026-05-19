@@ -22,6 +22,8 @@ let currentStep = 0,
     activeObj = null, 
     isEditionFinished = false;
 
+// --- NUEVA VARIABLE DE CONTROL TÁCTICO v121 ---
+let imantadoA = null; // Almacena el ID del jugador que traslada el balón
 let sF = 1, 
     isMuted = localStorage.getItem('pizarraMuted') === 'true';
 let factorVelocidad = 1;
@@ -235,40 +237,31 @@ function syncPlayers() {
     
     const updateTeam = (team, count, x) => {
         let teamList = players.filter(p => p.team === team);
-        if(teamList.length > count) players = players.filter(p => !(p.team === team && teamList.indexOf(p) >= count));
+        if(teamList.length > count) {
+            // DETECTOR DE BORRADO v121: Si eliminan al jugador que llevaba la pelota, la liberamos en el parqué
+            if (imantadoA && imantadoA.startsWith(team)) {
+                const indexImantado = parseInt(imantadoA.split('-')[1]);
+                if (indexImantado >= count) imantadoA = null;
+            }
+            players = players.filter(p => !(p.team === team && teamList.indexOf(p) >= count));
+        }
         else for(let i=teamList.length; i<count; i++) {
-            let s = []; 
-            let tx = x * sF;
-            let ty = (50 + i * (radius * 2.8));
-            
-            // Si es el equipo rojo (atacantes), los distribuimos en el arco de 3 puntos de entrada (5 exteriores)
+            let s = []; let tx = x * sF, ty = (50 + i * (radius * 2.8));
             if (team === 'red') {
                 const w = canvas.width, h = canvas.height;
                 const posicionesExteriores = [
-                    { x: w * 0.12, y: h * 0.38 }, // Esquina izquierda
-                    { x: w * 0.22, y: h * 0.70 }, // Alero izquierdo
-                    { x: w * 0.50, y: h * 0.82 }, // Base / Central
-                    { x: w * 0.78, y: h * 0.70 }, // Alero derecho
-                    { x: w * 0.88, y: h * 0.38 }  // Esquina derecha
+                    { x: w * 0.12, y: h * 0.38 }, { x: w * 0.22, y: h * 0.70 }, { x: w * 0.50, y: h * 0.82 }, { x: w * 0.78, y: h * 0.70 }, { x: w * 0.88, y: h * 0.38 }
                 ];
-                if (posicionesExteriores[i]) {
-                    tx = posicionesExteriores[i].x;
-                    ty = posicionesExteriores[i].y;
-                }
+                if (posicionesExteriores[i]) { tx = posicionesExteriores[i].x; ty = posicionesExteriores[i].y; }
             }
-            
-            if(team === 'blue' && players.filter(p=>p.team==='red')[i]) { 
-                tx = players.filter(p=>p.team==='red')[i].steps[0][0].x + (25*sF); 
-                ty = players.filter(p=>p.team==='red')[i].steps[0][0].y; 
-            }
+            if(team === 'blue' && players.filter(p=>p.team==='red')[i]) { tx = players.filter(p=>p.team==='red')[i].steps[0][0].x + (25*sF); ty = players.filter(p=>p.team==='red')[i].steps[0][0].y; }
             for(let j=0; j<=currentStep; j++) s.push([{x:tx, y:ty, isScreen:false, angle:0}]);
-            players.push({team: team, steps: s, label: savedLabels[team][i] || ''});
+            players.push({id: `${team}-${i}`, team: team, steps: s, label: savedLabels[team][i] || ''});
         }
     };
     updateTeam('red', rCount, 40); updateTeam('blue', bCount, 460);
     updateFormationOptions(); draw(); attachButtonSounds();
 }
-
 function saveLabels() {
     const labels = { red: players.filter(p=>p.team==='red').map(p=>p.label), blue: players.filter(p=>p.team==='blue').map(p=>p.label) };
     localStorage.setItem('pizarraLabels', JSON.stringify(labels));
@@ -293,26 +286,86 @@ function rotateCurrentPlayer() { if(!activeObj || activeObj === ball) return; co
 function labelCurrentPlayer() { if(!activeObj || activeObj === ball) return; let val = prompt("ID (Máx 2 car.):", activeObj.label || ""); if(val !== null) { activeObj.label = val.substring(0, 2).toUpperCase(); saveLabels(); draw(); } }
 
 function updateFloatingUI() {
-    if(!activeObj || activeObj === ball || isEditionFinished) { floatingUI.style.display = "none"; return; }
+    if(!activeObj || activeObj === ball || isEditionFinished) { 
+        floatingUI.style.display = "none"; 
+        return; 
+    }
     const last = activeObj.steps[currentStep][activeObj.steps[currentStep].length - 1];
     
-    // Al estar adentro de #canvas-wrap, limpiamos cualquier desfasaje viejo
     floatingUI.style.display = "flex";
     floatingUI.style.flexDirection = "row";
     floatingUI.style.gap = "6px";
     floatingUI.style.position = "absolute";
-    
-    // Matamos los márgenes de empuje de los botones hijos para que no se aplasten
-    const botones = floatingUI.querySelectorAll('.f-btn');
-    botones.forEach(b => b.style.marginLeft = "0");
-    
-    // Coordenadas puras sobre el parqué: centrado perfecto usando CSS nativo
     floatingUI.style.left = last.x + "px";
-    floatingUI.style.top = (last.y - 56) + "px"; // Altura ideal arriba de los hombros/cuello
+    floatingUI.style.top = (last.y - 56) + "px";
     floatingUI.style.transform = "translateX(-50%)";
+
+    // 1. LIMPIEZA DRÁSTICA: Eliminamos botones que no sean los nuestros
+    const hijos = Array.from(floatingUI.children);
+    hijos.forEach(hijo => {
+        if (hijo !== rotBtn && hijo !== txtBtn && hijo.id !== 'spin-btn') {
+            hijo.style.display = "none";
+        }
+    });
+
+    // 2. Lógica Botón Principal (Cortina / Quitar)
+    rotBtn.style.display = "block";
+    if (imantadoA === activeObj.id) {
+        rotBtn.textContent = "🏀"; 
+        rotBtn.style.opacity = "0.5";
+        rotBtn.style.pointerEvents = "none";
+    } else {
+        rotBtn.style.opacity = "1";
+        rotBtn.style.pointerEvents = "auto";
+        rotBtn.textContent = last.isScreen ? "❌" : "🛡️";
+        rotBtn.onclick = () => {
+            last.isScreen = !last.isScreen;
+            if (!last.isScreen) last.angle = 0;
+            draw();
+            updateFloatingUI();
+        };
+    }
+
+    // 3. Botón Girar (spin-btn)
+    let spinBtn = document.getElementById('spin-btn');
+    if (!spinBtn) {
+        spinBtn = document.createElement('button');
+        spinBtn.id = 'spin-btn';
+        spinBtn.className = 'f-btn';
+        floatingUI.appendChild(spinBtn);
+    }
     
-    rotBtn.style.display = last.isScreen ? "flex" : "none"; txtBtn.style.display = (currentStep === 0) ? "flex" : "none";
+    if (last.isScreen && imantadoA !== activeObj.id) {
+        spinBtn.style.display = "block";
+        spinBtn.textContent = "🔄";
+        spinBtn.onclick = () => {
+            last.angle = (last.angle + 45) % 360;
+            draw();
+        };
+    } else {
+        spinBtn.style.display = "none";
+    }
+
+    // 4. Botón Dorsal (txtBtn)
+    if (currentStep === 0) {
+        txtBtn.style.display = "block";
+        txtBtn.textContent = "🅰️";
+        txtBtn.onclick = () => {
+            const nuevoDorsal = prompt("Número:", activeObj.label || "");
+            if (nuevoDorsal !== null) {
+                activeObj.label = nuevoDorsal;
+                const savedLabels = JSON.parse(localStorage.getItem('pizarraLabels') || '{"red":[], "blue":[]}');
+                savedLabels[activeObj.team][parseInt(activeObj.id.split('-')[1])] = nuevoDorsal;
+                localStorage.setItem('pizarraLabels', JSON.stringify(savedLabels));
+                draw();
+            }
+        };
+    } else {
+        txtBtn.style.display = "none";
+    }
 }
+
+
 // --- MOTOR DRAG & DROP MULTI-DISPOSITIVO ---
 function handleStart(e) {
     if(isEditionFinished) return;
@@ -342,32 +395,78 @@ function handleStart(e) {
 function handleMove(e) {
     if(!isDragging || !activeObj) return; e.preventDefault();
     let pos = getPos(e); const path = activeObj.steps[currentStep], last = path[path.length-1];
-    
-    // CONTROL DE LÍMITES v119.2: Definimos un radio de seguridad (12px) para que la ficha no asome la mitad afuera
     const radioMargen = 12 * sF;
     
-    // Clavamos la posición X e Y estrictamente adentro de las maderas del parqué
     pos.x = Math.max(radioMargen, Math.min(canvas.width - radioMargen, pos.x));
     pos.y = Math.max(radioMargen, Math.min(canvas.height - radioMargen, pos.y));
     
     if(currentStep === 0) {
-        // En el paso inicial (Ubicación) movemos la ficha directo con los límites aplicados
         path[0] = {x: pos.x, y: pos.y, isScreen: last.isScreen, angle: last.angle};
     } else {
-        // Filtro para el Paso 1 en adelante con distancia mínima anti-temblequeo
         const distanciaSurgida = Math.hypot(pos.x - last.x, pos.y - last.y);
-        
-        if (distanciaSurgida > 12 * sF) {
-            path.push({x: pos.x, y: pos.y, isScreen: last.isScreen, angle: last.angle});
+        if (distanciaSurgida > 12 * sF) { 
+            path.push({x: pos.x, y: pos.y, isScreen: last.isScreen, angle: last.angle}); 
         }
     }
+
+    // --- MOTOR DE TRAZADO MAGNÉTICO v121 ---
+    if (activeObj !== ball && imantadoA === activeObj.id) {
+        const ballPath = ball.steps[currentStep];
+        const ballLast = ballPath[ballPath.length - 1];
+        
+        // Desfase estratégico (13px arriba y a la derecha) para no tapar el número de la camiseta
+        const targetBallX = pos.x + (13 * sF);
+        const targetBallY = pos.y - (13 * sF);
+        
+        if (currentStep === 0) {
+            ballPath[0] = {x: targetBallX, y: targetBallY, isScreen: ballLast.isScreen, angle: ballLast.angle};
+        } else {
+            ballPath.push({x: targetBallX, y: targetBallY, isScreen: ballLast.isScreen, angle: ballLast.angle});
+        }
+    }
+    
     draw(); updateFloatingUI();
 }
+
 function handleEnd() {
-    if (isDragging && activeObj) { if (activeObj === ball) playSound('bounceBall'); else playSound('dropJersey'); }
+    if (isDragging && activeObj) { 
+        if (activeObj === ball) {
+            playSound('bounceBall');
+            
+            let minDistance = 28 * sF; // Rango de captura táctica en el lienzo
+            let jugadorCercano = null;
+            
+            players.forEach(p => {
+                const pLast = p.steps[currentStep][p.steps[currentStep].length - 1];
+                const dist = Math.hypot(pLast.x - ball.steps[currentStep][ball.steps[currentStep].length - 1].x, pLast.y - ball.steps[currentStep][ball.steps[currentStep].length - 1].y);
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    jugadorCercano = p;
+                }
+            });
+            
+            if (jugadorCercano) {
+                const ballPath = ball.steps[currentStep];
+                const pLast = jugadorCercano.steps[currentStep][jugadorCercano.steps[currentStep].length - 1];
+                
+                // --- ESCUDO ANTICORTINA v121 ---
+                // Si el jugador está bloqueando, la pelota rebota suelta y no se imanta
+                if (pLast.isScreen) {
+                    imantadoA = null;
+                } else {
+                    imantadoA = jugadorCercano.id; // Se activa el imán
+                    ballPath[ballPath.length - 1].x = pLast.x + (13 * sF);
+                    ballPath[ballPath.length - 1].y = pLast.y - (13 * sF);
+                }
+            } else {
+                imantadoA = null; // Suelta en zona vacía, queda libre
+            }
+        } else {
+            playSound('dropJersey');
+        } 
+    }
     isDragging = false; draw();
 }
-
 const getPos = (e) => {
     const rect = canvas.getBoundingClientRect();
     const clientX = e.touches ? e.touches[0].clientX : e.clientX, clientY = e.touches ? e.touches[0].clientY : e.clientY;
@@ -390,7 +489,35 @@ function deleteLastStep() {
     currentStep--; updateStepUI(); renderTimeline(); draw(); attachButtonSounds();
 }
 
-function newPlay() { if(confirm("¿Borrar jugada actual y crear una de cero?")) location.reload(); }
+function newPlay() { 
+    if(confirm("¿Borrar jugada actual y crear una de cero?")) {
+        currentStep = 0;
+        isEditionFinished = false;
+        activeObj = null;
+        imantadoA = null; // Reseteo total del motor magnético
+        
+        if (canvas) {
+            ball.steps = [[{x: canvas.width/2, y: canvas.height * 0.45, isScreen: false, angle: 0}]];
+        }
+        
+        players = [];
+        syncPlayers(); // Vuelve a generar el quinteto inicial limpio
+        
+        const playbackControls = document.getElementById('playback-controls');
+        const editControls = document.getElementById('edit-controls');
+        const addStepBtn = document.getElementById('addStepBtn');
+        
+        if (playbackControls) playbackControls.style.display = "none";
+        if (editControls) editControls.style.display = "flex";
+        if (addStepBtn) addStepBtn.style.display = "block";
+        
+        if (typeof updateFloatingUI === "function") updateFloatingUI();
+        
+        updateStepUI();
+        renderTimeline();
+        draw();
+    }
+}
 
 function renderTimeline() {
     if(!timelineList) return;
