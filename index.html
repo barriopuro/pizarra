@@ -31,8 +31,6 @@
     
     <div id="col-izquierda-container">
         <div id="col-izquierda">
-            <div id="status-box" class="status-container">UBICACIÓN</div>
-            
             <select id="countRed" class="snd-btn" onchange="syncPlayers()"></select>
             <select id="countBlue" class="snd-btn" onchange="syncPlayers()"></select>
             <select id="formationSelect" class="snd-btn" onchange="applyFormation()">
@@ -51,6 +49,14 @@
                 </div>
             </div>
             
+            <div class="toggle-container" style="display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 5px 0;">
+                <span style="font-size: 11px; color: #aaa;">👁️ HISTORIAL</span>
+                <label class="switch">
+                    <input type="checkbox" id="historyToggle" checked onchange="draw()">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            
             <hr>
             
             <div style="display: table; width: 100%; table-layout: fixed; border-spacing: 4px 0; margin-bottom: 5px;">
@@ -64,6 +70,8 @@
             
             <input type="file" id="importFile" style="display:none" accept=".json" onchange="importPlay(event)">
             <button class="btn-danger snd-btn" onclick="newPlay()" title="Nueva Jugada" style="padding: 10px 2px; font-size: 14px; margin-top: 10px;">📄</button>
+            
+            
         </div>
         <button id="solapa-izq" class="solapa-interfaz" onclick="toggleSidebar('izq')">◀</button>
     </div>
@@ -84,11 +92,11 @@
                 </svg>
                 <canvas id="canvas"></canvas>
 
-<div id="floating-ui">
-            <button id="scr-btn" class="f-btn snd-btn" onclick="toggleCurrentPlayerScreen()" title="Cortina">🛡️</button>
-            <button id="rot-btn" class="f-btn snd-btn" onclick="rotateCurrentPlayer()" title="Rotar Cortina">🔄</button>
-            <button id="txt-btn" class="f-btn snd-btn" onclick="labelCurrentPlayer()" title="Asignar ID">✏️</button>
-        </div>
+                <div id="floating-ui">
+                    <button id="scr-btn" class="f-btn snd-btn" onclick="toggleCurrentPlayerScreen()" title="Cortina">🛡️</button>
+                    <button id="rot-btn" class="f-btn snd-btn" onclick="rotateCurrentPlayer()" title="Rotar Cortina">🔄</button>
+                    <button id="txt-btn" class="f-btn snd-btn" onclick="labelCurrentPlayer()" title="Asignar ID">✏️</button>
+                </div>
 
             </div>
         </div>
@@ -98,21 +106,14 @@
             <button class="btn-loop fs-float-btn snd-btn" onclick="toggleLoop()">🔄 LOOP</button>
             <button class="fs-float-btn snd-btn" onclick="backToEdit()" style="background:#555; color:white;">✏️ EDIT</button>
         </div>
-        
-        
     </div>
 
     <div id="col-linea-tiempo-container">
         <button id="solapa-der" class="solapa-interfaz" onclick="toggleSidebar('der')">▶</button>
         
         <div id="col-linea-tiempo">
-            <div class="toggle-container">
-                <span>👁️ HISTORIAL</span>
-                <label class="switch">
-                    <input type="checkbox" id="historyToggle" checked onchange="draw()">
-                    <span class="slider"></span>
-                </label>
-            </div>
+            <div id="status-box" class="status-container" style="margin-bottom: 10px; width: 100%; text-align: center;">UBICACIÓN</div>
+            
             <div id="steps-container">
                 <div id="steps-list" style="display: flex; flex-direction: column; gap: 4px;"></div>
                 <button id="addStepBtn" class="btn-add snd-btn" onclick="addNewStep()">+ SIG. PASO</button>
@@ -124,9 +125,9 @@
                     <button id="finishBtn" class="btn-finish snd-btn" onclick="finishEdition()">🏁 FINALIZAR</button>
                 </div>
                 
-             <div id="playback-controls" style="display: none; flex-direction: column; gap: 4px;">
+                <div id="playback-controls" style="display: none; flex-direction: column; gap: 4px;">
                     <div style="display: flex; gap: 4px; width: 100%;">
-	<button id="mainPlayBtn" class="btn-play snd-btn" onclick="togglePlay()" style="width: calc(50% - 2px);">▶ PLAY</button>
+                        <button id="mainPlayBtn" class="btn-play snd-btn" onclick="togglePlay()" style="width: calc(50% - 2px);">▶ PLAY</button>
                         <button id="mainLoopBtn" class="btn-loop snd-btn" onclick="toggleLoop()" style="width: calc(50% - 2px);">🔄 LOOP</button>
                     </div>
                     <div style="display: flex; gap: 4px; width: 100%;">
