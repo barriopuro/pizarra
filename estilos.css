@@ -38,7 +38,7 @@ body {
     #loading-screen {
         /* EN CELU EN HORIZONTAL SACA EL AIRE DE ARRIBA Y EMPIEZA DESDE EL TECHO */
         justify-content: flex-start; 
-        padding-top: 7px; 
+        padding-top: 3px; 
     }
 }
 
