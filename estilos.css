@@ -471,3 +471,26 @@ select, button {
 }
 
 #speedSelect { background: #333; color: white; border: 1px solid #555; font-size: 11px; height: 34px; border-radius: 4px; }
+
+
+/* --- CRÉDITO AL PIE DE LA BARRA IZQUIERDA --- */
+.sidebar-credits {
+    text-align: center;
+    font-size: 10px;
+    font-weight: bold;
+    color: #666; /* Un gris sutil para que no compita visualmente con los botones */
+    margin-top: 25px; /* Lo separa del botón de la hoja y lo empuja al fondo */
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.sidebar-credits a {
+    color: #ff6600; /* El enlace resalta con el naranja de tu estética */
+    text-decoration: none; /* Le saca el subrayado común */
+    transition: color 0.2s;
+}
+
+.sidebar-credits a:hover {
+    color: #fff; /* Al pasar el mouse o el dedo, brilla en blanco */
+    text-decoration: underline overline; /* Solo se subraya al interactuar */
+}
