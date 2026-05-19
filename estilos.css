@@ -28,11 +28,20 @@ body {
     display: flex; 
     flex-direction: column;
     align-items: center; 
-    justify-content: flex-start;
-    padding-top: 15px; 
+    justify-content: center; 
     gap: 6px;
     transition: opacity 0.5s ease-out, transform 0.5s ease-out;
 }
+
+/* --- COMPORTAMIENTO EXCLUSIVO PARA CELULARES (Pantallas bajas en vertical) --- */
+@media (max-height: 450px) {
+    #loading-screen {
+        /* EN CELU EN HORIZONTAL SACA EL AIRE DE ARRIBA Y EMPIEZA DESDE EL TECHO */
+        justify-content: flex-start; 
+        padding-top: 7px; 
+    }
+}
+
 
 #logo-container { 
     width: 240px; 
