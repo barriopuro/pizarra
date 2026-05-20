@@ -27,6 +27,7 @@ let imantadoA = null; // Almacena el ID del jugador que traslada el balón
 let sF = 1, 
     isMuted = localStorage.getItem('pizarraMuted') === 'true';
 let factorVelocidad = 1;
+let undoStack = [];
 
 const stepColors = ["#ffffff", "#38b000", "#00b4d8", "#ffb703", "#e040fb", "#ff5722"];
 let audioCtx = null;
@@ -376,8 +377,12 @@ function handleStart(e) {
         const dist = Math.hypot(last.x - pos.x, last.y - pos.y);
         if(dist < minDistance) { minDistance = dist; found = obj; }
     });
-    if(found) { 
-        activeObj = found; isDragging = true; 
+if(found) {
+
+    const snapshot = structuredClone(found.steps[currentStep]);
+
+found._pendingUndoSnapshot = snapshot;    activeObj = found;
+    isDragging = true;
         if(currentStep > 0 && (!activeObj.steps[currentStep] || activeObj.steps[currentStep].length <= 1)) {
             const lastPrev = activeObj.steps[currentStep - 1][activeObj.steps[currentStep - 1].length - 1];
             // Corrección táctica: Si el objeto ya tiene un punto en este paso, preservamos su estado de cortina (isScreen) actual
@@ -429,8 +434,21 @@ function handleMove(e) {
 }
 
 function handleEnd() {
-    if (isDragging && activeObj) { 
-        if (activeObj === ball) {
+
+    let huboMovimiento = false;
+
+    if (isDragging && activeObj) {
+
+    const path = activeObj.steps[currentStep];
+
+    const inicio = path[0];
+const fin = path[path.length - 1];
+
+if (Math.hypot(fin.x - inicio.x, fin.y - inicio.y) > 5) {
+    huboMovimiento = true;
+}
+
+    if (activeObj === ball) {
             playSound('bounceBall');
             
             let minDistance = 28 * sF; // Rango de captura táctica en el lienzo
@@ -465,7 +483,19 @@ function handleEnd() {
             playSound('dropJersey');
         } 
     }
-    isDragging = false; draw();
+if (huboMovimiento && activeObj._pendingUndoSnapshot) {
+
+    undoStack.push({
+    obj: activeObj,
+    step: currentStep,
+    snapshot: activeObj._pendingUndoSnapshot
+});
+}
+
+delete activeObj._pendingUndoSnapshot;
+
+isDragging = false;
+draw();
 }
 const getPos = (e) => {
     const rect = canvas.getBoundingClientRect();
@@ -495,6 +525,7 @@ function newPlay() {
         isEditionFinished = false;
         activeObj = null;
         imantadoA = null; // Reseteo total del motor magnético
+	undoStack = [];
         
         if (canvas) {
             ball.steps = [[{x: canvas.width/2, y: canvas.height * 0.45, isScreen: false, angle: 0}]];
@@ -619,7 +650,8 @@ function importPlay(event) {
         const sX = canvas.width / d.s.w, sY = canvas.height / d.s.h;
         ball = d.b; ball.steps.forEach(s => s.forEach(p => { p.x *= sX; p.y *= sY; }));
         players = d.p; players.forEach(pl => { pl.steps.forEach(s => s.forEach(p => { p.x *= sX; p.y *= sY; })); if(!pl.label) pl.label = ''; });
-        currentStep = 0; updateFormationOptions(); renderTimeline(); updateStepUI(); draw(); attachButtonSounds();
+undoStack = [];        
+currentStep = 0; updateFormationOptions(); renderTimeline(); updateStepUI(); draw(); attachButtonSounds();
     };
     reader.readAsText(event.target.files[0]);
 }
@@ -1174,34 +1206,202 @@ async function exportVideo() {
 }
 
 function undoLastMove() {
-    if (activeObj && activeObj.steps[currentStep].length > 1) {
-        activeObj.steps[currentStep].pop();
-        
-        if (activeObj === ball) {
-            imantadoA = null;
-        }
-        
-        draw(); 
-        playSound('clickGeneral');
+
+    if (undoStack.length === 0) return;
+
+    const lastAction = undoStack.pop();
+
+    // Restauramos TODO el trazo anterior completo
+    lastAction.obj.steps[lastAction.step] = structuredClone(lastAction.snapshot);
+
+    // Limpiamos selección
+    activeObj = null;
+    isDragging = false;
+
+    // Redibujamos
+    draw();
+
+    // Refrescamos UI
+    if (typeof updateFloatingUI === "function") {
+        updateFloatingUI();
+    }
+
+    if (typeof updateUndoButton === "function") {
+        updateUndoButton();
     }
 }
 
-function updateUndoButton() {
+
+// ========================================================
+// PATCH UNDO v123 - UNDO TÁCTICO INTELIGENTE
+// PEGAR AL FINAL DEL ARCHIVO
+// ========================================================
+
+
+// SNAPSHOT ÚNICO AL INICIAR DRAG
+const __originalHandleStart = handleStart;
+
+handleStart = function(e) {
+
+    if (isDragging) return;
+
+    const pos = getPos(e);
+
+    let found = null;
+    let minDistance = 35 * sF;
+
+    const all = ball.active ? [...players, ball] : [...players];
+
+    all.forEach(obj => {
+
+        const last =
+            obj.steps[currentStep][obj.steps[currentStep].length - 1];
+
+        const dist =
+            Math.hypot(last.x - pos.x, last.y - pos.y);
+
+        if (dist < minDistance) {
+            minDistance = dist;
+            found = obj;
+        }
+    });
+
+    if (found) {
+
+        found._fullUndoSnapshot =
+            JSON.parse(JSON.stringify(found.steps[currentStep]));
+    }
+
+    __originalHandleStart(e);
+};
+
+
+// GUARDADO ÚNICO AL TERMINAR DRAG
+const __originalHandleEnd = handleEnd;
+
+handleEnd = function() {
+
+    const objAntes = activeObj;
+
+    __originalHandleEnd();
+
+    if (!objAntes) return;
+
+    const snapshot = objAntes._fullUndoSnapshot;
+
+    if (!snapshot) return;
+
+    const currentPath = objAntes.steps[currentStep];
+
+    if (!currentPath || currentPath.length <= 1) return;
+
+    // ELIMINAMOS ESTADOS DUPLICADOS
+    undoStack = undoStack.filter(item =>
+        !(item.obj === objAntes && item.step === currentStep)
+    );
+
+    // GUARDAMOS SOLO EL ESTADO COMPLETO
+    undoStack.push({
+        obj: objAntes,
+        step: currentStep,
+        snapshot: JSON.parse(JSON.stringify(snapshot))
+    });
+
+    delete objAntes._fullUndoSnapshot;
+};
+
+
+// ========================================================
+// UNDO TÁCTICO INTELIGENTE
+// ========================================================
+
+undoLastMove = function() {
+
+    if (undoStack.length === 0) return;
+
+    // SOLO buscamos movimientos del paso actual
+    let index = -1;
+
+    for (let i = undoStack.length - 1; i >= 0; i--) {
+
+        if (undoStack[i].step === currentStep) {
+            index = i;
+            break;
+        }
+    }
+
+    // SI NO HAY MÁS MOVIMIENTOS EN ESTE PASO
+    // BORRAMOS EL PASO Y VOLVEMOS ATRÁS
+    if (index === -1) {
+
+        if (currentStep > 0) {
+
+            // BORRAR PASO COMPLETO
+            [...players, ball].forEach(p => {
+                p.steps.pop();
+            });
+
+            currentStep--;
+
+            renderTimeline();
+            updateStepUI();
+            draw();
+
+            return;
+        }
+
+        return;
+    }
+
+    // DESHACER NORMAL
+    const lastAction = undoStack.splice(index, 1)[0];
+
+    lastAction.obj.steps[lastAction.step] =
+        JSON.parse(JSON.stringify(lastAction.snapshot));
+
+    activeObj = null;
+    isDragging = false;
+
+    draw();
+
+    if (typeof updateFloatingUI === "function") {
+        updateFloatingUI();
+    }
+
+    if (typeof updateUndoButton === "function") {
+        updateUndoButton();
+    }
+};
+
+
+// ========================================================
+// BOTÓN UNDO
+// ========================================================
+
+updateUndoButton = function() {
+
     const undoBtn = document.getElementById('undoBtn');
+
     if (!undoBtn) return;
 
-    // Condición: ¿Hay objeto seleccionado Y tiene más de un paso (movimiento)?
-    const tieneMovimientos = activeObj && activeObj.steps[currentStep].length > 1;
+    let hayMovimientosEnPasoActual = false;
 
-    if (tieneMovimientos) {
-        // ACTIVADO: Estilo normal
-        undoBtn.style.opacity = "1";
-        undoBtn.style.pointerEvents = "auto";
-        undoBtn.style.cursor = "pointer";
-    } else {
-        // DESHABILITADO: Estilo tenue
-        undoBtn.style.opacity = "0.3"; 
-        undoBtn.style.pointerEvents = "none"; // Impide el click
-        undoBtn.style.cursor = "default";
+    for (let i = 0; i < undoStack.length; i++) {
+
+        if (undoStack[i].step === currentStep) {
+            hayMovimientosEnPasoActual = true;
+            break;
+        }
     }
-}
+
+    const enabled =
+        hayMovimientosEnPasoActual || currentStep > 0;
+
+    undoBtn.style.opacity = enabled ? "1" : "0.3";
+
+    undoBtn.style.pointerEvents =
+        enabled ? "auto" : "none";
+
+    undoBtn.style.cursor =
+        enabled ? "pointer" : "default";
+};
