@@ -962,9 +962,12 @@ function draw() {
                 }
                 ctx.restore();
             });
-        }
+		}
         ctx.restore();
+
     }
+updateUndoButton();        
+
 
     // Renderizado del paso activo
     const activeColor = stepColors[currentStep % stepColors.length];
@@ -1168,4 +1171,37 @@ async function exportVideo() {
 
     factorVelocidad = velocidadOriginal;
     recorder.stop();
+}
+
+function undoLastMove() {
+    if (activeObj && activeObj.steps[currentStep].length > 1) {
+        activeObj.steps[currentStep].pop();
+        
+        if (activeObj === ball) {
+            imantadoA = null;
+        }
+        
+        draw(); 
+        playSound('clickGeneral');
+    }
+}
+
+function updateUndoButton() {
+    const undoBtn = document.getElementById('undoBtn');
+    if (!undoBtn) return;
+
+    // Condición: ¿Hay objeto seleccionado Y tiene más de un paso (movimiento)?
+    const tieneMovimientos = activeObj && activeObj.steps[currentStep].length > 1;
+
+    if (tieneMovimientos) {
+        // ACTIVADO: Estilo normal
+        undoBtn.style.opacity = "1";
+        undoBtn.style.pointerEvents = "auto";
+        undoBtn.style.cursor = "pointer";
+    } else {
+        // DESHABILITADO: Estilo tenue
+        undoBtn.style.opacity = "0.3"; 
+        undoBtn.style.pointerEvents = "none"; // Impide el click
+        undoBtn.style.cursor = "default";
+    }
 }
