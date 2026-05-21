@@ -409,26 +409,28 @@ function handleMove(e) {
         path[0] = {x: pos.x, y: pos.y, isScreen: last.isScreen, angle: last.angle};
     } else {
         const distanciaSurgida = Math.hypot(pos.x - last.x, pos.y - last.y);
-        if (distanciaSurgida > 12 * sF) { 
+        if (distanciaSurgida > 30 * sF) { 
             path.push({x: pos.x, y: pos.y, isScreen: last.isScreen, angle: last.angle}); 
         }
     }
 
     // --- MOTOR DE TRAZADO MAGNÉTICO v121 ---
     if (activeObj !== ball && imantadoA === activeObj.id) {
-        const ballPath = ball.steps[currentStep];
-        const ballLast = ballPath[ballPath.length - 1];
-        
-        // Desfase estratégico (13px arriba y a la derecha) para no tapar el número de la camiseta
-        const targetBallX = pos.x + (13 * sF);
-        const targetBallY = pos.y - (13 * sF);
-        
-        if (currentStep === 0) {
-            ballPath[0] = {x: targetBallX, y: targetBallY, isScreen: ballLast.isScreen, angle: ballLast.angle};
-        } else {
-            ballPath.push({x: targetBallX, y: targetBallY, isScreen: ballLast.isScreen, angle: ballLast.angle});
-        }
-    }
+
+    const playerPath = activeObj.steps[currentStep];
+    const ballPath = ball.steps[currentStep];
+
+    const targetBallX = pos.x + (13 * sF);
+    const targetBallY = pos.y - (13 * sF);
+
+    // Igualamos EXACTAMENTE la cantidad de puntos
+    ball.steps[currentStep] = playerPath.map(pt => ({
+        x: pt.x + (13 * sF),
+        y: pt.y - (13 * sF),
+        isScreen: false,
+        angle: 0
+    }));
+}
     
     draw(); updateFloatingUI();
 }
@@ -519,34 +521,59 @@ function deleteLastStep() {
     currentStep--; updateStepUI(); renderTimeline(); draw(); attachButtonSounds();
 }
 
-function newPlay() { 
-    if(confirm("¿Borrar jugada actual y crear una de cero?")) {
-        currentStep = 0;
-        isEditionFinished = false;
-        activeObj = null;
-        imantadoA = null; // Reseteo total del motor magnético
-	undoStack = [];
-        
-        if (canvas) {
-            ball.steps = [[{x: canvas.width/2, y: canvas.height * 0.45, isScreen: false, angle: 0}]];
-        }
-        
-        players = [];
-        syncPlayers(); // Vuelve a generar el quinteto inicial limpio
-        
-        const playbackControls = document.getElementById('playback-controls');
-        const editControls = document.getElementById('edit-controls');
-        const addStepBtn = document.getElementById('addStepBtn');
-        
-        if (playbackControls) playbackControls.style.display = "none";
-        if (editControls) editControls.style.display = "flex";
-        if (addStepBtn) addStepBtn.style.display = "block";
-        
-        if (typeof updateFloatingUI === "function") updateFloatingUI();
-        
-        updateStepUI();
-        renderTimeline();
-        draw();
+function newPlay() {
+
+    const modal = document.getElementById('confirmModal');
+    if (modal) {
+        modal.style.display = "flex";
+    }
+}
+
+function confirmNewPlay() {
+
+    currentStep = 0;
+    isEditionFinished = false;
+    activeObj = null;
+    imantadoA = null;
+    undoStack = [];
+
+    if (canvas) {
+        ball.steps = [[{
+            x: canvas.width / 2,
+            y: canvas.height * 0.45,
+            isScreen: false,
+            angle: 0
+        }]];
+    }
+
+    players = [];
+    syncPlayers();
+
+    const playbackControls = document.getElementById('playback-controls');
+    const editControls = document.getElementById('edit-controls');
+    const addStepBtn = document.getElementById('addStepBtn');
+
+    if (playbackControls) playbackControls.style.display = "none";
+    if (editControls) editControls.style.display = "flex";
+    if (addStepBtn) addStepBtn.style.display = "block";
+
+    if (typeof updateFloatingUI === "function") {
+        updateFloatingUI();
+    }
+
+    updateStepUI();
+    renderTimeline();
+    draw();
+
+    closeConfirmModal();
+}
+
+function closeConfirmModal() {
+
+    const modal = document.getElementById('confirmModal');
+
+    if (modal) {
+        modal.style.display = "none";
     }
 }
 
@@ -896,15 +923,12 @@ function renderAnim() {
                 const path = p.steps[stepIdx]; if (!path || path.length === 0) return;
                 
                 if (stepIdx > 0 && path.length > 1) {
-                    ctx.beginPath(); 
-                    ctx.strokeStyle = colorTactico; 
-                    ctx.lineWidth = esPasoActual ? (3.5 * sF) : (2 * sF);
-                    if (p === ball) ctx.setLineDash(esPasoActual ? [5, 5] : [4, 4]);
-                    
-                    ctx.moveTo(path[0].x, path[0].y);
-                    for (let j = 1; j < path.length; j++) ctx.lineTo(path[j].x, path[j].y);
-                    ctx.stroke(); 
-                    ctx.setLineDash([]);
+                    drawSmoothPath(
+    path,
+    colorTactico,
+    esPasoActual ? (3.5 * sF) : (2 * sF),
+    p === ball
+);
                 }
             });
         }
@@ -950,6 +974,50 @@ const logoCanchaImg = new Image();
 logoCanchaImg.src = "logocancha.svg";
 logoCanchaImg.onload = () => { draw(); };
 
+function drawSmoothPath(path, color, width, dashed = false) {
+
+    if (!path || path.length < 2) return;
+
+    ctx.beginPath();
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+
+    if (dashed) {
+        ctx.setLineDash([5, 5]);
+    } else {
+        ctx.setLineDash([]);
+    }
+
+    ctx.moveTo(path[0].x, path[0].y);
+
+    for (let i = 1; i < path.length - 1; i++) {
+
+        const current = path[i];
+        const next = path[i + 1];
+
+        const smoothFactor = 0.35;
+
+const midX = current.x + (next.x - current.x) * smoothFactor;
+const midY = current.y + (next.y - current.y) * smoothFactor;
+
+        ctx.quadraticCurveTo(
+            current.x,
+            current.y,
+            midX,
+            midY
+        );
+    }
+
+    const last = path[path.length - 1];
+
+    ctx.lineTo(last.x, last.y);
+
+    ctx.stroke();
+
+    ctx.setLineDash([]);
+}
+
 // --- FUNCIÓN DE DIBUJADO PRINCIPAL (CANVAS) ---
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height); 
@@ -979,10 +1047,12 @@ function draw() {
                 const path = p.steps[stepIdx]; if(!path || path.length === 0) return;
                 const last = path[path.length - 1];
                 if(stepIdx > 0 && path.length > 1) {
-                    ctx.beginPath(); ctx.strokeStyle = colorTactico; ctx.lineWidth = 2 * sF;
-                    if(p === ball) ctx.setLineDash([4, 4]);
-                    ctx.moveTo(path[0].x, path[0].y); for(let j=1; j<path.length; j++) ctx.lineTo(path[j].x, path[j].y);
-                    ctx.stroke(); ctx.setLineDash([]);
+                    drawSmoothPath(
+    path,
+    colorTactico,
+    2 * sF,
+    p === ball
+);
                 }
                 ctx.save(); ctx.translate(last.x, last.y);
                 if(p === ball) { ctx.font = `${radius * 1.3}px Arial`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("🏀", 0, 0); } 
@@ -1012,10 +1082,12 @@ updateUndoButton();
             ctx.strokeStyle = "rgba(255, 255, 255, 0.85)"; ctx.lineWidth = 3*sF; ctx.setLineDash([4, 4]); ctx.stroke(); ctx.restore();
         }
         if(currentStep > 0 && path.length > 1) {
-            ctx.beginPath(); ctx.strokeStyle = activeColor; ctx.lineWidth = 3.5 * sF;
-            if(p === ball) ctx.setLineDash([5, 5]);
-            ctx.moveTo(path[0].x, path[0].y); for(let k=1; k<path.length; k++) { ctx.lineTo(path[k].x, path[k].y); }
-            ctx.stroke(); ctx.setLineDash([]);
+           drawSmoothPath(
+    path,
+    activeColor,
+    3.5 * sF,
+    p === ball
+);
         }
         ctx.save(); ctx.translate(last.x, last.y);
         if(p === ball) { ctx.font = `${radius * 1.6}px Arial`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("🏀", 0, 0); } 

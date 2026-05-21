@@ -494,3 +494,96 @@ select, button {
     color: #fff; /* Al pasar el mouse o el dedo, brilla en blanco */
     text-decoration: underline overline; /* Solo se subraya al interactuar */
 }
+
+
+.confirm-modal {
+
+    position: fixed;
+    inset: 0;
+
+    background: rgba(0,0,0,0.75);
+
+    display: none;
+
+    justify-content: center;
+    align-items: center;
+
+    z-index: 999999;
+}
+
+.confirm-box {
+
+    width: 320px;
+
+    background: #1b1b1b;
+
+    border: 3px solid #ff6600;
+
+    border-radius: 18px;
+
+    padding: 24px;
+
+    box-shadow: 0 0 30px rgba(0,0,0,0.6);
+
+    text-align: center;
+}
+
+.confirm-title {
+
+    font-size: 22px;
+    font-weight: bold;
+
+    color: #ff6600;
+
+    margin-bottom: 14px;
+}
+
+.confirm-text {
+
+    color: white;
+
+    font-size: 15px;
+
+    margin-bottom: 24px;
+}
+
+.confirm-buttons {
+
+    display: flex;
+
+    gap: 12px;
+}
+
+.confirm-btn {
+
+    flex: 1;
+
+    border: none;
+
+    border-radius: 12px;
+
+    padding: 12px;
+
+    font-weight: bold;
+
+    cursor: pointer;
+
+    transition: 0.2s;
+}
+
+.confirm-btn:hover {
+
+    transform: scale(1.03);
+}
+
+.cancel-btn {
+
+    background: #333;
+    color: white;
+}
+
+.accept-btn {
+
+    background: #ff6600;
+    color: white;
+}
