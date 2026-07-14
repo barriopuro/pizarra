@@ -98,25 +98,23 @@ function checkOrientationForMode() {
 }
 
 // Se ejecuta una única vez, la primera vez que la app queda visible:
-// despierta las solapas laterales y, en Cancha Completa, arranca con
-// ambas barras colapsadas para dejarle el máximo espacio posible al
-// canvas vertical (se pueden abrir en cualquier momento con las solapas).
+// despierta las solapas y, en Cancha Completa, activa el layout de barras
+// horizontales (arriba/abajo) en vez de verticales (izq/der).
 function activarInterfaz() {
     if (solapasActivadas) return;
     solapasActivadas = true;
 
+    const appWrapper = document.getElementById('app-wrapper');
     const sIzq = document.getElementById('solapa-izq');
     const sDer = document.getElementById('solapa-der');
     if (sIzq) sIzq.classList.add('solapa-activa');
     if (sDer) sDer.classList.add('solapa-activa');
 
     if (courtMode === 'full') {
-        const colIzq = document.getElementById('col-izquierda-container');
-        const colDer = document.getElementById('col-linea-tiempo-container');
-        if (colIzq) colIzq.classList.add('colapsado');
-        if (colDer) colDer.classList.add('colapsado');
-        if (sIzq) sIzq.innerText = '▶';
-        if (sDer) sDer.innerText = '◀';
+        if (appWrapper) appWrapper.classList.add('modo-full');
+        // Íconos iniciales para el layout arriba/abajo (barras expandidas)
+        if (sIzq) sIzq.innerText = '▲';
+        if (sDer) sDer.innerText = '▼';
     }
 }
 
@@ -304,11 +302,14 @@ function toggleSidebar(lado) {
     if (!contenedor || !boton) return;
 
     contenedor.classList.toggle('colapsado');
+    const colapsado = contenedor.classList.contains('colapsado');
 
-    if (lado === 'izq') {
-        boton.innerText = contenedor.classList.contains('colapsado') ? "▶" : "◀";
+    if (courtMode === 'full') {
+        if (lado === 'izq') boton.innerText = colapsado ? "▼" : "▲";
+        else                boton.innerText = colapsado ? "▲" : "▼";
     } else {
-        boton.innerText = contenedor.classList.contains('colapsado') ? "◀" : "▶";
+        if (lado === 'izq') boton.innerText = colapsado ? "▶" : "◀";
+        else                boton.innerText = colapsado ? "◀" : "▶";
     }
 
     verificarMenuFlotante();
@@ -434,8 +435,8 @@ function confirmNewPlay() {
     undoStack         = [];
 
     if (canvas) {
-        const yInicial = (courtMode === 'full') ? canvas.height * 0.225 : canvas.height * 0.45;
-        ball.steps          = [[{ x: canvas.width / 2, y: yInicial, isScreen: false, angle: 0 }]];
+        const hRef = (courtMode === 'full') ? canvas.height / 2 : canvas.height;
+        ball.steps          = [[{ x: canvas.width / 2, y: yPorFraccion(0.45, hRef), isScreen: false, angle: 0 }]];
         ball.portadorPorPaso = [null];
     }
 

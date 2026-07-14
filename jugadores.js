@@ -36,8 +36,14 @@ function updateFormationOptions() {
     const n = parseInt(rs.value);
     fs.innerHTML = '<option value="custom">-- FORMACIÓN --</option>';
     if (n === 0) return;
+
+    // En Cancha Completa las formaciones son de "salida" (quiénes esperan
+    // cerca del aro propio y quiénes ya están adelantados en los carriles),
+    // no de ataque a un solo aro.
+    const [etA, etB] = (courtMode === 'full') ? ['ATRÁS', 'ADELANTE'] : ['INT', 'EXT'];
+
     for (let i = n; i >= 0; i--) {
-        fs.add(new Option(`${i} INT / ${n - i} EXT`, `${i}-${n - i}`));
+        fs.add(new Option(`${i} ${etA} / ${n - i} ${etB}`, `${i}-${n - i}`));
     }
 }
 
@@ -50,8 +56,9 @@ function syncPlayers() {
     const radius = 15 * sF;
 
     // En Cancha Completa la referencia vertical es la altura de UNA media
-    // cancha (mitad del canvas), para que la formación inicial aparezca
-    // cerca del aro de arriba, igual que en Media Cancha.
+    // cancha (mitad del canvas). yPorFraccion() se encarga de reflejar esa
+    // posición hacia la mitad inferior (el aro propio), como si el equipo
+    // fuera a sacar la pelota desde su aro.
     const hRef = (courtMode === 'full') ? canvas.height / 2 : canvas.height;
 
     const updateTeam = (team, count, defaultX) => {
@@ -71,11 +78,11 @@ function syncPlayers() {
 
                 if (team === 'red') {
                     const posicionesExteriores = [
-                        { x: canvas.width * 0.12, y: hRef * 0.38 },
-                        { x: canvas.width * 0.22, y: hRef * 0.70 },
-                        { x: canvas.width * 0.50, y: hRef * 0.82 },
-                        { x: canvas.width * 0.78, y: hRef * 0.70 },
-                        { x: canvas.width * 0.88, y: hRef * 0.38 },
+                        { x: canvas.width * 0.12, y: yPorFraccion(0.38, hRef) },
+                        { x: canvas.width * 0.22, y: yPorFraccion(0.70, hRef) },
+                        { x: canvas.width * 0.50, y: yPorFraccion(0.82, hRef) },
+                        { x: canvas.width * 0.78, y: yPorFraccion(0.70, hRef) },
+                        { x: canvas.width * 0.88, y: yPorFraccion(0.38, hRef) },
                     ];
                     if (posicionesExteriores[i]) {
                         tx = posicionesExteriores[i].x;
@@ -125,37 +132,69 @@ function saveLabels() {
 // --- APLICAR FORMACIÓN ---
 function applyFormation() {
     if (currentStep !== 0 || fs.value === "custom") return;
-    const [ic, ec] = fs.value.split('-').map(Number);
+    const [c1, c2] = fs.value.split('-').map(Number);
     const w = canvas.width;
-    // Misma referencia vertical que syncPlayers(): en Cancha Completa la
-    // formación se ubica dentro de la mitad superior de la cancha.
-    const h = (courtMode === 'full') ? canvas.height / 2 : canvas.height;
+    const h = canvas.height;
     const redP  = players.filter(p => p.team === 'red');
     const blueP = players.filter(p => p.team === 'blue');
 
-    const iL = [
-        { x: w * 0.35, y: h * 0.28 }, { x: w * 0.65, y: h * 0.28 },
-        { x: w * 0.35, y: h * 0.48 }, { x: w * 0.65, y: h * 0.48 },
-        { x: w * 0.50, y: h * 0.22 },
-    ];
-    const eL = [
-        { x: w * 0.12, y: h * 0.38 }, { x: w * 0.88, y: h * 0.38 },
-        { x: w * 0.22, y: h * 0.70 }, { x: w * 0.78, y: h * 0.70 },
-        { x: w * 0.50, y: h * 0.82 },
-    ];
-
     let fP = [];
-    if (ic === 1) fP.push(iL[4]);
-    else if (ic === 2) fP.push(iL[0], iL[1]);
-    else if (ic === 3) fP.push(iL[0], iL[1], iL[4]);
-    else if (ic === 4) fP.push(iL[0], iL[1], iL[2], iL[3]);
-    else if (ic === 5) fP.push(...iL);
 
-    if (ec === 1) fP.push(eL[4]);
-    else if (ec === 2) fP.push(eL[0], eL[1]);
-    else if (ec === 3) fP.push(eL[0], eL[1], eL[4]);
-    else if (ec === 4) fP.push(eL[0], eL[1], eL[2], eL[3]);
-    else if (ec === 5) fP.push(...eL);
+    if (courtMode === 'full') {
+        // Formaciones de "salida" desde el aro propio: un grupo espera
+        // atrás (cerca del aro de abajo) y el resto ya está adelantado en
+        // los carriles, listo para recibir el pase de salida.
+        const aL = [ // ATRÁS (cerca del aro propio)
+            { x: w * 0.50, y: h * 0.88 },
+            { x: w * 0.25, y: h * 0.80 },
+            { x: w * 0.75, y: h * 0.80 },
+            { x: w * 0.15, y: h * 0.92 },
+            { x: w * 0.85, y: h * 0.92 },
+        ];
+        const dL = [ // ADELANTE (carriles de salida)
+            { x: w * 0.50, y: h * 0.55 },
+            { x: w * 0.15, y: h * 0.42 },
+            { x: w * 0.85, y: h * 0.42 },
+            { x: w * 0.30, y: h * 0.28 },
+            { x: w * 0.70, y: h * 0.28 },
+        ];
+
+        if      (c1 === 1) fP.push(aL[0]);
+        else if (c1 === 2) fP.push(aL[0], aL[1]);
+        else if (c1 === 3) fP.push(aL[0], aL[1], aL[2]);
+        else if (c1 === 4) fP.push(aL[0], aL[1], aL[2], aL[3]);
+        else if (c1 === 5) fP.push(...aL);
+
+        if      (c2 === 1) fP.push(dL[0]);
+        else if (c2 === 2) fP.push(dL[0], dL[1]);
+        else if (c2 === 3) fP.push(dL[0], dL[1], dL[2]);
+        else if (c2 === 4) fP.push(dL[0], dL[1], dL[2], dL[3]);
+        else if (c2 === 5) fP.push(...dL);
+    } else {
+        // Formaciones de ataque a un aro (comportamiento original de Media Cancha)
+        const iL = [
+            { x: w * 0.35, y: h * 0.28 }, { x: w * 0.65, y: h * 0.28 },
+            { x: w * 0.35, y: h * 0.48 }, { x: w * 0.65, y: h * 0.48 },
+            { x: w * 0.50, y: h * 0.22 },
+        ];
+        const eL = [
+            { x: w * 0.12, y: h * 0.38 }, { x: w * 0.88, y: h * 0.38 },
+            { x: w * 0.22, y: h * 0.70 }, { x: w * 0.78, y: h * 0.70 },
+            { x: w * 0.50, y: h * 0.82 },
+        ];
+
+        if      (c1 === 1) fP.push(iL[4]);
+        else if (c1 === 2) fP.push(iL[0], iL[1]);
+        else if (c1 === 3) fP.push(iL[0], iL[1], iL[4]);
+        else if (c1 === 4) fP.push(iL[0], iL[1], iL[2], iL[3]);
+        else if (c1 === 5) fP.push(...iL);
+
+        if      (c2 === 1) fP.push(eL[4]);
+        else if (c2 === 2) fP.push(eL[0], eL[1]);
+        else if (c2 === 3) fP.push(eL[0], eL[1], eL[4]);
+        else if (c2 === 4) fP.push(eL[0], eL[1], eL[2], eL[3]);
+        else if (c2 === 5) fP.push(...eL);
+    }
 
     redP.forEach((p, i) => {
         if (fP[i]) {

@@ -12,6 +12,18 @@
 // La cancha completa usa el doble de alto (dos medias canchas apiladas).
 const COURT_ASPECT = 1.45;
 
+// Convierte una fracción "0 = pegado al aro, ~0.8-0.9 = cerca de la mitad de
+// cancha" en una coordenada Y real. En Media Cancha el aro está arriba
+// (fracción chica = y chico). En Cancha Completa el equipo arranca desde SU
+// PROPIO aro (el de abajo), así que la coordenada se refleja hacia la mitad
+// inferior de la cancha, como si fuera a sacar el equipo desde su aro.
+function yPorFraccion(fraccion, hRef) {
+    if (courtMode === 'full') {
+        return canvas.height - (hRef * fraccion);
+    }
+    return hRef * fraccion;
+}
+
 // --- INICIALIZACIÓN Y RE-ESCALADO ---
 function init() {
     const container = document.getElementById('canvas-wrap-outer');
@@ -63,8 +75,8 @@ function init() {
     updateMuteBtnUI();
 
     if (ball.steps[0][0].x === 0) {
-        const yInicial = (modo === 'full') ? finalH * 0.225 : finalH * 0.45;
-        ball.steps[0] = [{ x: finalW / 2, y: yInicial, isScreen: false, angle: 0 }];
+        const hRefBall = (modo === 'full') ? finalH / 2 : finalH;
+        ball.steps[0] = [{ x: finalW / 2, y: yPorFraccion(0.45, hRefBall), isScreen: false, angle: 0 }];
     }
     if (players.length === 0) syncPlayers();
 

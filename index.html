@@ -67,23 +67,14 @@
                 <option value="custom">-- FORMACIÓN --</option>
             </select>
 
-            <div style="display: table; width: 100%; table-layout: fixed; border-spacing: 4px 0; margin-bottom: 5px;">
-                <div style="display: table-cell; width: 33.33%;">
-                    <button id="ballBtn" class="snd-btn" onclick="toggleBall()" title="Pelota"
-                        style="width:100%; padding:10px 2px; font-size:14px; margin:0;">🏀</button>
-                </div>
-                <div style="display: table-cell; width: 33.33%;">
-                    <button id="muteBtn" class="snd-btn" onclick="toggleMute()" title="Silenciar"
-                        style="width:100%; padding:10px 2px; font-size:14px; margin:0;">🔊</button>
-                </div>
-                <div style="display: table-cell; width: 33.33%;">
-                    <button id="realFsBtn" class="snd-btn" onclick="toggleRealFullscreen()" title="Pantalla Completa"
-                        style="width:100%; padding:10px 2px; font-size:14px; margin:0; background:#222; color:#fff; font-weight:bold;">⤢</button>
-                </div>
+            <div class="icon-row">
+                <button id="ballBtn" class="snd-btn icon-btn" onclick="toggleBall()" title="Pelota">🏀</button>
+                <button id="muteBtn" class="snd-btn icon-btn" onclick="toggleMute()" title="Silenciar">🔊</button>
+                <button id="realFsBtn" class="snd-btn icon-btn icon-btn-fs" onclick="toggleRealFullscreen()" title="Pantalla Completa">⤢</button>
             </div>
 
             <button id="undoBtn" class="snd-btn" onclick="undoLastMove()"
-                style="width:100%; margin-top:10px; background:#b22222; color:white; border:none; padding:10px; border-radius:4px; font-weight:bold;">
+                style="margin-top:10px; background:#b22222; color:white; border:none; padding:10px; border-radius:4px; font-weight:bold;">
                 ↩ DESHACER
             </button>
 
@@ -98,15 +89,9 @@
 
             <hr>
 
-            <div style="display: table; width: 100%; table-layout: fixed; border-spacing: 4px 0; margin-bottom: 5px;">
-                <div style="display: table-cell; width: 50%;">
-                    <button class="btn-arch snd-btn" onclick="exportPlay()" title="Guardar"
-                        style="width:100%; padding:10px 2px; font-size:14px; margin:0;">💾</button>
-                </div>
-                <div style="display: table-cell; width: 50%;">
-                    <button class="btn-arch snd-btn" onclick="document.getElementById('importFile').click()" title="Cargar"
-                        style="width:100%; padding:10px 2px; font-size:14px; margin:0;">📂</button>
-                </div>
+            <div class="icon-row">
+                <button class="btn-arch snd-btn icon-btn" onclick="exportPlay()" title="Guardar">💾</button>
+                <button class="btn-arch snd-btn icon-btn" onclick="document.getElementById('importFile').click()" title="Cargar">📂</button>
             </div>
 
             <input type="file" id="importFile" style="display:none" accept=".json" onchange="importPlay(event)">
@@ -180,7 +165,7 @@
             <div id="status-box" class="status-container" style="margin-bottom:10px; width:100%; text-align:center;">UBICACIÓN</div>
 
             <div id="steps-container">
-                <div id="steps-list" style="display:flex; flex-direction:column; gap:4px;"></div>
+                <div id="steps-list"></div>
                 <button id="addStepBtn" class="btn-add snd-btn" onclick="addNewStep()">+ SIG. PASO</button>
             </div>
 
