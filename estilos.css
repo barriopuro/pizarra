@@ -1,5 +1,5 @@
 /* ========================================================
-/* ESTILOS PIZARRA OESTE v117.5 - PARTE 1 DE 3 (ESTRUCTURA)
+/* ESTILOS PIZARRA OESTE v125 - PARTE 1 DE 3 (ESTRUCTURA)
 /* ======================================================== */
 
 * { 
@@ -97,7 +97,94 @@ body {
     margin-top: 2px; 
 }
 
+/* --- PANTALLA DE SELECCIÓN DE MODO DE CANCHA --- */
+#mode-select-screen {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #0d0d0d;
+    z-index: 99998;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    text-align: center;
+    padding: 20px;
+}
+
+#mode-select-screen .mode-select-logo {
+    width: 110px;
+    height: 110px;
+    object-fit: contain;
+    margin-bottom: 4px;
+}
+
+#mode-select-screen h1 {
+    font-size: 14px;
+    letter-spacing: 1.5px;
+    color: #aaa;
+    text-transform: uppercase;
+    margin: 0 0 6px 0;
+}
+
+.mode-select-options {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 18px;
+    max-width: 640px;
+}
+
+.mode-option-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    width: 220px;
+    height: auto;
+    padding: 22px 14px;
+    background: #1a1a1a;
+    border: 2px solid #333;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: border-color 0.2s, transform 0.15s, background 0.2s;
+}
+
+.mode-option-btn:hover,
+.mode-option-btn:active {
+    border-color: #ff6600;
+    background: #211a10;
+    transform: scale(1.03);
+}
+
+.mode-option-icon { font-size: 34px; }
+
+.mode-option-title {
+    font-size: 14px;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    color: #fff;
+}
+
+.mode-option-desc {
+    font-size: 11px;
+    color: #888;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
 /* --- INTERFAZ EN COLUMNAS UNIFICADA --- */
+#app-wrapper {
+    display: none;
+    width: 100%;
+    height: 100%;
+}
+
 #col-izquierda { 
     width: 100%; 
     height: 100%; 
@@ -135,7 +222,7 @@ body {
 }
 
 /* ========================================================
-/* ESTILOS PIZARRA OESTE v117.5 - PARTE 2 DE 3 (BOTONES Y UI)
+/* ESTILOS PIZARRA OESTE v125 - PARTE 2 DE 3 (BOTONES Y UI)
 /* ======================================================== */
 
 /* --- ENVOLTORIO DEL CANVAS Y GRÁFICOS --- */
@@ -310,7 +397,7 @@ select, button {
 .f-btn { background: #fff; color: #000; width: 34px; height: 34px; border-radius: 50%; border: 2px solid #ff6600; font-weight: bold; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px rgba(0,0,0,0.8); }
 
 /* ========================================================
-/* ESTILOS PIZARRA OESTE v117.5 - PARTE 3 DE 3 (SOLAPAS Y ACCESOS)
+/* ESTILOS PIZARRA OESTE v125 - PARTE 3 DE 3 (SOLAPAS Y ACCESOS)
 /* ======================================================== */
 
 /* --- MENÚ FLOTANTE MINIMALISTA DE REPRODUCCIÓN (PLAY) --- */
@@ -338,8 +425,9 @@ select, button {
     border-radius: 5px; 
 }
 
-/* --- FORZADOR DE ORIENTACIÓN HORIZONTAL MÓVIL --- */
-#landscape-forcer { 
+/* --- FORZADORES DE ORIENTACIÓN (HORIZONTAL PARA MEDIA CANCHA, VERTICAL PARA CANCHA COMPLETA) --- */
+#landscape-forcer,
+#portrait-forcer { 
     display: none; 
     position: fixed; 
     top: 0; 
@@ -355,25 +443,22 @@ select, button {
     z-index: 999999 !important; /* Capa máxima para tapar cualquier residuo */
 }
 
-#landscape-forcer div { 
+#landscape-forcer div,
+#portrait-forcer div { 
     font-size: 40px; 
     margin-bottom: 20px; 
 }
 
-#landscape-forcer p { 
+#landscape-forcer p,
+#portrait-forcer p { 
     font-size: 18px; 
     font-weight: bold; 
     color: #ff6600; 
     margin: 5px 0;
 }
 
-@media (orientation: portrait) and (max-width: 1023px) {
-    #app-wrapper { display: none; }
-    #landscape-forcer { display: flex; }
-}
-
 /* ========================================================
-/* SISTEMA DE SOLAPAS ELÁSTICAS INTELIGENTES (v117.5)
+/* SISTEMA DE SOLAPAS ELÁSTICAS INTELIGENTES (v125)
 /* ======================================================== */
 
 /* Contenedores laterales elásticos: manejan la transición milimétrica */

@@ -3,17 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Pizarra Oeste v123</title>
+    <title>Pizarra Oeste v125</title>
     <link rel="icon" type="image/svg+xml" href="logo.svg">
     <link rel="stylesheet" href="estilos.css">
-    <script src="pizarra.js" defer></script>
+
+    <!-- Módulos en orden de dependencia -->
+    <script src="estado.js"      defer></script>
+    <script src="audio.js"       defer></script>
+    <script src="jugadores.js"   defer></script>
+    <script src="cancha.js"      defer></script>
+    <script src="interaccion.js" defer></script>
+    <script src="ui.js"          defer></script>
 </head>
 <body>
 
 <div id="landscape-forcer">
     <div>🔄</div>
     <p>POR FAVOR, GIRÁ TU CELULAR</p>
-    <p style="font-size: 13px; color: #666;">LA PIZARRA REQUIERE MODO HORIZONTAL</p>
+    <p style="font-size: 13px; color: #666;">MEDIA CANCHA REQUIERE MODO HORIZONTAL</p>
+</div>
+
+<div id="portrait-forcer">
+    <div>🔄</div>
+    <p>POR FAVOR, PONÉ TU CELULAR VERTICAL</p>
+    <p style="font-size: 13px; color: #666;">CANCHA COMPLETA REQUIERE MODO VERTICAL</p>
 </div>
 
 <div id="loading-screen">
@@ -27,59 +40,85 @@
     <div class="brand-credits">POWERED BY BARRIO PURO</div>
 </div>
 
-<div id="app-wrapper" style="display: flex; width: 100%; height: 100%;">
-    
+<div id="mode-select-screen">
+    <img src="logo.svg" alt="Escudo Casanova Oeste" class="mode-select-logo">
+    <h1>ELEGÍ EL MODO DE CANCHA</h1>
+    <div class="mode-select-options">
+        <button class="mode-option-btn snd-btn" onclick="selectCourtMode('full')">
+            <span class="mode-option-icon">🏟️</span>
+            <span class="mode-option-title">CANCHA COMPLETA</span>
+            <span class="mode-option-desc">Ambos aros · Usar en VERTICAL</span>
+        </button>
+        <button class="mode-option-btn snd-btn" onclick="selectCourtMode('half')">
+            <span class="mode-option-icon">📍</span>
+            <span class="mode-option-title">MEDIA CANCHA</span>
+            <span class="mode-option-desc">Un aro · Usar en HORIZONTAL</span>
+        </button>
+    </div>
+</div>
+
+<div id="app-wrapper">
+
     <div id="col-izquierda-container">
         <div id="col-izquierda">
-            <select id="countRed" class="snd-btn" onchange="syncPlayers()"></select>
-            <select id="countBlue" class="snd-btn" onchange="syncPlayers()"></select>
+            <select id="countRed"        class="snd-btn" onchange="syncPlayers()"></select>
+            <select id="countBlue"       class="snd-btn" onchange="syncPlayers()"></select>
             <select id="formationSelect" class="snd-btn" onchange="applyFormation()">
                 <option value="custom">-- FORMACIÓN --</option>
             </select>
-            
+
             <div style="display: table; width: 100%; table-layout: fixed; border-spacing: 4px 0; margin-bottom: 5px;">
                 <div style="display: table-cell; width: 33.33%;">
-                    <button id="ballBtn" class="snd-btn" onclick="toggleBall()" title="Pelota" style="width: 100%; padding: 10px 2px; font-size: 14px; margin: 0;">🏀</button>
+                    <button id="ballBtn" class="snd-btn" onclick="toggleBall()" title="Pelota"
+                        style="width:100%; padding:10px 2px; font-size:14px; margin:0;">🏀</button>
                 </div>
                 <div style="display: table-cell; width: 33.33%;">
-                    <button id="muteBtn" class="snd-btn" onclick="toggleMute()" title="Silenciar" style="width: 100%; padding: 10px 2px; font-size: 14px; margin: 0;">🔊</button>
+                    <button id="muteBtn" class="snd-btn" onclick="toggleMute()" title="Silenciar"
+                        style="width:100%; padding:10px 2px; font-size:14px; margin:0;">🔊</button>
                 </div>
                 <div style="display: table-cell; width: 33.33%;">
-                    <button id="realFsBtn" class="snd-btn" onclick="toggleRealFullscreen()" title="Pantalla Completa Real" style="width: 100%; padding: 10px 2px; font-size: 14px; margin: 0; background: #222; color: #fff; font-weight: bold;">⤢</button>
+                    <button id="realFsBtn" class="snd-btn" onclick="toggleRealFullscreen()" title="Pantalla Completa"
+                        style="width:100%; padding:10px 2px; font-size:14px; margin:0; background:#222; color:#fff; font-weight:bold;">⤢</button>
                 </div>
             </div>
 
+            <button id="undoBtn" class="snd-btn" onclick="undoLastMove()"
+                style="width:100%; margin-top:10px; background:#b22222; color:white; border:none; padding:10px; border-radius:4px; font-weight:bold;">
+                ↩ DESHACER
+            </button>
 
-<button id="undoBtn" class="snd-btn" onclick="undoLastMove()" style="width: 100%; margin-top: 10px; background: #b22222; color: white; border: none; padding: 10px; border-radius: 4px; font-weight: bold;">↩ DESHACER</button>
-
-
-                        <div class="toggle-container" style="display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 4px; margin: 8px 2px; padding: 0 4px;">
-                <span style="font-size: 10px; color: #aaa; font-weight: bold; letter-spacing: 0.3px;">HISTORIAL</span>
-                <label class="switch" style="transform: scale(0.8); transform-origin: right center; margin: 0;">
+            <div class="toggle-container"
+                style="display:flex; flex-direction:row; align-items:center; justify-content:space-between; gap:4px; margin:8px 2px; padding:0 4px;">
+                <span style="font-size:10px; color:#aaa; font-weight:bold; letter-spacing:0.3px;">HISTORIAL</span>
+                <label class="switch" style="transform:scale(0.8); transform-origin:right center; margin:0;">
                     <input type="checkbox" id="historyToggle" checked onchange="draw()">
                     <span class="slider"></span>
                 </label>
             </div>
-            
+
             <hr>
-            
+
             <div style="display: table; width: 100%; table-layout: fixed; border-spacing: 4px 0; margin-bottom: 5px;">
                 <div style="display: table-cell; width: 50%;">
-                    <button class="btn-arch snd-btn" onclick="exportPlay()" title="Guardar" style="width: 100%; padding: 10px 2px; font-size: 14px; margin: 0;">💾</button>
+                    <button class="btn-arch snd-btn" onclick="exportPlay()" title="Guardar"
+                        style="width:100%; padding:10px 2px; font-size:14px; margin:0;">💾</button>
                 </div>
                 <div style="display: table-cell; width: 50%;">
-                    <button class="btn-arch snd-btn" onclick="document.getElementById('importFile').click()" title="Cargar" style="width: 100%; padding: 10px 2px; font-size: 14px; margin: 0;">📂</button>
+                    <button class="btn-arch snd-btn" onclick="document.getElementById('importFile').click()" title="Cargar"
+                        style="width:100%; padding:10px 2px; font-size:14px; margin:0;">📂</button>
                 </div>
             </div>
-            
+
             <input type="file" id="importFile" style="display:none" accept=".json" onchange="importPlay(event)">
-            <button class="btn-danger snd-btn" onclick="newPlay()" title="Nueva Jugada" style="padding: 10px 2px; font-size: 14px; margin-top: 10px;">📄</button>
-            
-<div class="sidebar-credits">
-    <div style="color: #666; font-size: 8px; letter-spacing: 1px; margin-bottom: 2px;">POWERED  by</div>
-    <div><a href="https://www.instagram.com/barrio.puro" target="_blank">BARRIOPURO</a></div>
-</div>
-            
+            <button class="btn-danger snd-btn" onclick="newPlay()" title="Nueva Jugada"
+                style="padding:10px 2px; font-size:14px; margin-top:10px;">📄</button>
+            <button class="btn-danger snd-btn" onclick="changeCourtMode()" title="Cambiar modo de cancha (Completa / Media)"
+                style="padding:10px 2px; font-size:14px; margin-top:6px;">🔁</button>
+
+            <div class="sidebar-credits">
+                <div style="color:#666; font-size:8px; letter-spacing:1px; margin-bottom:2px;">POWERED by</div>
+                <div><a href="https://www.instagram.com/barrio.puro" target="_blank">BARRIOPURO</a></div>
+            </div>
         </div>
         <button id="solapa-izq" class="solapa-interfaz" onclick="toggleSidebar('izq')">◀</button>
     </div>
@@ -89,26 +128,44 @@
             <div id="canvas-wrap">
                 <svg id="court-layer" xmlns="http://www.w3.org/2000/svg">
                     <g stroke="white" stroke-width="4" fill="none">
-                        <rect id="paint" x="0" y="0" width="0" height="0" />
-                        <path id="key-markers" d="" stroke="white" stroke-width="3" />
-                        <path id="free-throw" d="" />
+                        <rect id="paint"             x="0" y="0" width="0" height="0" />
+                        <path id="key-markers"       d="" stroke="white" stroke-width="3" />
+                        <path id="free-throw"        d="" />
                         <path id="free-throw-dashed" d="" stroke-dasharray="6,6" />
-                        <path id="triple" d="" />
+                        <path id="triple"            d="" />
                         <line id="backboard" x1="0" y1="0" x2="0" y2="0" stroke="white" stroke-width="5" />
-                        <circle id="rim" cx="0" cy="0" r="0" stroke="#ff6600" stroke-width="3.5" />
+                        <circle id="rim"     cx="0" cy="0" r="0" stroke="#ff6600" stroke-width="3.5" />
+                    </g>
+
+                    <!-- Aro y marcas espejadas: se usan únicamente en modo Cancha Completa.
+                         El <g> tiene un transform que lo refleja verticalmente, así que
+                         se dibuja con la misma geometría que el aro de arriba. -->
+                    <g id="mirror-group" stroke="white" stroke-width="4" fill="none">
+                        <rect id="paint-2"             x="0" y="0" width="0" height="0" />
+                        <path id="key-markers-2"       d="" stroke="white" stroke-width="3" />
+                        <path id="free-throw-2"        d="" />
+                        <path id="free-throw-dashed-2" d="" stroke-dasharray="6,6" />
+                        <path id="triple-2"            d="" />
+                        <line id="backboard-2" x1="0" y1="0" x2="0" y2="0" stroke="white" stroke-width="5" />
+                        <circle id="rim-2"     cx="0" cy="0" r="0" stroke="#ff6600" stroke-width="3.5" />
+                    </g>
+
+                    <!-- Línea y círculo de mitad de cancha: solo Cancha Completa -->
+                    <g stroke="white" stroke-width="4" fill="none">
+                        <line id="halfcourt-line" x1="0" y1="0" x2="0" y2="0" />
+                        <circle id="center-circle" cx="0" cy="0" r="0" stroke-width="3" />
                     </g>
                 </svg>
                 <canvas id="canvas"></canvas>
 
                 <div id="floating-ui">
                     <button id="scr-btn" class="f-btn snd-btn" onclick="toggleCurrentPlayerScreen()" title="Cortina">🛡️</button>
-                    <button id="rot-btn" class="f-btn snd-btn" onclick="rotateCurrentPlayer()" title="Rotar Cortina">🔄</button>
-                    <button id="txt-btn" class="f-btn snd-btn" onclick="labelCurrentPlayer()" title="Asignar ID">✏️</button>
+                    <button id="rot-btn" class="f-btn snd-btn" onclick="rotateCurrentPlayer()"       title="Rotar Cortina">🔄</button>
+                    <button id="txt-btn" class="f-btn snd-btn" onclick="labelCurrentPlayer()"        title="Asignar ID">✏️</button>
                 </div>
-
             </div>
         </div>
-        
+
         <div id="fullscreen-floating-menu">
             <button class="btn-play fs-float-btn snd-btn" onclick="playFullPlay(false)">▶ PLAY</button>
             <button class="btn-loop fs-float-btn snd-btn" onclick="toggleLoop()">🔄 LOOP</button>
@@ -118,69 +175,56 @@
 
     <div id="col-linea-tiempo-container">
         <button id="solapa-der" class="solapa-interfaz" onclick="toggleSidebar('der')">▶</button>
-        
+
         <div id="col-linea-tiempo">
-            <div id="status-box" class="status-container" style="margin-bottom: 10px; width: 100%; text-align: center;">UBICACIÓN</div>
-            
+            <div id="status-box" class="status-container" style="margin-bottom:10px; width:100%; text-align:center;">UBICACIÓN</div>
+
             <div id="steps-container">
-                <div id="steps-list" style="display: flex; flex-direction: column; gap: 4px;"></div>
+                <div id="steps-list" style="display:flex; flex-direction:column; gap:4px;"></div>
                 <button id="addStepBtn" class="btn-add snd-btn" onclick="addNewStep()">+ SIG. PASO</button>
             </div>
-            
+
             <div id="actions-timeline">
-                <div id="edit-controls" style="display: flex; flex-direction: column; gap: 5px;">
-                    <button id="delStepBtn" class="btn-del snd-btn" onclick="deleteLastStep()" style="display:none;">🗑️ BORRAR PASO</button>
-                    <button id="finishBtn" class="btn-finish snd-btn" onclick="finishEdition()">🏁 FINALIZAR</button>
+                <div id="edit-controls" style="display:flex; flex-direction:column; gap:5px;">
+                    <button id="delStepBtn" class="btn-del snd-btn"    onclick="deleteLastStep()"  style="display:none;">🗑️ BORRAR PASO</button>
+                    <button id="finishBtn"  class="btn-finish snd-btn" onclick="finishEdition()">🏁 FINALIZAR</button>
                 </div>
-                
-                <div id="playback-controls" style="display: none; flex-direction: column; gap: 4px;">
-                    <div style="display: flex; gap: 4px; width: 100%;">
-                        <button id="mainPlayBtn" class="btn-play snd-btn" onclick="togglePlay()" style="width: calc(50% - 2px);">▶ PLAY</button>
-                        <button id="mainLoopBtn" class="btn-loop snd-btn" onclick="toggleLoop()" style="width: calc(50% - 2px);">🔄 LOOP</button>
+
+                <div id="playback-controls" style="display:none; flex-direction:column; gap:4px;">
+                    <div style="display:flex; gap:4px; width:100%;">
+                        <button id="mainPlayBtn" class="btn-play snd-btn" onclick="togglePlay()"  style="width:calc(50% - 2px);">▶ PLAY</button>
+                        <button id="mainLoopBtn" class="btn-loop snd-btn" onclick="toggleLoop()"  style="width:calc(50% - 2px);">🔄 LOOP</button>
                     </div>
-                    <div style="display: flex; gap: 4px; width: 100%;">
-                        <select id="speedSelect" class="snd-btn" onchange="changeSpeed()" style="width: calc(50% - 2px); background: #333; color: white; border: 1px solid #555; text-align: center; text-align-last: center;">
+                    <div style="display:flex; gap:4px; width:100%;">
+                        <select id="speedSelect" class="snd-btn" onchange="changeSpeed()"
+                            style="width:calc(50% - 2px); background:#333; color:white; border:1px solid #555; text-align:center; text-align-last:center;">
                             <option value="1">VEL: 1x</option>
                             <option value="1.5">VEL: 1.5x</option>
                             <option value="2">VEL: 2x</option>
                         </select>
-                        <button class="snd-btn" onclick="backToEdit()" style="width: calc(50% - 2px); background:#555; color:white;">✏️ EDITAR</button>
+                        <button class="snd-btn" onclick="backToEdit()" style="width:calc(50% - 2px); background:#555; color:white;">✏️ EDITAR</button>
                     </div>
-                    <button id="exportVideoBtn" class="snd-btn" onclick="exportVideo()" style="background: #8b008b; color: white; border: 1px solid #cc00cc; font-size: 11px; font-weight: bold;">🎬 EXPORTAR VIDEO</button>
+                    <button id="exportVideoBtn" class="snd-btn" onclick="exportVideo()"
+                        style="background:#8b008b; color:white; border:1px solid #cc00cc; font-size:11px; font-weight:bold;">
+                        🎬 EXPORTAR VIDEO
+                    </button>
                 </div>
             </div>
         </div>
     </div>
 
-</div> 
-<div id="confirmModal" class="confirm-modal">
-
-    <div class="confirm-box">
-
-        <div class="confirm-title">
-            ¿BORRAR JUGADA?
-        </div>
-
-        <div class="confirm-text">
-            Se perderá toda la jugada actual.
-        </div>
-
-        <div class="confirm-buttons">
-
-            <button class="confirm-btn cancel-btn"
-                    onclick="closeConfirmModal()">
-                CANCELAR
-            </button>
-
-            <button class="confirm-btn accept-btn"
-                    onclick="confirmNewPlay()">
-                BORRAR
-            </button>
-
-        </div>
-
-    </div>
-
 </div>
+
+<div id="confirmModal" class="confirm-modal">
+    <div class="confirm-box">
+        <div class="confirm-title">¿BORRAR JUGADA?</div>
+        <div class="confirm-text">Se perderá toda la jugada actual.</div>
+        <div class="confirm-buttons">
+            <button class="confirm-btn cancel-btn" onclick="closeConfirmModal()">CANCELAR</button>
+            <button class="confirm-btn accept-btn" onclick="confirmNewPlay()">BORRAR</button>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>
