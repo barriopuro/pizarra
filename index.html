@@ -75,12 +75,12 @@
 
             <button id="undoBtn" class="snd-btn" onclick="undoLastMove()"
                 style="margin-top:10px; background:#b22222; color:white; border:none; padding:10px; border-radius:4px; font-weight:bold;">
-                ↩ DESHACER
+                <span class="undo-icon">↩</span><span class="undo-text"> DESHACER</span>
             </button>
 
             <div class="toggle-container"
                 style="display:flex; flex-direction:row; align-items:center; justify-content:space-between; gap:4px; margin:8px 2px; padding:0 4px;">
-                <span style="font-size:10px; color:#aaa; font-weight:bold; letter-spacing:0.3px;">HISTORIAL</span>
+                <span style="font-size:10px; color:#aaa; font-weight:bold; letter-spacing:0.3px;">🕓 <span class="hist-text">HISTORIAL</span></span>
                 <label class="switch" style="transform:scale(0.8); transform-origin:right center; margin:0;">
                     <input type="checkbox" id="historyToggle" checked onchange="draw()">
                     <span class="slider"></span>
@@ -166,7 +166,7 @@
 
             <div id="steps-container">
                 <div id="steps-list"></div>
-                <button id="addStepBtn" class="btn-add snd-btn" onclick="addNewStep()">+ SIG. PASO</button>
+                <button id="addStepBtn" class="btn-add snd-btn" onclick="addNewStep()">+ PASO</button>
             </div>
 
             <div id="actions-timeline">

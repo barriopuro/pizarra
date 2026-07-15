@@ -595,7 +595,9 @@ select, button {
     height: auto;
 }
 
-/* Los contenedores pasan a ser franjas horizontales de alto fijo */
+/* Los contenedores pasan a ser franjas horizontales. El alto real lo fija
+   JS (ajustarAlturaBarras) midiendo el contenido; estos valores son solo
+   una base de arranque razonable. */
 #app-wrapper.modo-full #col-izquierda-container,
 #app-wrapper.modo-full #col-linea-tiempo-container {
     width: 100%;
@@ -603,12 +605,12 @@ select, button {
     flex-shrink: 0;
 }
 #app-wrapper.modo-full #col-izquierda-container {
-    height: 150px;
-    max-height: 150px;
+    height: 60px;
+    max-height: 60px;
 }
 #app-wrapper.modo-full #col-linea-tiempo-container {
-    height: 190px;
-    max-height: 190px;
+    height: 60px;
+    max-height: 60px;
 }
 #app-wrapper.modo-full #col-izquierda-container.colapsado,
 #app-wrapper.modo-full #col-linea-tiempo-container.colapsado {
@@ -626,7 +628,7 @@ select, button {
     transform: translateY(100%) !important;
 }
 
-/* Solapas: se ubican centradas, pegadas al borde inferior/superior de cada barra */
+/* Solapas: centradas, pegadas al borde inferior/superior de cada barra */
 #app-wrapper.modo-full #solapa-izq {
     left: 50% !important;
     top: 100% !important;
@@ -646,7 +648,7 @@ select, button {
     border-radius: 6px 6px 0 0 !important;
 }
 
-/* Barra izquierda: grilla horizontal en vez de columna vertical */
+/* --- Barra de arriba (equipos / opciones): grilla horizontal compacta --- */
 #app-wrapper.modo-full #col-izquierda {
     flex-direction: row;
     flex-wrap: wrap;
@@ -659,8 +661,16 @@ select, button {
     width: auto;
     flex: 0 0 auto;
 }
-#app-wrapper.modo-full #col-izquierda > select {
-    min-width: 108px;
+#app-wrapper.modo-full #col-izquierda #countRed,
+#app-wrapper.modo-full #col-izquierda #countBlue {
+    min-width: 62px;
+}
+#app-wrapper.modo-full #col-izquierda #formationSelect {
+    min-width: 82px;
+    max-width: 100px;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
 }
 #app-wrapper.modo-full #col-izquierda .icon-row {
     width: auto;
@@ -674,49 +684,66 @@ select, button {
 }
 #app-wrapper.modo-full #col-izquierda #undoBtn {
     margin-top: 0;
+    padding: 10px !important;
+}
+#app-wrapper.modo-full #undoBtn .undo-text,
+#app-wrapper.modo-full .hist-text {
+    display: none;
 }
 #app-wrapper.modo-full #col-izquierda hr,
 #app-wrapper.modo-full #col-izquierda .sidebar-credits {
     display: none;
 }
 
-/* Barra de timeline (abajo): 3 columnas en vez de bloques apilados */
+/* --- Barra de abajo (timeline): 3 columnas compactas --- */
 #app-wrapper.modo-full #col-linea-tiempo {
     flex-direction: row;
-    align-items: stretch;
-    gap: 10px;
+    align-items: center;
+    gap: 8px;
 }
 #app-wrapper.modo-full #col-linea-tiempo #status-box {
-    flex: 0 0 92px;
-    margin-bottom: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    flex: 0 0 56px;
+    width: 56px;
+    margin-bottom: 0 !important;
+    padding: 6px 2px !important;
+    font-size: 9px !important;
 }
 #app-wrapper.modo-full #col-linea-tiempo #steps-container {
     flex: 1 1 auto;
     min-width: 0;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
 }
 #app-wrapper.modo-full #steps-list {
     flex-direction: row;
     overflow-x: auto;
     overflow-y: hidden;
-    padding-bottom: 2px;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: #ff6600 #1a1a1a;
+}
+#app-wrapper.modo-full #steps-list::-webkit-scrollbar {
+    height: 5px;
+}
+#app-wrapper.modo-full #steps-list::-webkit-scrollbar-track {
+    background: #1a1a1a;
+    border-radius: 3px;
+}
+#app-wrapper.modo-full #steps-list::-webkit-scrollbar-thumb {
+    background: #ff6600;
+    border-radius: 3px;
 }
 #app-wrapper.modo-full #steps-list .step-btn {
     flex-shrink: 0;
-    min-width: 66px;
+    min-width: 38px;
+    padding: 8px 4px;
 }
 #app-wrapper.modo-full #addStepBtn {
     flex-shrink: 0;
     width: auto;
-    min-width: 90px;
+    min-width: 58px;
     margin-top: 0;
-}
-#app-wrapper.modo-full #steps-container {
-    flex-direction: row;
-    align-items: center;
-    gap: 6px;
 }
 #app-wrapper.modo-full #col-linea-tiempo #actions-timeline {
     flex: 0 0 auto;
@@ -724,8 +751,8 @@ select, button {
     border-top: none;
     padding-top: 0;
     justify-content: center;
-    overflow-y: auto;
     max-height: 100%;
+    overflow-y: auto;
 }
 
 

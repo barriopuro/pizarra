@@ -77,8 +77,8 @@ logoCanchaImg.onload = () => { if (typeof draw === "function") draw(); };
 // --- INICIALIZACIÓN DE SELECTORES ---
 if (rs && bs) {
     for (let i = 0; i <= 5; i++) {
-        rs.add(new Option('ATAC: ' + i, i));
-        bs.add(new Option('DEF: '  + i, i));
+        rs.add(new Option('🔴 ' + i, i));
+        bs.add(new Option('🔵 ' + i, i));
     }
     rs.value = 5;
     bs.value = 0;

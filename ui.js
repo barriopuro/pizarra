@@ -92,9 +92,36 @@ function checkOrientationForMode() {
         if (appWrapper) appWrapper.style.display = 'flex';
         activarInterfaz();
         if (typeof init === 'function') init();
+        ajustarAlturaBarras();
     } else if (appWrapper) {
         appWrapper.style.display = 'none';
     }
+}
+
+// Mide el alto real del contenido de una barra (sin la limitación de alto
+// fijo) y lo aplica como alto explícito del contenedor, para que la barra
+// nunca quede más alta de lo que su contenido necesita (ni le falte
+// espacio). Funciona aunque la barra esté colapsada en este momento.
+function medirYFijarAltura(container, inner) {
+    if (!container || !inner) return;
+    const eraColapsado = container.classList.contains('colapsado');
+    container.classList.remove('colapsado');
+    container.style.height    = 'auto';
+    container.style.maxHeight = 'none';
+
+    const maxPermitido = Math.round(window.innerHeight * 0.42);
+    const necesaria     = Math.min(inner.scrollHeight + 6, maxPermitido);
+
+    container.style.height    = necesaria + 'px';
+    container.style.maxHeight = necesaria + 'px';
+
+    if (eraColapsado) container.classList.add('colapsado');
+}
+
+function ajustarAlturaBarras() {
+    if (courtMode !== 'full') return;
+    medirYFijarAltura(document.getElementById('col-izquierda-container'),    document.getElementById('col-izquierda'));
+    medirYFijarAltura(document.getElementById('col-linea-tiempo-container'), document.getElementById('col-linea-tiempo'));
 }
 
 // Se ejecuta una única vez, la primera vez que la app queda visible:
@@ -140,11 +167,13 @@ function updateStepUI() {
     if (!statusLabel) return;
 
     if (isEditionFinished) {
-        statusLabel.innerText      = "REPRODUCCIÓN";
+        statusLabel.innerText      = (courtMode === 'full') ? "REPROD." : "REPRODUCCIÓN";
         statusLabel.style.borderColor = "#28a745";
         statusLabel.style.color       = "#28a745";
     } else {
-        statusLabel.innerText      = currentStep === 0 ? "UBICACIÓN" : `PASO ${currentStep}`;
+        statusLabel.innerText      = (courtMode === 'full')
+            ? (currentStep === 0 ? "INICIO" : `P${currentStep}`)
+            : (currentStep === 0 ? "UBICACIÓN" : `PASO ${currentStep}`);
         statusLabel.style.borderColor = "#ff6600";
         statusLabel.style.color       = "#ff6600";
     }
@@ -173,7 +202,9 @@ function renderTimeline() {
     ball.steps.forEach((_, i) => {
         const btn = document.createElement('button');
         btn.className  = `step-btn snd-btn ${i === currentStep ? 'active' : ''}`;
-        btn.innerText  = i === 0 ? "INICIO" : `PASO ${i}`;
+        btn.innerText  = (courtMode === 'full')
+            ? (i === 0 ? "INI" : `P${i}`)
+            : (i === 0 ? "INICIO" : `PASO ${i}`);
         btn.style.borderLeft = `4px solid ${stepColors[i % stepColors.length]}`;
         btn.onclick = () => {
             currentStep = i;
@@ -253,6 +284,7 @@ function finishEdition() {
 
     verificarMenuFlotante();
     attachButtonSounds();
+    ajustarAlturaBarras();
 }
 
 function backToEdit() {
@@ -279,6 +311,7 @@ function backToEdit() {
     draw();
     renderTimeline();
     attachButtonSounds();
+    ajustarAlturaBarras();
 }
 
 // --------------------------------------------------------
@@ -318,6 +351,7 @@ function toggleSidebar(lado) {
     contenedor.addEventListener('transitionend', function onEnd() {
         contenedor.removeEventListener('transitionend', onEnd);
         init();
+        ajustarAlturaBarras();
         if (typeof updateFloatingUI === "function") updateFloatingUI();
     });
 }
