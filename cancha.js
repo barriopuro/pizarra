@@ -158,7 +158,11 @@ function updateFullCourtDrawing(w, h) {
     dibujarMarcasDeAro(w, halfH, IDS_ARO_2);
 
     // Línea y círculo de mitad de cancha
-    const radiusCentral = (w * 0.33) / 2;
+    // Círculo central: en FIBA mide 1.80m de radio sobre una cancha de 15m
+    // de ancho (misma proporción que el círculo de tiro libre en la
+    // realidad, aunque acá el semicírculo de tiro libre está dibujado más
+    // grande por estilo). 1.80/15 = 0.12 del ancho de la cancha.
+    const radiusCentral = w * 0.12;
     document.getElementById('halfcourt-line').setAttribute('x1', 0);
     document.getElementById('halfcourt-line').setAttribute('y1', halfH);
     document.getElementById('halfcourt-line').setAttribute('x2', w);
@@ -236,7 +240,7 @@ function drawCourtOnCanvas() {
         ctx.save();
         ctx.strokeStyle = "white"; ctx.lineWidth = 4*sF;
         ctx.beginPath(); ctx.moveTo(0, halfH); ctx.lineTo(w, halfH); ctx.stroke();
-        const radiusCentral = (w * 0.33) / 2;
+        const radiusCentral = w * 0.12;
         ctx.beginPath(); ctx.arc(w/2, halfH, radiusCentral, 0, Math.PI*2); ctx.stroke();
         ctx.restore();
     } else {

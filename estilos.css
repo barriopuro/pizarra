@@ -716,6 +716,8 @@ select, button {
     gap: 6px;
 }
 #app-wrapper.modo-full #steps-list {
+    flex: 1 1 0;
+    min-width: 0;
     flex-direction: row;
     overflow-x: auto;
     overflow-y: hidden;

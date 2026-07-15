@@ -189,6 +189,8 @@ function updateStepUI() {
         ctrl.style.opacity      = esPasoInicial ? "1"    : "0.35";
         ctrl.style.pointerEvents = esPasoInicial ? "auto" : "none";
     });
+
+    ajustarAlturaBarras();
 }
 
 // --------------------------------------------------------
@@ -293,10 +295,12 @@ function backToEdit() {
     isPlaying         = false;
     isEditionFinished = false;
 
-    const playBtn = document.getElementById('mainPlayBtn');
-    if (playBtn) playBtn.innerText = "▶ PLAY";
+    setPlayButtonsText("▶ PLAY");
+    setLoopButtonsColor(false);
     const mainLoopBtn = document.getElementById('mainLoopBtn');
     if (mainLoopBtn) mainLoopBtn.innerText = "🔄 LOOP";
+    const floatLoopBtn = document.getElementById('floatLoopBtn');
+    if (floatLoopBtn) floatLoopBtn.innerText = "🔄 LOOP";
 
     document.getElementById('playback-controls').style.display = "none";
     document.getElementById('edit-controls').style.display     = "flex";
@@ -360,26 +364,40 @@ function toggleSidebar(lado) {
 // REPRODUCCIÓN Y ANIMACIÓN
 // --------------------------------------------------------
 
+// El botón de Play existe dos veces (barra normal + menú flotante que
+// aparece cuando ambas barras están colapsadas): los mantenemos sincronizados.
+function setPlayButtonsText(texto) {
+    const b1 = document.getElementById('mainPlayBtn');
+    const b2 = document.getElementById('floatPlayBtn');
+    if (b1) b1.innerText = texto;
+    if (b2) b2.innerText = texto;
+}
+
+function setLoopButtonsColor(activo) {
+    const color = activo ? "#ff6600" : "#333";
+    const b1 = document.getElementById('mainLoopBtn');
+    const b2 = document.getElementById('floatLoopBtn');
+    if (b1) b1.style.background = color;
+    if (b2) b2.style.background = color;
+}
+
 function togglePlay() {
-    const playBtn = document.getElementById('mainPlayBtn');
     if (isPlaying) {
         shouldStopLoop = true;
         isLooping      = false;
         isPlaying      = false;
-        if (playBtn) playBtn.innerText = "▶ PLAY";
-        const mainLoopBtn = document.getElementById('mainLoopBtn');
-        if (mainLoopBtn) mainLoopBtn.style.background = "#333";
+        setPlayButtonsText("▶ PLAY");
+        setLoopButtonsColor(false);
         draw();
         return;
     }
     isPlaying = true;
-    if (playBtn) playBtn.innerText = "⏹ STOP";
+    setPlayButtonsText("⏹ STOP");
     playFullPlay(false);
 }
 
 async function playFullPlay(loopMode) {
     shouldStopLoop = false;
-    const playBtn  = document.getElementById('mainPlayBtn');
 
     do {
         for (let i = 0; i < ball.steps.length; i++) {
@@ -439,13 +457,12 @@ async function playFullPlay(loopMode) {
     } while (isLooping && !shouldStopLoop);
 
     isPlaying = false;
-    if (playBtn) playBtn.innerText = "▶ PLAY";
+    setPlayButtonsText("▶ PLAY");
 }
 
 function toggleLoop() {
     isLooping = !isLooping;
-    const mL  = document.getElementById('mainLoopBtn');
-    if (mL) mL.style.background = isLooping ? "#ff6600" : "#333";
+    setLoopButtonsColor(isLooping);
 }
 
 function changeSpeed() {
