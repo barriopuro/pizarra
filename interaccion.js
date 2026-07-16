@@ -1,6 +1,7 @@
 // ========================================================
 // PIZARRA OESTE - interaccion.js
-// Motor de interacción: drag & drop, undo/redo, menú flotante.
+// Motor de interacción: drag & drop multi-dispositivo,
+// sistema de undo/redo consolidado, menú flotante.
 // Depende de: estado.js, cancha.js, jugadores.js, audio.js
 // ========================================================
 
@@ -20,27 +21,33 @@ function simplifyPath(path) {
     const simplified = [path[0]];
     for (let i = 1; i < path.length - 1; i++) {
         const prev    = simplified[simplified.length - 1];
-        const current = path[i], next = path[i + 1];
-        const a1 = Math.atan2(current.y - prev.y,    current.x - prev.x);
-        const a2 = Math.atan2(next.y    - current.y, next.x    - current.x);
-        if (Math.abs(a1 - a2) > 0.18) simplified.push(current);
+        const current = path[i];
+        const next    = path[i + 1];
+        const angle1  = Math.atan2(current.y - prev.y,    current.x - prev.x);
+        const angle2  = Math.atan2(next.y    - current.y, next.x    - current.x);
+        if (Math.abs(angle1 - angle2) > 0.18) simplified.push(current);
     }
     simplified.push(path[path.length - 1]);
     return simplified;
 }
 
-// Posición real de la pelota en el paso actual (puede estar imantada)
+// Devuelve la posición actual de la pelota en el paso dado,
+// considerando si está imantada a algún jugador en ese paso.
 function getBallPosEnPaso(stepIdx) {
     const portadorId = ball.portadorPorPaso[stepIdx] ?? null;
     if (portadorId) {
         const portador = players.find(p => p.id === portadorId);
         if (portador && portador.steps[stepIdx]) {
             const last = portador.steps[stepIdx][portador.steps[stepIdx].length - 1];
-            return { x: last.x + 13*sF, y: last.y - 13*sF };
+            return { x: last.x + (13 * sF), y: last.y - (13 * sF) };
         }
     }
+    // Pelota suelta: usa su propio path
     const path = ball.steps[stepIdx];
-    if (path && path.length > 0) return { x: path[path.length-1].x, y: path[path.length-1].y };
+    if (path && path.length > 0) {
+        const last = path[path.length - 1];
+        return { x: last.x, y: last.y };
+    }
     return null;
 }
 
@@ -53,36 +60,42 @@ function handleStart(e) {
     const pos = getPos(e);
     let found = null, minDistance = 35 * sF;
 
+    // Calcular posición real de la pelota (puede estar imantada)
     const ballPos = getBallPosEnPaso(currentStep);
-    const all     = ball.active ? [...players, ball] : [...players];
 
+    const all = ball.active ? [...players, ball] : [...players];
     all.forEach(obj => {
-        let cx, cy;
+        let checkX, checkY;
         if (obj === ball) {
             if (!ballPos) return;
-            cx = ballPos.x; cy = ballPos.y;
+            checkX = ballPos.x;
+            checkY = ballPos.y;
         } else {
             const last = obj.steps[currentStep][obj.steps[currentStep].length - 1];
-            cx = last.x; cy = last.y;
+            checkX = last.x;
+            checkY = last.y;
         }
-        const dist = Math.hypot(cx - pos.x, cy - pos.y);
+        const dist = Math.hypot(checkX - pos.x, checkY - pos.y);
         if (dist < minDistance) { minDistance = dist; found = obj; }
     });
 
     if (found) {
-        found._undoSnapshot      = JSON.parse(JSON.stringify(found.steps[currentStep]));
-        found._portadorSnapshot  = JSON.parse(JSON.stringify(ball.portadorPorPaso));
-        found._ballStepSnapshot  = JSON.parse(JSON.stringify(ball.steps[currentStep]));
-
-        // Al agarrar la pelota imantada: copiamos su posición real al path y desimantamos
+        // Snapshot para undo
+        found._undoSnapshot     = JSON.parse(JSON.stringify(found.steps[currentStep]));
+        found._portadorSnapshot = JSON.parse(JSON.stringify(ball.portadorPorPaso));
+        // Si agarramos la pelota imantada, actualizamos su path
+        // para que arranque desde su posición real (sobre el jugador)
         if (found === ball && ball.portadorPorPaso[currentStep]) {
             if (ballPos) {
-                ball.steps[currentStep] = [{ x: ballPos.x, y: ballPos.y, isScreen: false, angle: 0 }];
+                ball.steps[currentStep] = [{
+                    x: ballPos.x, y: ballPos.y, isScreen: false, angle: 0
+                }];
             }
+            // Desimantamos al soltar del jugador anterior
             ball.portadorPorPaso[currentStep] = null;
         }
 
-        // Paso > 0: expandir path si solo tiene el punto heredado
+        // Si es paso > 0 y el path tiene solo el punto heredado, lo expandimos
         if (currentStep > 0 && found.steps[currentStep].length <= 1) {
             const stepPrev = found.steps[currentStep - 1];
             const lastPrev = stepPrev[stepPrev.length - 1];
@@ -93,9 +106,6 @@ function handleStart(e) {
 
         activeObj  = found;
         isDragging = true;
-        // Cualquier nueva acción limpia el redo
-        redoStack  = [];
-        updateRedoButton();
         updateFloatingUI();
         if (activeObj === ball) playSound('bounceBall'); else playSound('grabJersey');
     } else {
@@ -126,11 +136,11 @@ function handleMove(e) {
         }
     }
 
-    // Jugador que lleva la pelota: la pelota sigue como punto único sobre él
+    // Motor magnético: jugador que lleva la pelota → pelota sigue sin path propio
     if (activeObj !== ball && ball.portadorPorPaso[currentStep] === activeObj.id) {
         const playerLast = path[path.length - 1];
         ball.steps[currentStep] = [{
-            x: playerLast.x + 13*sF, y: playerLast.y - 13*sF,
+            x: playerLast.x + (13 * sF), y: playerLast.y - (13 * sF),
             isScreen: false, angle: 0
         }];
     }
@@ -142,18 +152,19 @@ function handleMove(e) {
 function handleEnd() {
     if (!isDragging || !activeObj) { isDragging = false; return; }
 
-    const path           = activeObj.steps[currentStep];
-    const inicio         = path[0];
-    const fin            = path[path.length - 1];
+    const path   = activeObj.steps[currentStep];
+    const inicio = path[0];
+    const fin    = path[path.length - 1];
     const huboMovimiento = Math.hypot(fin.x - inicio.x, fin.y - inicio.y) > 5;
 
+    // Simplificar trazado
     if (path.length > 2) activeObj.steps[currentStep] = simplifyPath(path);
 
-    // Jugador con pelota: actualizar punto de la pelota al último punto simplificado
+    // Si el jugador que llevaba la pelota terminó de moverse → actualizamos el punto de la pelota
     if (activeObj !== ball && ball.portadorPorPaso[currentStep] === activeObj.id) {
         const playerLast = activeObj.steps[currentStep][activeObj.steps[currentStep].length - 1];
         ball.steps[currentStep] = [{
-            x: playerLast.x + 13*sF, y: playerLast.y - 13*sF,
+            x: playerLast.x + (13 * sF), y: playerLast.y - (13 * sF),
             isScreen: false, angle: 0
         }];
     }
@@ -161,8 +172,9 @@ function handleEnd() {
     // Lógica de imán al soltar la pelota
     if (activeObj === ball) {
         playSound('bounceBall');
-        const bLast        = ball.steps[currentStep][ball.steps[currentStep].length - 1];
-        let minDistance    = 28 * sF;
+
+        const bLast       = ball.steps[currentStep][ball.steps[currentStep].length - 1];
+        let minDistance   = 28 * sF;
         let jugadorCercano = null;
 
         players.forEach(p => {
@@ -172,13 +184,20 @@ function handleEnd() {
         });
 
         if (jugadorCercano && !jugadorCercano.steps[currentStep][jugadorCercano.steps[currentStep].length - 1].isScreen) {
+            // Imantamos al jugador nuevo:
+            // Conservamos el path recorrido durante el drag y solo ajustamos
+            // el último punto para que quede exactamente sobre el jugador.
             ball.portadorPorPaso[currentStep] = jugadorCercano.id;
-            const pLast = jugadorCercano.steps[currentStep][jugadorCercano.steps[currentStep].length - 1];
-            const snapX = pLast.x + 13*sF, snapY = pLast.y - 13*sF;
-            const bPath = ball.steps[currentStep];
+            const pLast  = jugadorCercano.steps[currentStep][jugadorCercano.steps[currentStep].length - 1];
+            const snapX  = pLast.x + (13 * sF);
+            const snapY  = pLast.y - (13 * sF);
+            const bPath  = ball.steps[currentStep];
             if (bPath.length > 1) {
+                // Hay trayectoria: ajustamos solo el último punto
                 bPath[bPath.length - 1] = { x: snapX, y: snapY, isScreen: false, angle: 0 };
             } else {
+                // La pelota no se movió (estaba pegada y no hubo drag real):
+                // dejamos un punto único sobre el nuevo jugador
                 ball.steps[currentStep] = [{ x: snapX, y: snapY, isScreen: false, angle: 0 }];
             }
         } else {
@@ -188,21 +207,22 @@ function handleEnd() {
         playSound('dropJersey');
     }
 
-    // Guardar en undoStack si hubo movimiento real
+    // Guardar en undoStack
     if (huboMovimiento && activeObj._undoSnapshot) {
         undoStack = undoStack.filter(item => !(item.obj === activeObj && item.step === currentStep));
         undoStack.push({
             obj:             activeObj,
             step:            currentStep,
             snapshot:        activeObj._undoSnapshot,
-            portadorSnapshot: activeObj._portadorSnapshot,
-            ballStepSnapshot: activeObj._ballStepSnapshot
+            portadorSnapshot: activeObj._portadorSnapshot
         });
+        // Un movimiento nuevo invalida el historial de "rehacer" pendiente
+        redoStack = [];
+        updateRedoButton();
     }
 
     delete activeObj._undoSnapshot;
     delete activeObj._portadorSnapshot;
-    delete activeObj._ballStepSnapshot;
     isDragging = false;
     draw();
 }
@@ -215,7 +235,7 @@ window.addEventListener('mouseup',    handleEnd);
 window.addEventListener('touchend',   handleEnd);
 
 // --------------------------------------------------------
-// UNDO
+// SISTEMA DE DESHACER / REHACER
 // --------------------------------------------------------
 
 function undoLastMove() {
@@ -225,10 +245,21 @@ function undoLastMove() {
     }
 
     if (index === -1) {
-        // Sin movimientos en este paso: retroceder un paso completo
+        // No hay un movimiento puntual para deshacer en este paso:
+        // deshacemos el paso completo (volvemos al anterior), guardando
+        // todo lo necesario para poder rehacerlo después.
         if (currentStep > 0) {
-            // Guardar estado actual en redoStack antes de retroceder
-            redoStack.push({ type: 'step' });
+            redoStack.push({
+                type: 'deleteStep',
+                step: currentStep,
+                playersSnapshot: players.map(p => ({
+                    id:   p.id,
+                    data: JSON.parse(JSON.stringify(p.steps[currentStep]))
+                })),
+                ballSnapshot: JSON.parse(JSON.stringify(ball.steps[currentStep])),
+                portador:     ball.portadorPorPaso[currentStep] ?? null
+            });
+
             [...players, ball].forEach(p => p.steps.pop());
             ball.portadorPorPaso.pop();
             currentStep--;
@@ -242,107 +273,102 @@ function undoLastMove() {
 
     const lastAction = undoStack.splice(index, 1)[0];
 
-    // Guardar estado actual en redoStack para poder rehacerlo
+    // Guardamos el estado actual (el que se va a pisar) para poder rehacerlo
     redoStack.push({
-        type:            'move',
-        obj:             lastAction.obj,
-        step:            lastAction.step,
-        snapshot:        JSON.parse(JSON.stringify(lastAction.obj.steps[lastAction.step])),
-        portadorSnapshot: JSON.parse(JSON.stringify(ball.portadorPorPaso)),
-        ballStepSnapshot: JSON.parse(JSON.stringify(ball.steps[lastAction.step]))
+        type:             'move',
+        obj:              lastAction.obj,
+        step:             lastAction.step,
+        snapshot:         JSON.parse(JSON.stringify(lastAction.obj.steps[lastAction.step])),
+        portadorSnapshot: JSON.parse(JSON.stringify(ball.portadorPorPaso))
     });
 
-    // Restaurar
     lastAction.obj.steps[lastAction.step] = JSON.parse(JSON.stringify(lastAction.snapshot));
+
+    // Restaurar estado del imán
     if (lastAction.portadorSnapshot) {
         ball.portadorPorPaso = JSON.parse(JSON.stringify(lastAction.portadorSnapshot));
-    }
-    if (lastAction.ballStepSnapshot) {
-        ball.steps[lastAction.step] = JSON.parse(JSON.stringify(lastAction.ballStepSnapshot));
-    }
-
-    // Re-pegar la pelota si en el snapshot había portador
-    const portadorId = ball.portadorPorPaso[lastAction.step];
-    if (portadorId) {
-        const portador = players.find(p => p.id === portadorId);
-        if (portador) {
-            const pLast = portador.steps[lastAction.step][portador.steps[lastAction.step].length - 1];
-            ball.steps[lastAction.step] = [{
-                x: pLast.x + 13*sF, y: pLast.y - 13*sF, isScreen: false, angle: 0
-            }];
+        // Re-pegar la pelota si en el snapshot este jugador la tenía
+        const portadorId = ball.portadorPorPaso[lastAction.step];
+        if (portadorId) {
+            const portador = players.find(p => p.id === portadorId);
+            if (portador) {
+                const pLast = portador.steps[lastAction.step][portador.steps[lastAction.step].length - 1];
+                ball.steps[lastAction.step] = [{
+                    x: pLast.x + (13 * sF), y: pLast.y - (13 * sF),
+                    isScreen: false, angle: 0
+                }];
+            }
         }
     }
 
-    activeObj = null; isDragging = false;
-    draw(); updateFloatingUI(); updateUndoButton(); updateRedoButton();
+    activeObj  = null;
+    isDragging = false;
+    draw();
+    updateFloatingUI();
+    updateUndoButton();
+    updateRedoButton();
 }
-
-// --------------------------------------------------------
-// REDO
-// --------------------------------------------------------
 
 function redoLastMove() {
     if (redoStack.length === 0) return;
-    const action = redoStack.pop();
+    const accion = redoStack.pop();
 
-    if (action.type === 'step') {
-        // Rehacer un paso completo que fue deshecho
-        [...players, ball].forEach(p => {
-            const last = p.steps[currentStep][p.steps[currentStep].length - 1];
-            p.steps.push([{ x: last.x, y: last.y, isScreen: last.isScreen, angle: last.angle }]);
+    if (accion.type === 'move') {
+        // Guardamos el estado actual para poder volver a deshacer este redo
+        undoStack = undoStack.filter(item => !(item.obj === accion.obj && item.step === accion.step));
+        undoStack.push({
+            obj:              accion.obj,
+            step:             accion.step,
+            snapshot:         JSON.parse(JSON.stringify(accion.obj.steps[accion.step])),
+            portadorSnapshot: JSON.parse(JSON.stringify(ball.portadorPorPaso))
         });
-        const portadorActual = ball.portadorPorPaso[currentStep] ?? null;
-        ball.portadorPorPaso.push(portadorActual);
-        currentStep++;
+
+        accion.obj.steps[accion.step] = JSON.parse(JSON.stringify(accion.snapshot));
+        if (accion.portadorSnapshot) {
+            ball.portadorPorPaso = JSON.parse(JSON.stringify(accion.portadorSnapshot));
+        }
+    } else if (accion.type === 'deleteStep') {
+        // Reconstruimos el paso que se había quitado con "deshacer"
+        players.forEach(p => {
+            const snap = accion.playersSnapshot.find(s => s.id === p.id);
+            const last = p.steps[p.steps.length - 1];
+            p.steps.push(snap ? JSON.parse(JSON.stringify(snap.data)) : JSON.parse(JSON.stringify(last)));
+        });
+        ball.steps.push(JSON.parse(JSON.stringify(accion.ballSnapshot)));
+        ball.portadorPorPaso.push(accion.portador ?? null);
+        currentStep = accion.step;
         renderTimeline();
         updateStepUI();
-        draw();
-    } else {
-        // Rehacer un movimiento
-        // Guardar estado actual en undoStack para poder deshacerlo de nuevo
-        undoStack.push({
-            obj:              action.obj,
-            step:             action.step,
-            snapshot:         JSON.parse(JSON.stringify(action.obj.steps[action.step])),
-            portadorSnapshot: JSON.parse(JSON.stringify(ball.portadorPorPaso)),
-            ballStepSnapshot: JSON.parse(JSON.stringify(ball.steps[action.step]))
-        });
-
-        action.obj.steps[action.step] = JSON.parse(JSON.stringify(action.snapshot));
-        ball.portadorPorPaso          = JSON.parse(JSON.stringify(action.portadorSnapshot));
-        ball.steps[action.step]       = JSON.parse(JSON.stringify(action.ballStepSnapshot));
-
-        activeObj = null; isDragging = false;
-        draw(); updateFloatingUI();
     }
 
-    updateUndoButton(); updateRedoButton();
+    activeObj  = null;
+    isDragging = false;
+    draw();
+    updateFloatingUI();
+    updateUndoButton();
+    updateRedoButton();
 }
 
-// --------------------------------------------------------
-// ACTUALIZAR BOTONES
-// --------------------------------------------------------
-
 function updateUndoButton() {
-    const btn     = document.getElementById('undoBtn');
-    if (!btn) return;
+    const undoBtn = document.getElementById('undoBtn');
+    if (!undoBtn) return;
     const enabled = undoStack.some(item => item.step === currentStep) || currentStep > 0;
-    btn.style.opacity       = enabled ? "1"       : "0.3";
-    btn.style.pointerEvents = enabled ? "auto"    : "none";
-    btn.style.cursor        = enabled ? "pointer" : "default";
+    undoBtn.style.opacity       = enabled ? "1"       : "0.3";
+    undoBtn.style.pointerEvents = enabled ? "auto"    : "none";
+    undoBtn.style.cursor        = enabled ? "pointer" : "default";
 }
 
 function updateRedoButton() {
-    const btn     = document.getElementById('redoBtn');
-    if (!btn) return;
+    const redoBtn = document.getElementById('redoBtn');
+    if (!redoBtn) return;
     const enabled = redoStack.length > 0;
-    btn.style.opacity       = enabled ? "1"       : "0.3";
-    btn.style.pointerEvents = enabled ? "auto"    : "none";
-    btn.style.cursor        = enabled ? "pointer" : "default";
+    redoBtn.style.opacity       = enabled ? "1"       : "0.3";
+    redoBtn.style.pointerEvents = enabled ? "auto"    : "none";
+    redoBtn.style.cursor        = enabled ? "pointer" : "default";
 }
 
 // --------------------------------------------------------
-// MENÚ FLOTANTE
+// MENÚ FLOTANTE SOBRE JUGADOR ACTIVO
 // --------------------------------------------------------
 
 function updateFloatingUI() {
@@ -352,6 +378,7 @@ function updateFloatingUI() {
     }
 
     const last = activeObj.steps[currentStep][activeObj.steps[currentStep].length - 1];
+
     floatingUI.style.display       = "flex";
     floatingUI.style.flexDirection = "row";
     floatingUI.style.gap           = "6px";
@@ -368,6 +395,7 @@ function updateFloatingUI() {
 
     const esteEsPortador = ball.portadorPorPaso[currentStep] === activeObj.id;
 
+    // Botón cortina / indicador de imán
     rotBtn.style.display = "block";
     if (esteEsPortador) {
         rotBtn.textContent         = "🏀";
@@ -380,13 +408,15 @@ function updateFloatingUI() {
         rotBtn.onclick = () => {
             last.isScreen = !last.isScreen;
             if (!last.isScreen) last.angle = 0;
-            draw(); updateFloatingUI();
+            draw();
+            updateFloatingUI();
         };
     }
 
+    // Botón girar cortina
     let spinBtn = document.getElementById('spin-btn');
     if (!spinBtn) {
-        spinBtn = document.createElement('button');
+        spinBtn           = document.createElement('button');
         spinBtn.id        = 'spin-btn';
         spinBtn.className = 'f-btn';
         floatingUI.appendChild(spinBtn);
@@ -399,6 +429,7 @@ function updateFloatingUI() {
         spinBtn.style.display = "none";
     }
 
+    // Botón dorsal (solo en paso 0)
     if (currentStep === 0) {
         txtBtn.style.display = "block";
         txtBtn.textContent   = "🅰️";
@@ -406,9 +437,9 @@ function updateFloatingUI() {
             const nuevoDorsal = prompt("Número:", activeObj.label || "");
             if (nuevoDorsal !== null) {
                 activeObj.label = nuevoDorsal;
-                const saved = JSON.parse(localStorage.getItem('pizarraLabels') || '{"red":[],"blue":[]}');
-                saved[activeObj.team][parseInt(activeObj.id.split('-')[1])] = nuevoDorsal;
-                localStorage.setItem('pizarraLabels', JSON.stringify(saved));
+                const savedLabels = JSON.parse(localStorage.getItem('pizarraLabels') || '{"red":[],"blue":[]}');
+                savedLabels[activeObj.team][parseInt(activeObj.id.split('-')[1])] = nuevoDorsal;
+                localStorage.setItem('pizarraLabels', JSON.stringify(savedLabels));
                 draw();
             }
         };

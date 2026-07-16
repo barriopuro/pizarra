@@ -487,7 +487,7 @@ function _render(modoAnim, paraVideo) {
         ctx.restore();
     }
 
-    if (!modoAnim) updateUndoButton();
+    if (!modoAnim) { updateUndoButton(); updateRedoButton(); }
 }
 
 // --- API PÚBLICA ---

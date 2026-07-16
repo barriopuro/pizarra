@@ -151,9 +151,62 @@ function selectCourtMode(modo) {
 }
 
 function changeCourtMode() {
-    if (confirm("¿Cambiar el modo de cancha? Se perderá la jugada actual.")) {
-        location.reload();
+    if (!confirm("¿Cambiar el modo de cancha? Se perderá la jugada actual.")) return;
+
+    // Volvemos al selector de modo SIN recargar la página, así no se
+    // pierde la pantalla completa ni hay que ver el loader de nuevo.
+    shouldStopLoop    = true;
+    isLooping         = false;
+    isPlaying         = false;
+    isExporting       = false;
+    isEditionFinished = false;
+    activeObj         = null;
+    isDragging         = false;
+    undoStack         = [];
+    redoStack         = [];
+    currentStep       = 0;
+    players           = [];
+    ball = {
+        active: true,
+        team: 'ball',
+        steps: [[{ x: 0, y: 0, isScreen: false, angle: 0 }]],
+        portadorPorPaso: [null]
+    };
+
+    setPlayButtonsText("▶ PLAY");
+    setLoopButtonsColor(false);
+    factorVelocidad = 1;
+    const spdSel = document.getElementById('speedSelect');
+    if (spdSel) spdSel.value = "1";
+
+    const pc = document.getElementById('playback-controls');
+    const ec = document.getElementById('edit-controls');
+    if (pc) pc.style.display = "none";
+    if (ec) ec.style.display = "flex";
+    if (addStepBtn) addStepBtn.style.display = "block";
+
+    const appWrapper = document.getElementById('app-wrapper');
+    if (appWrapper) {
+        appWrapper.classList.remove('modo-full');
+        appWrapper.style.display = 'none';
     }
+    ['col-izquierda-container', 'col-linea-tiempo-container'].forEach(id => {
+        const cont = document.getElementById(id);
+        if (cont) {
+            cont.classList.remove('colapsado');
+            cont.style.height    = '';
+            cont.style.maxHeight = '';
+        }
+    });
+    const sIzq = document.getElementById('solapa-izq');
+    const sDer = document.getElementById('solapa-der');
+    if (sIzq) sIzq.innerText = '◀';
+    if (sDer) sDer.innerText = '▶';
+
+    solapasActivadas = false;
+    courtMode        = null;
+
+    checkOrientationForMode();
 }
 
 window.addEventListener('resize', checkOrientationForMode);
@@ -225,6 +278,7 @@ function renderTimeline() {
 }
 
 function addNewStep() {
+    redoStack = [];
     players.forEach(p => {
         const last = p.steps[currentStep][p.steps[currentStep].length - 1];
         p.steps.push([{ x: last.x, y: last.y, isScreen: last.isScreen, angle: last.angle }]);
@@ -254,6 +308,7 @@ function addNewStep() {
 
 function deleteLastStep() {
     if (currentStep === 0) return;
+    redoStack = [];
     players.forEach(p => p.steps.pop());
     ball.steps.pop();
     ball.portadorPorPaso.pop();
@@ -484,6 +539,7 @@ function confirmNewPlay() {
     isEditionFinished = false;
     activeObj         = null;
     undoStack         = [];
+    redoStack         = [];
 
     if (canvas) {
         const hRef = (courtMode === 'full') ? canvas.height / 2 : canvas.height;
@@ -559,6 +615,7 @@ function importPlay(event) {
         });
 
         undoStack   = [];
+        redoStack   = [];
         currentStep = 0;
         updateFormationOptions();
         renderTimeline();

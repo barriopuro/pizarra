@@ -63,8 +63,9 @@ Object.defineProperty(window, 'imantadoA', {
 let sF      = 1;
 let isMuted = localStorage.getItem('pizarraMuted') === 'true';
 
-// --- HISTORIAL DE DESHACER ---
+// --- HISTORIAL DE DESHACER / REHACER ---
 let undoStack = [];
+let redoStack = [];
 
 // --- PALETA DE COLORES POR PASO ---
 const stepColors = ["#ffffff", "#38b000", "#00b4d8", "#ffb703", "#e040fb", "#ff5722"];

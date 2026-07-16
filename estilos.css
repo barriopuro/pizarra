@@ -161,7 +161,14 @@ body {
     transform: scale(1.03);
 }
 
-.mode-option-icon { font-size: 34px; }
+.mode-option-icon {
+    color: #fff;
+    transition: color 0.2s;
+}
+.mode-option-btn:hover .mode-option-icon,
+.mode-option-btn:active .mode-option-icon {
+    color: #ff6600;
+}
 
 .mode-option-title {
     font-size: 14px;
@@ -682,11 +689,8 @@ select, button {
     height: 44px;
     padding: 0;
 }
-#app-wrapper.modo-full #col-izquierda #undoBtn {
-    margin-top: 0;
-    padding: 10px !important;
-}
 #app-wrapper.modo-full #undoBtn .undo-text,
+#app-wrapper.modo-full #redoBtn .redo-text,
 #app-wrapper.modo-full .hist-text {
     display: none;
 }
@@ -738,6 +742,7 @@ select, button {
 }
 #app-wrapper.modo-full #steps-list .step-btn {
     flex-shrink: 0;
+    width: auto;
     min-width: 38px;
     padding: 8px 4px;
 }
