@@ -394,8 +394,8 @@ select, button {
 #muteBtn { background: #444; color: #fff; border: 1px solid #555; font-size: 11px; }
 #muteBtn.muted { background: #262626; color: #888; border-color: #333; }
 
-.step-btn { background: #333; color: #aaa; border: 1px solid #444; text-align: center; padding: 10px; font-size: 11px; border-radius: 4px; transition: background 0.2s; }
-.step-btn.active { background: #2d1d0a; color: white; }
+.step-btn { background: #333; color: #aaa; border: 1px solid #444; text-align: center; padding: 10px; font-size: 11px; border-radius: 4px; transition: background 0.2s, box-shadow 0.2s; }
+.step-btn.active { background: #2d1d0a; color: white; box-shadow: 0 0 0 2px #ff6600, 0 0 8px 1px rgba(255,102,0,0.65); }
 
 .btn-add { background: #0044cc; color: white; margin-top: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
 .btn-del { background: #700; color: #ffcccc; }
@@ -423,6 +423,45 @@ select, button {
     color: #fff;
     font-weight: bold;
 }
+
+/* --- MENÚ DESPLEGABLE "ARCHIVO" (Nueva / Guardar / Cargar) --- */
+.menu-archivo-wrap {
+    position: relative;
+    width: 100%;
+}
+.menu-archivo-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    min-width: 150px;
+    background: #222;
+    border: 1px solid #444;
+    border-radius: 6px;
+    z-index: 100;
+    margin-top: 4px;
+    overflow: hidden;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.6);
+}
+.menu-archivo-dropdown.abierto {
+    display: block;
+}
+.menu-archivo-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: #222;
+    color: #ddd;
+    border: none;
+    border-radius: 0;
+    border-bottom: 1px solid #333;
+    padding: 10px 10px;
+    font-size: 11px;
+    font-weight: normal;
+}
+.menu-archivo-item:last-child { border-bottom: none; }
+.menu-archivo-item:hover { background: #333; }
 /* Deshacer/Rehacer llevan texto largo: en Media Cancha (barra angosta de
    140px) necesitan letra más chica para entrar sin generar scroll. En
    Cancha Completa quedan como ícono solo (ver reglas modo-full más abajo)
@@ -519,6 +558,10 @@ select, button {
 #col-linea-tiempo-container {
     width: 180px; /* Sincronizado con el ancho real de la barra derecha */
     max-width: 180px;
+}
+
+.sin-transicion {
+    transition: none !important;
 }
 
 /* Estado Colapsado por acción de las solapas */
@@ -708,19 +751,19 @@ select, button {
 #app-wrapper.modo-full #col-izquierda .sidebar-credits {
     display: none;
 }
+#app-wrapper.modo-full .archivo-text {
+    display: none;
+}
+#app-wrapper.modo-full #menuArchivoBtn {
+    width: auto;
+    min-width: 44px;
+}
 
-/* --- Barra de abajo (timeline): 3 columnas compactas --- */
+/* --- Barra de abajo (timeline): 2 columnas compactas --- */
 #app-wrapper.modo-full #col-linea-tiempo {
     flex-direction: row;
     align-items: center;
     gap: 8px;
-}
-#app-wrapper.modo-full #col-linea-tiempo #status-box {
-    flex: 0 0 56px;
-    width: 56px;
-    margin-bottom: 0 !important;
-    padding: 6px 2px !important;
-    font-size: 9px !important;
 }
 #app-wrapper.modo-full #col-linea-tiempo #steps-container {
     flex: 1 1 0;
@@ -772,9 +815,52 @@ select, button {
     overflow-y: auto;
 }
 #app-wrapper.modo-full #col-linea-tiempo #edit-controls {
-    flex-direction: row;
+    flex-direction: row !important;
     align-items: center;
-    gap: 6px;
+    gap: 6px !important;
+}
+#app-wrapper.modo-full #edit-controls button {
+    width: auto;
+    min-width: 44px;
+    padding: 10px 8px;
+}
+#app-wrapper.modo-full .del-text,
+#app-wrapper.modo-full .finish-text {
+    display: none;
+}
+
+/* --- Bloque de reproducción (Play/Loop/Vel/Editar/Exportar): una sola fila --- */
+#app-wrapper.modo-full #playback-controls {
+    flex-direction: row !important;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 6px !important;
+}
+#app-wrapper.modo-full #playback-controls > div {
+    width: auto !important;
+    gap: 6px !important;
+}
+#app-wrapper.modo-full #mainPlayBtn,
+#app-wrapper.modo-full #mainLoopBtn,
+#app-wrapper.modo-full .btn-edit-mode {
+    width: auto !important;
+    min-width: 40px;
+    padding: 10px 8px;
+}
+#app-wrapper.modo-full #speedSelect {
+    width: auto !important;
+    min-width: 46px;
+    padding: 8px 2px;
+}
+#app-wrapper.modo-full #exportVideoBtn {
+    width: auto;
+    white-space: nowrap;
+    padding: 10px 10px;
+}
+#app-wrapper.modo-full .play-text,
+#app-wrapper.modo-full .loop-text,
+#app-wrapper.modo-full .editar-text {
+    display: none;
 }
 
 

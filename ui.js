@@ -42,6 +42,29 @@ function confirmModalAccept() {
 }
 
 // --------------------------------------------------------
+// MENÚ DESPLEGABLE "ARCHIVO" (Nueva / Guardar / Cargar)
+// --------------------------------------------------------
+
+function toggleMenuArchivo(e) {
+    if (e) e.stopPropagation();
+    const dd = document.getElementById('menuArchivoDropdown');
+    if (dd) dd.classList.toggle('abierto');
+}
+
+function cerrarMenuArchivo() {
+    const dd = document.getElementById('menuArchivoDropdown');
+    if (dd) dd.classList.remove('abierto');
+}
+
+document.addEventListener('click', (e) => {
+    const dd = document.getElementById('menuArchivoDropdown');
+    if (!dd || !dd.classList.contains('abierto')) return;
+    const wrap = document.querySelector('.menu-archivo-wrap');
+    if (wrap && wrap.contains(e.target)) return;
+    dd.classList.remove('abierto');
+});
+
+// --------------------------------------------------------
 // PANTALLA DE CARGA
 // --------------------------------------------------------
 
@@ -213,7 +236,7 @@ function resetAEstadoVacio() {
         portadorPorPaso: [null]
     };
 
-    setPlayButtonsText("▶ PLAY");
+    setPlayButtonsState(false);
     setLoopButtonsColor(false);
     factorVelocidad = 1;
     const spdSel = document.getElementById('speedSelect');
@@ -226,12 +249,20 @@ function resetAEstadoVacio() {
     if (addStepBtn) addStepBtn.style.display = "block";
 
     const appWrapper = document.getElementById('app-wrapper');
+    const colIzqCont = document.getElementById('col-izquierda-container');
+    const colDerCont = document.getElementById('col-linea-tiempo-container');
+
+    // Apagamos momentáneamente las transiciones de las barras: si no,
+    // el cambio de ancho/alto queda animándose durante 0.35s y el
+    // siguiente init() puede medir el canvas a mitad de esa animación,
+    // resultando en una cancha diminuta.
+    [colIzqCont, colDerCont].forEach(c => { if (c) c.classList.add('sin-transicion'); });
+
     if (appWrapper) {
         appWrapper.classList.remove('modo-full');
         appWrapper.style.display = 'none';
     }
-    ['col-izquierda-container', 'col-linea-tiempo-container'].forEach(id => {
-        const cont = document.getElementById(id);
+    [colIzqCont, colDerCont].forEach(cont => {
         if (cont) {
             cont.classList.remove('colapsado');
             cont.style.height    = '';
@@ -244,6 +275,10 @@ function resetAEstadoVacio() {
     if (sDer) sDer.innerText = '▶';
 
     solapasActivadas = false;
+
+    requestAnimationFrame(() => {
+        [colIzqCont, colDerCont].forEach(c => { if (c) c.classList.remove('sin-transicion'); });
+    });
 }
 
 // Cambio de modo manual (botón 🔁): pide confirmación con el mismo cartel
@@ -272,30 +307,14 @@ window.addEventListener('orientationchange', () => setTimeout(checkOrientationFo
 // --------------------------------------------------------
 
 function updateStepUI() {
-    if (!statusLabel) return;
-
-    if (isEditionFinished) {
-        statusLabel.innerText      = (courtMode === 'full') ? "REPROD." : "REPRODUCCIÓN";
-        statusLabel.style.borderColor = "#28a745";
-        statusLabel.style.color       = "#28a745";
-    } else {
-        statusLabel.innerText      = (courtMode === 'full')
-            ? (currentStep === 0 ? "INICIO" : `P${currentStep}`)
-            : (currentStep === 0 ? "UBICACIÓN" : `PASO ${currentStep}`);
-        statusLabel.style.borderColor = "#ff6600";
-        statusLabel.style.color       = "#ff6600";
-    }
-
     const delBtn = document.getElementById('delStepBtn');
-    if (delBtn) delBtn.style.display = (currentStep > 0 && !isEditionFinished) ? "block" : "none";
+    if (delBtn) delBtn.style.display = (currentStep > 0 && !isEditionFinished) ? "" : "none";
 
     const esPasoInicial       = (currentStep === 0 && !isEditionFinished);
-    const controlesBloqueables = [rs, bs, fs, document.getElementById('ballBtn')];
-    controlesBloqueables.forEach(ctrl => {
+    const controlesOcultables = [rs, bs, fs, document.getElementById('ballBtn')];
+    controlesOcultables.forEach(ctrl => {
         if (!ctrl) return;
-        ctrl.disabled           = !esPasoInicial;
-        ctrl.style.opacity      = esPasoInicial ? "1"    : "0.35";
-        ctrl.style.pointerEvents = esPasoInicial ? "auto" : "none";
+        ctrl.style.display = esPasoInicial ? "" : "none";
     });
 
     ajustarAlturaBarras();
@@ -387,10 +406,6 @@ function finishEdition() {
     document.getElementById('edit-controls').style.display     = "none";
     if (addStepBtn) addStepBtn.style.display = "none";
 
-    statusLabel.innerText         = "REPRODUCCIÓN";
-    statusLabel.style.borderColor = "#28a745";
-    statusLabel.style.color       = "#28a745";
-
     const spdSel = document.getElementById('speedSelect');
     if (spdSel) { spdSel.disabled = false; spdSel.style.opacity = "1"; spdSel.style.pointerEvents = "auto"; }
 
@@ -405,12 +420,8 @@ function backToEdit() {
     isPlaying         = false;
     isEditionFinished = false;
 
-    setPlayButtonsText("▶ PLAY");
+    setPlayButtonsState(false);
     setLoopButtonsColor(false);
-    const mainLoopBtn = document.getElementById('mainLoopBtn');
-    if (mainLoopBtn) mainLoopBtn.innerText = "🔄 LOOP";
-    const floatLoopBtn = document.getElementById('floatLoopBtn');
-    if (floatLoopBtn) floatLoopBtn.innerText = "🔄 LOOP";
 
     document.getElementById('playback-controls').style.display = "none";
     document.getElementById('edit-controls').style.display     = "flex";
@@ -476,11 +487,13 @@ function toggleSidebar(lado) {
 
 // El botón de Play existe dos veces (barra normal + menú flotante que
 // aparece cuando ambas barras están colapsadas): los mantenemos sincronizados.
-function setPlayButtonsText(texto) {
-    const b1 = document.getElementById('mainPlayBtn');
-    const b2 = document.getElementById('floatPlayBtn');
-    if (b1) b1.innerText = texto;
-    if (b2) b2.innerText = texto;
+// Actualiza ícono y texto por separado para poder ocultar el texto en
+// Cancha Completa sin perder el cambio play/stop.
+function setPlayButtonsState(reproduciendo) {
+    document.querySelectorAll('#mainPlayBtn .play-icon, #floatPlayBtn .play-icon')
+        .forEach(el => { el.textContent = reproduciendo ? "⏹" : "▶"; });
+    document.querySelectorAll('#mainPlayBtn .play-text, #floatPlayBtn .play-text')
+        .forEach(el => { el.textContent = reproduciendo ? " STOP" : " PLAY"; });
 }
 
 function setLoopButtonsColor(activo) {
@@ -496,13 +509,13 @@ function togglePlay() {
         shouldStopLoop = true;
         isLooping      = false;
         isPlaying      = false;
-        setPlayButtonsText("▶ PLAY");
+        setPlayButtonsState(false);
         setLoopButtonsColor(false);
         draw();
         return;
     }
     isPlaying = true;
-    setPlayButtonsText("⏹ STOP");
+    setPlayButtonsState(true);
     playFullPlay(false);
 }
 
@@ -567,7 +580,7 @@ async function playFullPlay(loopMode) {
     } while (isLooping && !shouldStopLoop);
 
     isPlaying = false;
-    setPlayButtonsText("▶ PLAY");
+    setPlayButtonsState(false);
 }
 
 function toggleLoop() {
@@ -730,7 +743,7 @@ async function exportVideo() {
     catch (err) { alert("Error al capturar el canvas: " + err.message); resetBtn(); return; }
 
     let recorder;
-    try { recorder = new MediaRecorder(stream, { mimeType: mimeTypeElegido, videoBitsPerSecond: 4000000 }); }
+    try { recorder = new MediaRecorder(stream, { mimeType: mimeTypeElegido, videoBitsPerSecond: 8000000 }); }
     catch (err) { alert("Error al iniciar el grabador: " + err.message); resetBtn(); return; }
 
     const chunks = [];
@@ -773,7 +786,12 @@ async function exportVideo() {
         currentStep = i;
         renderTimeline();
 
-        if (i === 0) { draw(); await new Promise(r => setTimeout(r, 700)); continue; }
+        if (i === 0) {
+            [...players, ball].forEach(p => { delete p.ax; delete p.ay; delete p.as; delete p.aa; });
+            renderAnim();
+            await new Promise(r => setTimeout(r, 700));
+            continue;
+        }
 
         await new Promise(res => {
             let totalFrames = 170, f = 0;

@@ -8,7 +8,6 @@
 const canvas        = document.getElementById('canvas');
 const ctx           = canvas.getContext('2d');
 const wrap          = document.getElementById('canvas-wrap');
-const statusLabel   = document.getElementById('status-box');
 const floatingUI    = document.getElementById('floating-ui');
 const rotBtn        = document.getElementById('rot-btn');
 const timelineList  = document.getElementById('steps-list');

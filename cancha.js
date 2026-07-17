@@ -140,7 +140,35 @@ const IDS_ARO_2 = {
     backboard: 'backboard-2', rim: 'rim-2'
 };
 
+// Deja en su estado invisible por defecto todos los elementos SVG que
+// solo se usan en Cancha Completa (segundo aro, línea y círculo central).
+// Hace falta llamarla al volver a Media Cancha, porque al cambiar de modo
+// sin recargar la página esos elementos quedan con los últimos valores
+// que tenían (y sin esto se seguirían viendo).
+function limpiarMarcasSegundoAro() {
+    const paint2 = document.getElementById('paint-2');
+    if (paint2) { paint2.setAttribute('width', 0); paint2.setAttribute('height', 0); }
+
+    ['key-markers-2', 'free-throw-2', 'free-throw-dashed-2', 'triple-2'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.setAttribute('d', '');
+    });
+
+    const bb2 = document.getElementById('backboard-2');
+    if (bb2) { bb2.setAttribute('x1', 0); bb2.setAttribute('y1', 0); bb2.setAttribute('x2', 0); bb2.setAttribute('y2', 0); }
+
+    const rim2 = document.getElementById('rim-2');
+    if (rim2) rim2.setAttribute('r', 0);
+
+    const hl = document.getElementById('halfcourt-line');
+    if (hl) { hl.setAttribute('x1', 0); hl.setAttribute('y1', 0); hl.setAttribute('x2', 0); hl.setAttribute('y2', 0); }
+
+    const cc = document.getElementById('center-circle');
+    if (cc) cc.setAttribute('r', 0);
+}
+
 function updateHalfCourtDrawing(w, h) {
+    limpiarMarcasSegundoAro();
     dibujarMarcasDeAro(w, h, IDS_ARO_1);
 }
 
@@ -197,13 +225,29 @@ function drawParquetTexture() {
 function drawLogo() {
     if (!logoCanchaImg.complete || logoCanchaImg.naturalWidth === 0) return;
     ctx.save();
-    const aw = 95*sF, prop = logoCanchaImg.naturalHeight / logoCanchaImg.naturalWidth;
-    const yLogo = (courtMode === 'full') ? canvas.height / 2 : canvas.height * 0.52;
-    ctx.translate(canvas.width/2, yLogo);
+    const prop = logoCanchaImg.naturalHeight / logoCanchaImg.naturalWidth;
+    let yLogo, aw, ah;
+
+    if (courtMode === 'full') {
+        // El logo debe entrar completo (ancho Y alto) dentro del círculo
+        // central, con un margen para no tocar el borde.
+        yLogo = canvas.height / 2;
+        const radioCentral = canvas.width * 0.12;
+        const maxDiametro  = radioCentral * 2 * 0.78;
+        aw = maxDiametro;
+        ah = aw * prop;
+        if (ah > maxDiametro) { ah = maxDiametro; aw = ah / prop; }
+    } else {
+        yLogo = canvas.height * 0.52;
+        aw = 95 * sF;
+        ah = aw * prop;
+    }
+
+    ctx.translate(canvas.width / 2, yLogo);
     ctx.globalCompositeOperation = 'source-over';
     ctx.filter      = 'brightness(0.3) contrast(1.2)';
     ctx.globalAlpha = 0.35;
-    ctx.drawImage(logoCanchaImg, -aw/2, -(aw*prop)/2, aw, aw*prop);
+    ctx.drawImage(logoCanchaImg, -aw / 2, -ah / 2, aw, ah);
     ctx.restore();
 }
 
@@ -220,7 +264,24 @@ function dibujarCanchaEnCanvas(w, hLocal, espejar, hTotal) {
     ctx.fillRect(sx,0,pW,pH); ctx.strokeRect(sx,0,pW,pH);
     ctx.beginPath(); ctx.moveTo(sX,0); ctx.lineTo(sX,stH);
     ctx.arc(w/2,stH,tR,Math.PI,0,true); ctx.lineTo(w-sX,0); ctx.stroke();
+
+    // Círculo de tiro libre: mitad sólida (lejos del aro)...
     ctx.beginPath(); ctx.arc(w/2,pH,rl,0,Math.PI); ctx.stroke();
+    // ...y mitad punteada (hacia el aro, entra en la pintura)
+    ctx.setLineDash([4*sF, 4*sF]);
+    ctx.beginPath(); ctx.arc(w/2,pH,rl,Math.PI,Math.PI*2); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Marcas de reboteadores: 3 rayitas a cada lado de la pintura
+    const anchoLW = ctx.lineWidth;
+    ctx.lineWidth = 3*sF;
+    ctx.beginPath();
+    [0.35, 0.55, 0.75].forEach(f => {
+        ctx.moveTo(sx, pH*f);      ctx.lineTo(sx - 8, pH*f);
+        ctx.moveTo(sx + pW, pH*f); ctx.lineTo(sx + pW + 8, pH*f);
+    });
+    ctx.stroke();
+    ctx.lineWidth = anchoLW;
     const by=25*sF, ry=42*sF, bw=65*sF, rr=11*sF;
     ctx.lineWidth=5*sF; ctx.beginPath();
     ctx.moveTo((w/2)-(bw/2),by); ctx.lineTo((w/2)+(bw/2),by); ctx.stroke();
