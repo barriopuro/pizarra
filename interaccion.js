@@ -248,17 +248,48 @@ function encontrarJugadorEnPosicion(pos) {
     return found;
 }
 
+let jugadorEditandoDorsal = null;
+
 function pedirDorsal(jugador) {
     if (!jugador || currentStep !== 0 || isEditionFinished) return;
-    const nuevoDorsal = prompt("Número:", jugador.label || "");
-    if (nuevoDorsal !== null) {
-        jugador.label = nuevoDorsal;
-        const savedLabels = JSON.parse(localStorage.getItem('pizarraLabels') || '{"red":[],"blue":[]}');
-        savedLabels[jugador.team][parseInt(jugador.id.split('-')[1])] = nuevoDorsal;
-        localStorage.setItem('pizarraLabels', JSON.stringify(savedLabels));
-        draw();
-    }
+    jugadorEditandoDorsal = jugador;
+
+    const modal = document.getElementById('dorsalModal');
+    const input = document.getElementById('dorsalInput');
+    if (input) input.value = jugador.label || '';
+    if (modal) modal.style.display = 'flex';
+    if (input) setTimeout(() => { input.focus(); input.select(); }, 50);
 }
+
+function cerrarDorsalModal() {
+    const modal = document.getElementById('dorsalModal');
+    if (modal) modal.style.display = 'none';
+    jugadorEditandoDorsal = null;
+}
+
+function aceptarDorsalModal() {
+    if (!jugadorEditandoDorsal) { cerrarDorsalModal(); return; }
+    const input       = document.getElementById('dorsalInput');
+    const nuevoDorsal = input ? input.value : '';
+    const jugador     = jugadorEditandoDorsal;
+
+    jugador.label = nuevoDorsal;
+    const savedLabels = JSON.parse(localStorage.getItem('pizarraLabels') || '{"red":[],"blue":[]}');
+    savedLabels[jugador.team][parseInt(jugador.id.split('-')[1])] = nuevoDorsal;
+    localStorage.setItem('pizarraLabels', JSON.stringify(savedLabels));
+    draw();
+
+    cerrarDorsalModal();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const input = document.getElementById('dorsalInput');
+    if (!input) return;
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter')  aceptarDorsalModal();
+        if (e.key === 'Escape') cerrarDorsalModal();
+    });
+});
 
 function handleDoubleClick(e) {
     const jugador = encontrarJugadorEnPosicion(getPos(e));

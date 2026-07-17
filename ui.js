@@ -174,6 +174,8 @@ function checkOrientationForMode() {
             pendingImport = null;
             aplicarJugadaImportada(datos);
         }
+
+        mostrarTipDorsal();
     } else if (appWrapper) {
         appWrapper.style.display = 'none';
     }
@@ -224,26 +226,39 @@ function activarInterfaz() {
         if (sIzq) sIzq.innerText = '▲';
         if (sDer) sDer.innerText = '▼';
     }
-
-    mostrarTipDorsal();
 }
 
-// Aviso de uso único (guardado en el dispositivo, no vuelve a aparecer)
-// explicando cómo asignar el dorsal, ya que no tiene un botón fijo.
+// Aviso de uso único (guardado en el dispositivo, no vuelve a aparecer):
+// una flecha que apunta a un jugador real en la cancha, explicando el
+// doble clic/toque para el dorsal. Se llama después de init(), una vez
+// que ya existen jugadores para poder señalar a uno.
 function mostrarTipDorsal() {
     if (localStorage.getItem('pizarraDorsalTipVisto') === 'true') return;
+    if (!players || players.length === 0 || !canvas) return;
     localStorage.setItem('pizarraDorsalTipVisto', 'true');
 
-    const tip = document.createElement('div');
-    tip.id = 'dorsal-tip';
-    tip.innerText = '💡 Doble clic (o doble toque) sobre un jugador para ponerle el dorsal';
-    document.body.appendChild(tip);
-
-    requestAnimationFrame(() => tip.classList.add('visible'));
     setTimeout(() => {
-        tip.classList.remove('visible');
-        setTimeout(() => tip.remove(), 500);
-    }, 4500);
+        const jugador = players[0];
+        const p = jugador.steps[0][0];
+        const rect = canvas.getBoundingClientRect();
+        const x = rect.left + p.x;
+        const y = rect.top + p.y;
+
+        const tip = document.createElement('div');
+        tip.id = 'dorsal-tip';
+        tip.innerHTML =
+            '<div class="dorsal-tip-globo">Doble clic (o doble toque) acá<br>para ponerle el dorsal</div>' +
+            '<div class="dorsal-tip-flecha">👇</div>';
+        tip.style.left = x + 'px';
+        tip.style.top  = y + 'px';
+        document.body.appendChild(tip);
+
+        requestAnimationFrame(() => tip.classList.add('visible'));
+        setTimeout(() => {
+            tip.classList.remove('visible');
+            setTimeout(() => tip.remove(), 500);
+        }, 5500);
+    }, 500);
 }
 
 function selectCourtMode(modo) {

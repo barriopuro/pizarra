@@ -76,11 +76,6 @@
                     style="background:#333; color:#fff; border:1px solid #444; border-radius:4px; font-weight:bold; padding:10px 2px; font-size:13px;">
                     📁<span class="archivo-text"> ARCHIVO</span>
                 </button>
-                <div id="menuArchivoDropdown" class="menu-archivo-dropdown">
-                    <button class="snd-btn menu-archivo-item" onclick="cerrarMenuArchivo(); newPlay();">📄 Nueva Jugada</button>
-                    <button class="snd-btn menu-archivo-item" onclick="cerrarMenuArchivo(); exportPlay();">💾 Guardar Jugada</button>
-                    <button class="snd-btn menu-archivo-item" onclick="cerrarMenuArchivo(); document.getElementById('importFile').click();">📂 Cargar Jugada</button>
-                </div>
             </div>
             <input type="file" id="importFile" style="display:none" accept=".json" onchange="importPlay(event)">
 
@@ -217,6 +212,24 @@
         </div>
     </div>
 
+</div>
+
+<div id="menuArchivoDropdown" class="menu-archivo-dropdown">
+    <button class="snd-btn menu-archivo-item" onclick="cerrarMenuArchivo(); newPlay();">📄 Nueva Jugada</button>
+    <button class="snd-btn menu-archivo-item" onclick="cerrarMenuArchivo(); exportPlay();">💾 Guardar Jugada</button>
+    <button class="snd-btn menu-archivo-item" onclick="cerrarMenuArchivo(); document.getElementById('importFile').click();">📂 Cargar Jugada</button>
+</div>
+
+<div id="dorsalModal" class="confirm-modal">
+    <div class="confirm-box">
+        <div class="confirm-title">EDITAR NÚMERO/DORSAL</div>
+        <input type="text" id="dorsalInput" maxlength="4"
+            style="width:100%; box-sizing:border-box; padding:12px; font-size:22px; text-align:center; border-radius:8px; border:2px solid #ff6600; background:#111; color:#fff; margin-bottom:20px;">
+        <div class="confirm-buttons">
+            <button class="confirm-btn cancel-btn" onclick="cerrarDorsalModal()">CANCELAR</button>
+            <button class="confirm-btn accept-btn" onclick="aceptarDorsalModal()">GUARDAR</button>
+        </div>
+    </div>
 </div>
 
 <div id="confirmModal" class="confirm-modal">
