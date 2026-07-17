@@ -6,6 +6,41 @@
 // Depende de: estado.js, cancha.js, jugadores.js, interaccion.js, audio.js
 // ========================================================
 
+// Jugada leída de un archivo que quedó esperando a que termine un cambio
+// de modo de cancha (cuando el archivo fue guardado en el otro modo).
+let pendingImport = null;
+
+// --------------------------------------------------------
+// MODAL DE CONFIRMACIÓN GENÉRICO (mismo cartel para Nueva Jugada,
+// Cambiar Modo, y cualquier otra confirmación que haga falta)
+// --------------------------------------------------------
+
+let confirmModalCallback = null;
+
+function abrirConfirmModal(titulo, texto, textoBoton, callback) {
+    const modal = document.getElementById('confirmModal');
+    const t     = document.getElementById('confirmTitle');
+    const d     = document.getElementById('confirmText');
+    const b     = document.getElementById('confirmAcceptBtn');
+    if (t) t.innerText = titulo;
+    if (d) d.innerText = texto;
+    if (b) b.innerText = textoBoton;
+    confirmModalCallback = callback;
+    if (modal) modal.style.display = "flex";
+}
+
+function closeConfirmModal() {
+    const modal = document.getElementById('confirmModal');
+    if (modal) modal.style.display = "none";
+    confirmModalCallback = null;
+}
+
+function confirmModalAccept() {
+    const cb = confirmModalCallback;
+    closeConfirmModal();
+    if (cb) cb();
+}
+
 // --------------------------------------------------------
 // PANTALLA DE CARGA
 // --------------------------------------------------------
@@ -93,6 +128,12 @@ function checkOrientationForMode() {
         activarInterfaz();
         if (typeof init === 'function') init();
         ajustarAlturaBarras();
+
+        if (pendingImport) {
+            const datos = pendingImport;
+            pendingImport = null;
+            aplicarJugadaImportada(datos);
+        }
     } else if (appWrapper) {
         appWrapper.style.display = 'none';
     }
@@ -150,11 +191,10 @@ function selectCourtMode(modo) {
     checkOrientationForMode();
 }
 
-function changeCourtMode() {
-    if (!confirm("¿Cambiar el modo de cancha? Se perderá la jugada actual.")) return;
-
-    // Volvemos al selector de modo SIN recargar la página, así no se
-    // pierde la pantalla completa ni hay que ver el loader de nuevo.
+// Deja la app en blanco (sin jugada, sin barras colapsadas, con las
+// solapas por reactivar) para poder mostrar el selector de modo de nuevo
+// o cambiar directamente a otro modo, sin recargar la página.
+function resetAEstadoVacio() {
     shouldStopLoop    = true;
     isLooping         = false;
     isPlaying         = false;
@@ -204,8 +244,23 @@ function changeCourtMode() {
     if (sDer) sDer.innerText = '▶';
 
     solapasActivadas = false;
-    courtMode        = null;
+}
 
+// Cambio de modo manual (botón 🔁): pide confirmación con el mismo cartel
+// que "Nueva Jugada" y vuelve al selector, sin recargar la página.
+function changeCourtMode() {
+    abrirConfirmModal("¿CAMBIAR MODO?", "Se perderá la jugada actual.", "CAMBIAR", () => {
+        resetAEstadoVacio();
+        courtMode = null;
+        checkOrientationForMode();
+    });
+}
+
+// Cambio de modo automático (al cargar una jugada de otro modo): no pide
+// confirmación de nuevo, porque elegir el archivo ya fue la confirmación.
+function cambiarModoSilencioso(modo) {
+    resetAEstadoVacio();
+    courtMode = modo;
     checkOrientationForMode();
 }
 
@@ -530,8 +585,7 @@ function changeSpeed() {
 // --------------------------------------------------------
 
 function newPlay() {
-    const modal = document.getElementById('confirmModal');
-    if (modal) modal.style.display = "flex";
+    abrirConfirmModal("¿BORRAR JUGADA?", "Se perderá toda la jugada actual.", "BORRAR", confirmNewPlay);
 }
 
 function confirmNewPlay() {
@@ -558,12 +612,6 @@ function confirmNewPlay() {
     updateStepUI();
     renderTimeline();
     draw();
-    closeConfirmModal();
-}
-
-function closeConfirmModal() {
-    const modal = document.getElementById('confirmModal');
-    if (modal) modal.style.display = "none";
 }
 
 // --------------------------------------------------------
@@ -587,43 +635,49 @@ function exportPlay() {
 function importPlay(event) {
     const reader = new FileReader();
     reader.onload = (e) => {
-        const d  = JSON.parse(e.target.result);
+        const d = JSON.parse(e.target.result);
 
         if (d.m && d.m !== courtMode) {
-            alert("Esta jugada se guardó en modo " +
-                (d.m === 'full' ? "CANCHA COMPLETA" : "MEDIA CANCHA") +
-                ". Para verla correctamente, cargala estando en ese mismo modo.");
+            // La jugada fue guardada en el otro modo: cambiamos de modo
+            // solos y, apenas termine, la aplicamos automáticamente.
+            pendingImport = d;
+            cambiarModoSilencioso(d.m);
+        } else {
+            aplicarJugadaImportada(d);
         }
-
-        rs.value = d.a;
-        bs.value = d.d;
-
-        const sX = canvas.width  / d.s.w;
-        const sY = canvas.height / d.s.h;
-
-        ball = d.b;
-        ball.steps.forEach(s => s.forEach(p => { p.x *= sX; p.y *= sY; }));
-        // Compatibilidad con jugadas guardadas antes de portadorPorPaso
-        if (!ball.portadorPorPaso) {
-            ball.portadorPorPaso = ball.steps.map(() => null);
-        }
-
-        players = d.p;
-        players.forEach(pl => {
-            pl.steps.forEach(s => s.forEach(p => { p.x *= sX; p.y *= sY; }));
-            if (!pl.label) pl.label = '';
-        });
-
-        undoStack   = [];
-        redoStack   = [];
-        currentStep = 0;
-        updateFormationOptions();
-        renderTimeline();
-        updateStepUI();
-        draw();
-        attachButtonSounds();
     };
     reader.readAsText(event.target.files[0]);
+    event.target.value = ''; // permite volver a importar el mismo archivo después
+}
+
+function aplicarJugadaImportada(d) {
+    rs.value = d.a;
+    bs.value = d.d;
+
+    const sX = canvas.width  / d.s.w;
+    const sY = canvas.height / d.s.h;
+
+    ball = d.b;
+    ball.steps.forEach(s => s.forEach(p => { p.x *= sX; p.y *= sY; }));
+    // Compatibilidad con jugadas guardadas antes de portadorPorPaso
+    if (!ball.portadorPorPaso) {
+        ball.portadorPorPaso = ball.steps.map(() => null);
+    }
+
+    players = d.p;
+    players.forEach(pl => {
+        pl.steps.forEach(s => s.forEach(p => { p.x *= sX; p.y *= sY; }));
+        if (!pl.label) pl.label = '';
+    });
+
+    undoStack   = [];
+    redoStack   = [];
+    currentStep = 0;
+    updateFormationOptions();
+    renderTimeline();
+    updateStepUI();
+    draw();
+    attachButtonSounds();
 }
 
 // --------------------------------------------------------
@@ -638,7 +692,13 @@ async function exportVideo() {
         return;
     }
 
-    const codecsAProbar = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+    const codecsAProbar = [
+        'video/mp4;codecs=h264',
+        'video/mp4',
+        'video/webm;codecs=vp9',
+        'video/webm;codecs=vp8',
+        'video/webm'
+    ];
     let mimeTypeElegido = '';
     for (const codec of codecsAProbar) {
         if (MediaRecorder.isTypeSupported(codec)) { mimeTypeElegido = codec; break; }
@@ -647,6 +707,8 @@ async function exportVideo() {
         alert("Tu browser no soporta ningún formato de grabación estándar.");
         return;
     }
+    const esMp4     = mimeTypeElegido.startsWith('video/mp4');
+    const extension = esMp4 ? 'mp4' : 'webm';
 
     const exportBtn = document.getElementById('exportVideoBtn');
     isExporting = true;
@@ -687,15 +749,18 @@ async function exportVideo() {
             resetBtn(); currentStep = stepAntes; isLooping = loopingAntes;
             draw(); renderTimeline(); return;
         }
-        const blob = new Blob(chunks, { type: 'video/mp4' });
+        const blob = new Blob(chunks, { type: esMp4 ? 'video/mp4' : 'video/webm' });
         const url  = URL.createObjectURL(blob);
         const a    = document.createElement('a');
         a.href     = url;
-        a.download = 'jugada_oeste.mp4';
+        a.download = 'jugada_oeste.' + extension;
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 1000);
         currentStep = stepAntes; isLooping = loopingAntes;
         resetBtn(); draw(); renderTimeline();
+        if (!esMp4) {
+            alert("Tu navegador grabó el video en formato WebM (no pudo generar MP4 directamente). WebM se puede compartir por WhatsApp como archivo sin problema. Para lograr MP4 nativo probá desde Chrome/Edge actualizado o desde Safari en iPhone/Mac.");
+        }
     };
 
     recorder.start(100);

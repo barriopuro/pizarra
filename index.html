@@ -56,10 +56,10 @@
             <span class="mode-option-desc">Ambos aros · Usar en VERTICAL</span>
         </button>
         <button class="mode-option-btn snd-btn" onclick="selectCourtMode('half')">
-            <svg class="mode-option-icon" viewBox="0 0 64 40" width="54" height="34">
-                <rect x="2" y="2" width="60" height="36" fill="none" stroke="currentColor" stroke-width="3"/>
-                <rect x="2" y="10" width="17" height="20" fill="none" stroke="currentColor" stroke-width="2"/>
-                <path d="M 19 7 A 13 13 0 0 1 19 33" fill="none" stroke="currentColor" stroke-width="2"/>
+            <svg class="mode-option-icon" viewBox="0 0 40 34" width="30" height="26">
+                <rect x="2" y="2" width="36" height="30" fill="none" stroke="currentColor" stroke-width="3"/>
+                <rect x="10" y="2" width="20" height="14" fill="none" stroke="currentColor" stroke-width="2"/>
+                <path d="M 6 32 A 14 14 0 0 1 34 32" fill="none" stroke="currentColor" stroke-width="2"/>
             </svg>
             <span class="mode-option-title">MEDIA CANCHA</span>
             <span class="mode-option-desc">Un aro · Usar en HORIZONTAL</span>
@@ -96,7 +96,7 @@
 
             <div class="toggle-container"
                 style="display:flex; flex-direction:row; align-items:center; justify-content:space-between; gap:4px; margin:8px 2px; padding:0 4px;">
-                <span style="font-size:10px; color:#aaa; font-weight:bold; letter-spacing:0.3px;">🕓 <span class="hist-text">HISTORIAL</span></span>
+                <span style="font-size:10px; color:#aaa; font-weight:bold; letter-spacing:0.3px; white-space:nowrap;">🕓 <span class="hist-text">HISTORIAL</span></span>
                 <label class="switch" style="transform:scale(0.8); transform-origin:right center; margin:0;">
                     <input type="checkbox" id="historyToggle" checked onchange="draw()">
                     <span class="slider"></span>
@@ -160,9 +160,7 @@
                 <canvas id="canvas"></canvas>
 
                 <div id="floating-ui">
-                    <button id="scr-btn" class="f-btn snd-btn" onclick="toggleCurrentPlayerScreen()" title="Cortina">🛡️</button>
-                    <button id="rot-btn" class="f-btn snd-btn" onclick="rotateCurrentPlayer()"       title="Rotar Cortina">🔄</button>
-                    <button id="txt-btn" class="f-btn snd-btn" onclick="labelCurrentPlayer()"        title="Asignar ID">✏️</button>
+                    <button id="rot-btn" class="f-btn snd-btn" title="Cortina">🛡️</button>
                 </div>
             </div>
         </div>
@@ -218,11 +216,11 @@
 
 <div id="confirmModal" class="confirm-modal">
     <div class="confirm-box">
-        <div class="confirm-title">¿BORRAR JUGADA?</div>
-        <div class="confirm-text">Se perderá toda la jugada actual.</div>
+        <div id="confirmTitle" class="confirm-title">¿BORRAR JUGADA?</div>
+        <div id="confirmText" class="confirm-text">Se perderá toda la jugada actual.</div>
         <div class="confirm-buttons">
             <button class="confirm-btn cancel-btn" onclick="closeConfirmModal()">CANCELAR</button>
-            <button class="confirm-btn accept-btn" onclick="confirmNewPlay()">BORRAR</button>
+            <button id="confirmAcceptBtn" class="confirm-btn accept-btn" onclick="confirmModalAccept()">BORRAR</button>
         </div>
     </div>
 </div>

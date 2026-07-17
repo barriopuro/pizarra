@@ -11,7 +11,6 @@ const wrap          = document.getElementById('canvas-wrap');
 const statusLabel   = document.getElementById('status-box');
 const floatingUI    = document.getElementById('floating-ui');
 const rotBtn        = document.getElementById('rot-btn');
-const txtBtn        = document.getElementById('txt-btn');
 const timelineList  = document.getElementById('steps-list');
 const addStepBtn    = document.getElementById('addStepBtn');
 const historyToggle = document.getElementById('historyToggle');

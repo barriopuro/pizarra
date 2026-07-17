@@ -423,6 +423,16 @@ select, button {
     color: #fff;
     font-weight: bold;
 }
+/* Deshacer/Rehacer llevan texto largo: en Media Cancha (barra angosta de
+   140px) necesitan letra más chica para entrar sin generar scroll. En
+   Cancha Completa quedan como ícono solo (ver reglas modo-full más abajo)
+   y no se ven afectados por esto. */
+#app-wrapper:not(.modo-full) #undoBtn,
+#app-wrapper:not(.modo-full) #redoBtn {
+    font-size: 9px;
+    padding: 8px 1px;
+    letter-spacing: -0.2px;
+}
 
 /* --- CONTROLES FLOTANTES SOBRE EL PARQUET --- */
 #floating-ui { position: absolute; z-index: 10; display: none; pointer-events: auto; flex-direction: row; gap: 6px; justify-content: center; width: 76px; height: 34px; box-sizing: border-box; }
@@ -713,7 +723,7 @@ select, button {
     font-size: 9px !important;
 }
 #app-wrapper.modo-full #col-linea-tiempo #steps-container {
-    flex: 1 1 auto;
+    flex: 1 1 0;
     min-width: 0;
     flex-direction: row;
     align-items: center;
@@ -747,7 +757,7 @@ select, button {
     padding: 8px 4px;
 }
 #app-wrapper.modo-full #addStepBtn {
-    flex-shrink: 0;
+    flex: 0 0 auto;
     width: auto;
     min-width: 58px;
     margin-top: 0;
@@ -760,6 +770,11 @@ select, button {
     justify-content: center;
     max-height: 100%;
     overflow-y: auto;
+}
+#app-wrapper.modo-full #col-linea-tiempo #edit-controls {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
 }
 
 

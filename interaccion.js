@@ -235,6 +235,62 @@ window.addEventListener('mouseup',    handleEnd);
 window.addEventListener('touchend',   handleEnd);
 
 // --------------------------------------------------------
+// ASIGNAR DORSAL: doble clic (mouse) / doble toque (táctil)
+// --------------------------------------------------------
+
+function encontrarJugadorEnPosicion(pos) {
+    let found = null, minDistance = 35 * sF;
+    players.forEach(p => {
+        const last = p.steps[currentStep][p.steps[currentStep].length - 1];
+        const dist = Math.hypot(last.x - pos.x, last.y - pos.y);
+        if (dist < minDistance) { minDistance = dist; found = p; }
+    });
+    return found;
+}
+
+function pedirDorsal(jugador) {
+    if (!jugador || currentStep !== 0 || isEditionFinished) return;
+    const nuevoDorsal = prompt("Número:", jugador.label || "");
+    if (nuevoDorsal !== null) {
+        jugador.label = nuevoDorsal;
+        const savedLabels = JSON.parse(localStorage.getItem('pizarraLabels') || '{"red":[],"blue":[]}');
+        savedLabels[jugador.team][parseInt(jugador.id.split('-')[1])] = nuevoDorsal;
+        localStorage.setItem('pizarraLabels', JSON.stringify(savedLabels));
+        draw();
+    }
+}
+
+function handleDoubleClick(e) {
+    const jugador = encontrarJugadorEnPosicion(getPos(e));
+    if (jugador) pedirDorsal(jugador);
+}
+
+let lastTapTime = 0;
+let lastTapPos  = null;
+function handleTouchEndDobleToque(e) {
+    if (!e.changedTouches || e.changedTouches.length === 0) return;
+    const rect = canvas.getBoundingClientRect();
+    const pos  = {
+        x: e.changedTouches[0].clientX - rect.left,
+        y: e.changedTouches[0].clientY - rect.top
+    };
+    const ahora = Date.now();
+    if (lastTapPos && (ahora - lastTapTime) < 350 &&
+        Math.hypot(pos.x - lastTapPos.x, pos.y - lastTapPos.y) < 30 * sF) {
+        const jugador = encontrarJugadorEnPosicion(pos);
+        if (jugador) pedirDorsal(jugador);
+        lastTapTime = 0;
+        lastTapPos  = null;
+    } else {
+        lastTapTime = ahora;
+        lastTapPos  = pos;
+    }
+}
+
+canvas.addEventListener('dblclick', handleDoubleClick);
+canvas.addEventListener('touchend', handleTouchEndDobleToque);
+
+// --------------------------------------------------------
 // SISTEMA DE DESHACER / REHACER
 // --------------------------------------------------------
 
@@ -388,7 +444,7 @@ function updateFloatingUI() {
     floatingUI.style.transform     = "translateX(-50%)";
 
     Array.from(floatingUI.children).forEach(hijo => {
-        if (hijo !== rotBtn && hijo !== txtBtn && hijo.id !== 'spin-btn') {
+        if (hijo !== rotBtn && hijo.id !== 'spin-btn') {
             hijo.style.display = "none";
         }
     });
@@ -399,12 +455,14 @@ function updateFloatingUI() {
     rotBtn.style.display = "block";
     if (esteEsPortador) {
         rotBtn.textContent         = "🏀";
+        rotBtn.title                = "Lleva la pelota";
         rotBtn.style.opacity       = "0.5";
         rotBtn.style.pointerEvents = "none";
     } else {
         rotBtn.style.opacity       = "1";
         rotBtn.style.pointerEvents = "auto";
         rotBtn.textContent         = last.isScreen ? "❌" : "🛡️";
+        rotBtn.title                = last.isScreen ? "Quitar Cortina" : "Poner Cortina";
         rotBtn.onclick = () => {
             last.isScreen = !last.isScreen;
             if (!last.isScreen) last.angle = 0;
@@ -424,26 +482,9 @@ function updateFloatingUI() {
     if (last.isScreen && !esteEsPortador) {
         spinBtn.style.display = "block";
         spinBtn.textContent   = "🔄";
+        spinBtn.title         = "Rotar Cortina";
         spinBtn.onclick = () => { last.angle = (last.angle + 45) % 360; draw(); };
     } else {
         spinBtn.style.display = "none";
-    }
-
-    // Botón dorsal (solo en paso 0)
-    if (currentStep === 0) {
-        txtBtn.style.display = "block";
-        txtBtn.textContent   = "🅰️";
-        txtBtn.onclick = () => {
-            const nuevoDorsal = prompt("Número:", activeObj.label || "");
-            if (nuevoDorsal !== null) {
-                activeObj.label = nuevoDorsal;
-                const savedLabels = JSON.parse(localStorage.getItem('pizarraLabels') || '{"red":[],"blue":[]}');
-                savedLabels[activeObj.team][parseInt(activeObj.id.split('-')[1])] = nuevoDorsal;
-                localStorage.setItem('pizarraLabels', JSON.stringify(savedLabels));
-                draw();
-            }
-        };
-    } else {
-        txtBtn.style.display = "none";
     }
 }
