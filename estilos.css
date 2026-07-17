@@ -1,5 +1,5 @@
 /* ========================================================
-/* ESTILOS PIZARRA OESTE v125 - PARTE 1 DE 3 (ESTRUCTURA)
+/* ESTILOS PIZARRA OESTE v126 - PARTE 1 DE 3 (ESTRUCTURA)
 /* ======================================================== */
 
 * { 
@@ -229,7 +229,7 @@ body {
 }
 
 /* ========================================================
-/* ESTILOS PIZARRA OESTE v125 - PARTE 2 DE 3 (BOTONES Y UI)
+/* ESTILOS PIZARRA OESTE v126 - PARTE 2 DE 3 (BOTONES Y UI)
 /* ======================================================== */
 
 /* --- ENVOLTORIO DEL CANVAS Y GRÁFICOS --- */
@@ -431,16 +431,11 @@ select, button {
 }
 .menu-archivo-dropdown {
     display: none;
-    position: absolute;
-    top: 100%;
-    left: 0;
-    width: 100%;
-    min-width: 150px;
+    position: fixed;
     background: #222;
     border: 1px solid #444;
     border-radius: 6px;
-    z-index: 100;
-    margin-top: 4px;
+    z-index: 99000;
     overflow: hidden;
     box-shadow: 0 4px 14px rgba(0,0,0,0.6);
 }
@@ -462,6 +457,31 @@ select, button {
 }
 .menu-archivo-item:last-child { border-bottom: none; }
 .menu-archivo-item:hover { background: #333; }
+
+/* --- AVISO ÚNICO: doble clic/toque para asignar dorsal --- */
+#dorsal-tip {
+    position: fixed;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-10px);
+    background: rgba(20,20,20,0.94);
+    color: #fff;
+    border: 1px solid #ff6600;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 12px;
+    font-weight: bold;
+    text-align: center;
+    z-index: 999998;
+    opacity: 0;
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    pointer-events: none;
+    max-width: 90vw;
+}
+#dorsal-tip.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
 /* Deshacer/Rehacer llevan texto largo: en Media Cancha (barra angosta de
    140px) necesitan letra más chica para entrar sin generar scroll. En
    Cancha Completa quedan como ícono solo (ver reglas modo-full más abajo)
@@ -478,7 +498,7 @@ select, button {
 .f-btn { background: #fff; color: #000; width: 34px; height: 34px; border-radius: 50%; border: 2px solid #ff6600; font-weight: bold; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px rgba(0,0,0,0.8); }
 
 /* ========================================================
-/* ESTILOS PIZARRA OESTE v125 - PARTE 3 DE 3 (SOLAPAS Y ACCESOS)
+/* ESTILOS PIZARRA OESTE v126 - PARTE 3 DE 3 (SOLAPAS Y ACCESOS)
 /* ======================================================== */
 
 /* --- MENÚ FLOTANTE MINIMALISTA DE REPRODUCCIÓN (PLAY) --- */
@@ -539,7 +559,7 @@ select, button {
 }
 
 /* ========================================================
-/* SISTEMA DE SOLAPAS ELÁSTICAS INTELIGENTES (v125)
+/* SISTEMA DE SOLAPAS ELÁSTICAS INTELIGENTES (v126)
 /* ======================================================== */
 
 /* Contenedores laterales elásticos: manejan la transición milimétrica */
@@ -733,8 +753,7 @@ select, button {
     white-space: nowrap;
 }
 #app-wrapper.modo-full #col-izquierda .icon-row {
-    width: auto;
-    margin-bottom: 0;
+    display: contents;
 }
 #app-wrapper.modo-full #col-izquierda .icon-row .icon-btn {
     flex: 0 0 auto;

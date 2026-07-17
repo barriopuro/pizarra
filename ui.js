@@ -47,8 +47,25 @@ function confirmModalAccept() {
 
 function toggleMenuArchivo(e) {
     if (e) e.stopPropagation();
-    const dd = document.getElementById('menuArchivoDropdown');
-    if (dd) dd.classList.toggle('abierto');
+    const dd  = document.getElementById('menuArchivoDropdown');
+    const btn = document.getElementById('menuArchivoBtn');
+    if (!dd || !btn) return;
+
+    if (dd.classList.contains('abierto')) {
+        dd.classList.remove('abierto');
+        return;
+    }
+
+    const rect  = btn.getBoundingClientRect();
+    const ancho = Math.max(rect.width, 160);
+    let left    = rect.left;
+    if (left + ancho > window.innerWidth - 8)  left = window.innerWidth - ancho - 8;
+    if (left < 8) left = 8;
+
+    dd.style.left  = left + 'px';
+    dd.style.top   = (rect.bottom + 4) + 'px';
+    dd.style.width = ancho + 'px';
+    dd.classList.add('abierto');
 }
 
 function cerrarMenuArchivo() {
@@ -207,6 +224,26 @@ function activarInterfaz() {
         if (sIzq) sIzq.innerText = '▲';
         if (sDer) sDer.innerText = '▼';
     }
+
+    mostrarTipDorsal();
+}
+
+// Aviso de uso único (guardado en el dispositivo, no vuelve a aparecer)
+// explicando cómo asignar el dorsal, ya que no tiene un botón fijo.
+function mostrarTipDorsal() {
+    if (localStorage.getItem('pizarraDorsalTipVisto') === 'true') return;
+    localStorage.setItem('pizarraDorsalTipVisto', 'true');
+
+    const tip = document.createElement('div');
+    tip.id = 'dorsal-tip';
+    tip.innerText = '💡 Doble clic (o doble toque) sobre un jugador para ponerle el dorsal';
+    document.body.appendChild(tip);
+
+    requestAnimationFrame(() => tip.classList.add('visible'));
+    setTimeout(() => {
+        tip.classList.remove('visible');
+        setTimeout(() => tip.remove(), 500);
+    }, 4500);
 }
 
 function selectCourtMode(modo) {
@@ -284,10 +321,9 @@ function resetAEstadoVacio() {
 // Cambio de modo manual (botón 🔁): pide confirmación con el mismo cartel
 // que "Nueva Jugada" y vuelve al selector, sin recargar la página.
 function changeCourtMode() {
+    const otroModo = (courtMode === 'full') ? 'half' : 'full';
     abrirConfirmModal("¿CAMBIAR MODO?", "Se perderá la jugada actual.", "CAMBIAR", () => {
-        resetAEstadoVacio();
-        courtMode = null;
-        checkOrientationForMode();
+        cambiarModoSilencioso(otroModo);
     });
 }
 
@@ -345,7 +381,7 @@ function renderTimeline() {
         timelineList.appendChild(btn);
     });
 
-    if (addStepBtn && !isEditionFinished) timelineList.appendChild(addStepBtn);
+    if (addStepBtn) addStepBtn.style.display = isEditionFinished ? "none" : "";
 
     const stepsCont = document.getElementById('steps-container');
     if (stepsCont) stepsCont.scrollTop = stepsCont.scrollHeight;

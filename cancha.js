@@ -238,9 +238,15 @@ function drawLogo() {
         ah = aw * prop;
         if (ah > maxDiametro) { ah = maxDiametro; aw = ah / prop; }
     } else {
+        // Mismo criterio que en Cancha Completa: el logo ocupa el 78% del
+        // diámetro del círculo de referencia (acá, el de tiro libre) para
+        // que se vea más grande sin llegar a tocar sus líneas.
         yLogo = canvas.height * 0.52;
-        aw = 95 * sF;
+        const radioLibre  = canvas.width * 0.165;
+        const maxDiametro = radioLibre * 2 * 0.78;
+        aw = maxDiametro;
         ah = aw * prop;
+        if (ah > maxDiametro) { ah = maxDiametro; aw = ah / prop; }
     }
 
     ctx.translate(canvas.width / 2, yLogo);
@@ -258,7 +264,12 @@ function dibujarCanchaEnCanvas(w, hLocal, espejar, hTotal) {
         ctx.translate(0, hTotal);
         ctx.scale(1, -1);
     }
-    ctx.strokeStyle = "white"; ctx.lineWidth = 4*sF; ctx.fillStyle = "rgba(0,0,0,0.05)";
+    // El canvas 2D tiende a renderizar los trazos más "pesados" que el SVG
+    // que se ve normalmente en pantalla (se nota sobre todo en PC/Edge con
+    // escalado de pantalla). Compensamos con un grosor levemente menor.
+    const grosor = 0.8;
+
+    ctx.strokeStyle = "white"; ctx.lineWidth = 4*sF*grosor; ctx.fillStyle = "rgba(0,0,0,0.05)";
     const pW = w*0.33, rl = pW/2, pH = hLocal*0.52;
     const sX = w*0.06, tR = (w/2)-sX, stH = pH+rl-tR, sx = (w-pW)/2;
     ctx.fillRect(sx,0,pW,pH); ctx.strokeRect(sx,0,pW,pH);
@@ -274,7 +285,7 @@ function dibujarCanchaEnCanvas(w, hLocal, espejar, hTotal) {
 
     // Marcas de reboteadores: 3 rayitas a cada lado de la pintura
     const anchoLW = ctx.lineWidth;
-    ctx.lineWidth = 3*sF;
+    ctx.lineWidth = 3*sF*grosor;
     ctx.beginPath();
     [0.35, 0.55, 0.75].forEach(f => {
         ctx.moveTo(sx, pH*f);      ctx.lineTo(sx - 8, pH*f);
@@ -283,9 +294,9 @@ function dibujarCanchaEnCanvas(w, hLocal, espejar, hTotal) {
     ctx.stroke();
     ctx.lineWidth = anchoLW;
     const by=25*sF, ry=42*sF, bw=65*sF, rr=11*sF;
-    ctx.lineWidth=5*sF; ctx.beginPath();
+    ctx.lineWidth=5*sF*grosor; ctx.beginPath();
     ctx.moveTo((w/2)-(bw/2),by); ctx.lineTo((w/2)+(bw/2),by); ctx.stroke();
-    ctx.lineWidth=3.5*sF; ctx.strokeStyle="#ff6600";
+    ctx.lineWidth=3.5*sF*grosor; ctx.strokeStyle="#ff6600";
     ctx.beginPath(); ctx.arc(w/2,ry,rr,0,Math.PI*2); ctx.stroke();
     ctx.restore();
 }

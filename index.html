@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Pizarra Oeste v125</title>
+    <title>Pizarra Oeste v126</title>
     <link rel="icon" type="image/svg+xml" href="logo.svg">
     <link rel="stylesheet" href="estilos.css">
 
@@ -71,6 +71,21 @@
 
     <div id="col-izquierda-container">
         <div id="col-izquierda">
+            <div class="menu-archivo-wrap">
+                <button id="menuArchivoBtn" class="snd-btn" onclick="toggleMenuArchivo(event)" title="Archivo (Nueva / Guardar / Cargar)"
+                    style="background:#333; color:#fff; border:1px solid #444; border-radius:4px; font-weight:bold; padding:10px 2px; font-size:13px;">
+                    📁<span class="archivo-text"> ARCHIVO</span>
+                </button>
+                <div id="menuArchivoDropdown" class="menu-archivo-dropdown">
+                    <button class="snd-btn menu-archivo-item" onclick="cerrarMenuArchivo(); newPlay();">📄 Nueva Jugada</button>
+                    <button class="snd-btn menu-archivo-item" onclick="cerrarMenuArchivo(); exportPlay();">💾 Guardar Jugada</button>
+                    <button class="snd-btn menu-archivo-item" onclick="cerrarMenuArchivo(); document.getElementById('importFile').click();">📂 Cargar Jugada</button>
+                </div>
+            </div>
+            <input type="file" id="importFile" style="display:none" accept=".json" onchange="importPlay(event)">
+
+            <hr>
+
             <select id="countRed"        class="snd-btn" onchange="syncPlayers()"></select>
             <select id="countBlue"       class="snd-btn" onchange="syncPlayers()"></select>
             <select id="formationSelect" class="snd-btn" onchange="applyFormation()">
@@ -105,19 +120,6 @@
 
             <hr>
 
-            <div class="menu-archivo-wrap">
-                <button id="menuArchivoBtn" class="snd-btn" onclick="toggleMenuArchivo(event)" title="Archivo (Nueva / Guardar / Cargar)"
-                    style="background:#333; color:#fff; border:1px solid #444; border-radius:4px; font-weight:bold; padding:10px 2px; font-size:13px;">
-                    📁<span class="archivo-text"> ARCHIVO</span>
-                </button>
-                <div id="menuArchivoDropdown" class="menu-archivo-dropdown">
-                    <button class="snd-btn menu-archivo-item" onclick="cerrarMenuArchivo(); newPlay();">📄 Nueva Jugada</button>
-                    <button class="snd-btn menu-archivo-item" onclick="cerrarMenuArchivo(); exportPlay();">💾 Guardar Jugada</button>
-                    <button class="snd-btn menu-archivo-item" onclick="cerrarMenuArchivo(); document.getElementById('importFile').click();">📂 Cargar Jugada</button>
-                </div>
-            </div>
-
-            <input type="file" id="importFile" style="display:none" accept=".json" onchange="importPlay(event)">
             <button class="btn-danger snd-btn" onclick="changeCourtMode()" title="Cambiar modo de cancha (Completa / Media)"
                 style="padding:10px 2px; font-size:14px; margin-top:6px;">🔁</button>
 
