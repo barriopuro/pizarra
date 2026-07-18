@@ -296,7 +296,7 @@ function dibujarCanchaEnCanvas(w, hLocal, espejar, hTotal) {
     const by=25*sF, ry=42*sF, bw=65*sF, rr=11*sF;
     ctx.lineWidth=5*sF*grosor; ctx.beginPath();
     ctx.moveTo((w/2)-(bw/2),by); ctx.lineTo((w/2)+(bw/2),by); ctx.stroke();
-    ctx.lineWidth=3.5*sF*grosor; ctx.strokeStyle="#ff6600";
+    ctx.lineWidth=3.5*sF*grosor; ctx.strokeStyle="#c01c33";
     ctx.beginPath(); ctx.arc(w/2,ry,rr,0,Math.PI*2); ctx.stroke();
     ctx.restore();
 }
@@ -425,12 +425,12 @@ function _render(modoAnim, paraVideo) {
                     ctx.translate(last.x, last.y);
                     if (last.isScreen) {
                         ctx.rotate(last.angle * Math.PI/180);
-                        ctx.fillStyle = p.team === 'red' ? '#CC0000' : '#0044CC';
+                        ctx.fillStyle = p.team === 'red' ? '#c01c33' : '#0044CC';
                         ctx.fillRect(-radius*1.2, -radius*0.4, radius*2.4, radius*0.8);
-                        ctx.strokeStyle = "#CC0000"; ctx.lineWidth = 2*sF;
+                        ctx.strokeStyle = "#c01c33"; ctx.lineWidth = 2*sF;
                         ctx.strokeRect(-radius*1.2, -radius*0.4, radius*2.4, radius*0.8);
                     } else {
-                        drawJersey(p.team === 'red' ? '#CC0000' : '#0044CC', radius, p.label);
+                        drawJersey(p.team === 'red' ? '#c01c33' : '#0044CC', radius, p.label);
                     }
                     ctx.restore();
                 }
@@ -499,9 +499,9 @@ function _render(modoAnim, paraVideo) {
         ctx.translate(posX, posY);
         if (isScr) {
             ctx.rotate(ang * Math.PI/180);
-            ctx.fillStyle = p.team === 'red' ? '#CC0000' : '#0044CC';
+            ctx.fillStyle = p.team === 'red' ? '#c01c33' : '#0044CC';
             ctx.fillRect(-radius*1.2, -radius*0.4, radius*2.4, radius*0.8);
-            ctx.strokeStyle = "#cc0000"; ctx.lineWidth = 2*sF;
+            ctx.strokeStyle = "#c01c33"; ctx.lineWidth = 2*sF;
             ctx.strokeRect(-radius*1.2, -radius*0.4, radius*2.4, radius*0.8);
             if (p.label) {
                 ctx.rotate(-ang * Math.PI/180);
@@ -511,7 +511,7 @@ function _render(modoAnim, paraVideo) {
                 ctx.fillText(p.label, 0, 1);
             }
         } else {
-            drawJersey(p.team === 'red' ? '#CC0000' : '#0044CC', radius, p.label);
+            drawJersey(p.team === 'red' ? '#c01c33' : '#0044CC', radius, p.label);
         }
         ctx.restore();
     });

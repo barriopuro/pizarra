@@ -403,13 +403,25 @@ function renderTimeline() {
     if (!timelineList) return;
     timelineList.innerHTML = '';
 
+    function hexARgba(hex, alpha) {
+        const h = hex.replace('#', '');
+        const r = parseInt(h.substring(0, 2), 16);
+        const g = parseInt(h.substring(2, 4), 16);
+        const b = parseInt(h.substring(4, 6), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
     ball.steps.forEach((_, i) => {
         const btn = document.createElement('button');
+        const color = stepColors[i % stepColors.length];
         btn.className  = `step-btn snd-btn ${i === currentStep ? 'active' : ''}`;
         btn.innerText  = (courtMode === 'full')
             ? (i === 0 ? "INI" : `P${i}`)
             : (i === 0 ? "INICIO" : `PASO ${i}`);
-        btn.style.borderLeft = `4px solid ${stepColors[i % stepColors.length]}`;
+        btn.style.borderLeft = `4px solid ${color}`;
+        if (i === currentStep) {
+            btn.style.boxShadow = `0 0 0 2px ${color}, 0 0 8px 1px ${hexARgba(color, 0.65)}`;
+        }
         btn.onclick = () => {
             currentStep = i;
             updateStepUI();
@@ -580,7 +592,7 @@ function setPlayButtonsState(reproduciendo) {
 }
 
 function setLoopButtonsColor(activo) {
-    const color = activo ? "#ff6600" : "#333";
+    const color = activo ? "#c01c33" : "#333";
     const b1 = document.getElementById('mainLoopBtn');
     const b2 = document.getElementById('floatLoopBtn');
     if (b1) b1.style.background = color;
