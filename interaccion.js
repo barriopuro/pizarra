@@ -492,7 +492,7 @@ function updateFloatingUI() {
     } else {
         rotBtn.style.opacity       = "1";
         rotBtn.style.pointerEvents = "auto";
-        rotBtn.textContent         = last.isScreen ? "❌" : "🛡️";
+        rotBtn.textContent         = last.isScreen ? "🏃" : "🧱";
         rotBtn.title                = last.isScreen ? "Quitar Cortina" : "Poner Cortina";
         rotBtn.onclick = () => {
             last.isScreen = !last.isScreen;
@@ -512,7 +512,7 @@ function updateFloatingUI() {
     }
     if (last.isScreen && !esteEsPortador) {
         spinBtn.style.display = "block";
-        spinBtn.textContent   = "🔄";
+        spinBtn.textContent   = "🗘";
         spinBtn.title         = "Rotar Cortina";
         spinBtn.onclick = () => { last.angle = (last.angle + 45) % 360; draw(); };
     } else {

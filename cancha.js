@@ -566,12 +566,45 @@ function _render(modoAnim, paraVideo) {
 function draw()       { _render(false, false); }
 function renderAnim() { _render(true,  isExporting); }
 
+// --- ÍCONOS SVG COMPARTIDOS (pantalla completa y cambiar modo de cancha) ---
+const SVG_FULLSCREEN_ENTER =
+    '<svg viewBox="0 0 24 24" width="16" height="16" style="display:block;margin:auto;">' +
+    '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" stroke="currentColor" stroke-width="2.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const SVG_FULLSCREEN_EXIT =
+    '<svg viewBox="0 0 24 24" width="16" height="16" style="display:block;margin:auto;">' +
+    '<path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" stroke="currentColor" stroke-width="2.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+function svgIconoCanchaCompleta(w, h) {
+    return `<svg viewBox="0 0 40 64" width="${w}" height="${h}" style="display:block;margin:auto;">
+        <rect x="2" y="2" width="36" height="60" fill="none" stroke="currentColor" stroke-width="3"/>
+        <line x1="2" y1="32" x2="38" y2="32" stroke="currentColor" stroke-width="2"/>
+        <circle cx="20" cy="32" r="6" fill="none" stroke="currentColor" stroke-width="2"/>
+        <rect x="10" y="2" width="20" height="15" fill="none" stroke="currentColor" stroke-width="2"/>
+        <rect x="10" y="47" width="20" height="15" fill="none" stroke="currentColor" stroke-width="2"/>
+    </svg>`;
+}
+function svgIconoMediaCancha(w, h) {
+    return `<svg viewBox="0 0 40 34" width="${w}" height="${h}" style="display:block;margin:auto;">
+        <rect x="2" y="2" width="36" height="30" fill="none" stroke="currentColor" stroke-width="3"/>
+        <rect x="10" y="2" width="20" height="14" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path d="M 6 32 A 14 14 0 0 1 34 32" fill="none" stroke="currentColor" stroke-width="2"/>
+    </svg>`;
+}
+
+// Muestra el ícono de la cancha a la que se pasaría al tocar el botón
+// (si estoy en Cancha Completa, muestra el ícono de Media Cancha, y viceversa).
+function actualizarIconoCambiarModo() {
+    const btn = document.getElementById('changeCourtModeBtn');
+    if (!btn) return;
+    btn.innerHTML = (courtMode === 'full') ? svgIconoMediaCancha(20, 17) : svgIconoCanchaCompleta(15, 24);
+}
+
 // --- RESIZE Y FULLSCREEN ---
 window.addEventListener('resize', () => { init(); setTimeout(init, 200); });
 
 document.addEventListener('fullscreenchange', () => {
     const btn = document.getElementById('realFsBtn');
-    if (btn) btn.innerText = document.fullscreenElement ? "❌" : "⤢";
+    if (btn) btn.innerHTML = document.fullscreenElement ? SVG_FULLSCREEN_EXIT : SVG_FULLSCREEN_ENTER;
     setTimeout(init, 150); setTimeout(init, 500);
 });
 
@@ -579,10 +612,10 @@ function toggleRealFullscreen() {
     const btn = document.getElementById('realFsBtn');
     if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen()
-            .then(() => { if (btn) btn.innerText = "❌"; setTimeout(init,150); setTimeout(init,450); })
+            .then(() => { if (btn) btn.innerHTML = SVG_FULLSCREEN_EXIT; setTimeout(init,150); setTimeout(init,450); })
             .catch(err => console.log(`Error fullscreen: ${err.message}`));
     } else {
         document.exitFullscreen()
-            .then(() => { if (btn) btn.innerText = "⤢"; setTimeout(init,150); setTimeout(init,450); });
+            .then(() => { if (btn) btn.innerHTML = SVG_FULLSCREEN_ENTER; setTimeout(init,150); setTimeout(init,450); });
     }
 }

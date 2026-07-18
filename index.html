@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Pizarra Oeste v126</title>
+    <title>Pizarra Oeste v127</title>
     <link rel="icon" type="image/svg+xml" href="logo.svg">
     <link rel="stylesheet" href="estilos.css">
 
@@ -87,11 +87,8 @@
                 <option value="custom">-- FORMACIÓN --</option>
             </select>
 
-            <div class="icon-row">
-                <button id="ballBtn" class="snd-btn icon-btn" onclick="toggleBall()" title="Pelota">🏀</button>
-                <button id="muteBtn" class="snd-btn icon-btn" onclick="toggleMute()" title="Silenciar">🔊</button>
-                <button id="realFsBtn" class="snd-btn icon-btn icon-btn-fs" onclick="toggleRealFullscreen()" title="Pantalla Completa">⤢</button>
-            </div>
+            <button id="ballBtn" class="snd-btn" onclick="toggleBall()" title="Pelota"
+                style="padding:10px 2px; font-size:14px; margin-top:2px;">🏀</button>
 
             <div class="icon-row">
                 <button id="undoBtn" class="snd-btn icon-btn" onclick="undoLastMove()" title="Deshacer"
@@ -104,7 +101,7 @@
                 </button>
             </div>
 
-            <div class="toggle-container"
+            <div id="historialToggle" class="toggle-container"
                 style="display:flex; flex-direction:row; align-items:center; justify-content:space-between; gap:4px; margin:8px 2px; padding:0 4px;">
                 <span style="font-size:10px; color:#aaa; font-weight:bold; letter-spacing:0.3px; white-space:nowrap;">🕓 <span class="hist-text">HISTORIAL</span></span>
                 <label class="switch" style="transform:scale(0.8); transform-origin:right center; margin:0;">
@@ -115,12 +112,12 @@
 
             <hr>
 
-            <button class="btn-danger snd-btn" onclick="changeCourtMode()" title="Cambiar modo de cancha (Completa / Media)"
-                style="padding:10px 2px; font-size:14px; margin-top:6px;">🔁</button>
+            <button id="changeCourtModeBtn" class="btn-danger snd-btn" onclick="changeCourtMode()" title="Cambiar modo de cancha"
+                style="padding:6px 2px; margin-top:6px; display:flex; align-items:center; justify-content:center;"></button>
 
-            <div class="sidebar-credits">
-                <div style="color:#666; font-size:8px; letter-spacing:1px; margin-bottom:2px;">POWERED by</div>
-                <div><a href="https://www.instagram.com/barrio.puro" target="_blank">BARRIOPURO</a></div>
+            <div class="icon-row" style="margin-top:6px;">
+                <button id="muteBtn" class="snd-btn icon-btn" onclick="toggleMute()" title="Silenciar">🔊</button>
+                <button id="realFsBtn" class="snd-btn icon-btn icon-btn-fs" onclick="toggleRealFullscreen()" title="Pantalla Completa"><svg viewBox="0 0 24 24" width="16" height="16" style="display:block;margin:auto;"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" stroke="currentColor" stroke-width="2.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             </div>
         </div>
         <button id="solapa-izq" class="solapa-interfaz" onclick="toggleSidebar('izq')">◀</button>
@@ -218,6 +215,27 @@
     <button class="snd-btn menu-archivo-item" onclick="cerrarMenuArchivo(); newPlay();">📄 Nueva Jugada</button>
     <button class="snd-btn menu-archivo-item" onclick="cerrarMenuArchivo(); exportPlay();">💾 Guardar Jugada</button>
     <button class="snd-btn menu-archivo-item" onclick="cerrarMenuArchivo(); document.getElementById('importFile').click();">📂 Cargar Jugada</button>
+    <button class="snd-btn menu-archivo-item" onclick="cerrarMenuArchivo(); abrirAcercaDe();">ℹ️ Acerca de...</button>
+</div>
+
+<div id="acercaDeModal" class="confirm-modal" onclick="if(event.target===this) cerrarAcercaDe();">
+    <div class="confirm-box">
+        <img src="logo.svg" alt="Escudo Casanova Oeste" style="width:90px; height:90px; object-fit:contain; margin-bottom:14px;">
+        <div class="confirm-title" style="font-size:16px;">Pizarra Táctica de Basquetbol</div>
+        <div class="confirm-text" style="font-size:12px; color:#999; margin-bottom:12px;">Versión 127</div>
+        <div class="confirm-text" style="font-size:13px; text-align:left;">
+            Esta aplicación está diseñada para la planificación, análisis y desarrollo de estrategias tácticas de basquetbol bajo reglamento FIBA/NBA para el club CASANOVA OESTE.
+        </div>
+        <div class="confirm-text" style="font-size:12px; margin-top:14px;">
+            Desarrollo y Dirección de Arte: Daniel Ayanian
+        </div>
+        <div class="confirm-text" style="margin-top:6px;">
+            <a href="https://www.instagram.com/barrio.puro" target="_blank" rel="noopener" style="color:#ff6600; font-weight:bold; text-decoration:none;">BARRIO PURO</a>
+        </div>
+        <div class="confirm-buttons" style="margin-top:20px;">
+            <button class="confirm-btn accept-btn" style="width:100%;" onclick="cerrarAcercaDe()">CERRAR</button>
+        </div>
+    </div>
 </div>
 
 <div id="dorsalModal" class="confirm-modal">

@@ -1,5 +1,5 @@
 /* ========================================================
-/* ESTILOS PIZARRA OESTE v126 - PARTE 1 DE 3 (ESTRUCTURA)
+/* ESTILOS PIZARRA OESTE v127 - PARTE 1 DE 3 (ESTRUCTURA)
 /* ======================================================== */
 
 * { 
@@ -229,7 +229,7 @@ body {
 }
 
 /* ========================================================
-/* ESTILOS PIZARRA OESTE v126 - PARTE 2 DE 3 (BOTONES Y UI)
+/* ESTILOS PIZARRA OESTE v127 - PARTE 2 DE 3 (BOTONES Y UI)
 /* ======================================================== */
 
 /* --- ENVOLTORIO DEL CANVAS Y GRÁFICOS --- */
@@ -513,11 +513,11 @@ select, button {
 }
 
 /* --- CONTROLES FLOTANTES SOBRE EL PARQUET --- */
-#floating-ui { position: absolute; z-index: 10; display: none; pointer-events: auto; flex-direction: row; gap: 6px; justify-content: center; width: 76px; height: 34px; box-sizing: border-box; }
-.f-btn { background: #fff; color: #000; width: 34px; height: 34px; border-radius: 50%; border: 2px solid #ff6600; font-weight: bold; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px rgba(0,0,0,0.8); }
+#floating-ui { position: absolute; z-index: 10; display: none; pointer-events: auto; flex-direction: row; gap: 6px; justify-content: center; width: 84px; height: 38px; box-sizing: border-box; }
+.f-btn { background: #fff; color: #000; width: 38px; height: 38px; border-radius: 50%; border: 2px solid #ff6600; font-weight: bold; font-size: 20px; line-height: 1; padding: 0; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px rgba(0,0,0,0.8); }
 
 /* ========================================================
-/* ESTILOS PIZARRA OESTE v126 - PARTE 3 DE 3 (SOLAPAS Y ACCESOS)
+/* ESTILOS PIZARRA OESTE v127 - PARTE 3 DE 3 (SOLAPAS Y ACCESOS)
 /* ======================================================== */
 
 /* --- MENÚ FLOTANTE MINIMALISTA DE REPRODUCCIÓN (PLAY) --- */
@@ -578,7 +578,7 @@ select, button {
 }
 
 /* ========================================================
-/* SISTEMA DE SOLAPAS ELÁSTICAS INTELIGENTES (v126)
+/* SISTEMA DE SOLAPAS ELÁSTICAS INTELIGENTES (v127)
 /* ======================================================== */
 
 /* Contenedores laterales elásticos: manejan la transición milimétrica */
@@ -785,8 +785,7 @@ select, button {
 #app-wrapper.modo-full .hist-text {
     display: none;
 }
-#app-wrapper.modo-full #col-izquierda hr,
-#app-wrapper.modo-full #col-izquierda .sidebar-credits {
+#app-wrapper.modo-full #col-izquierda hr {
     display: none;
 }
 #app-wrapper.modo-full .archivo-text {
@@ -899,29 +898,6 @@ select, button {
 #app-wrapper.modo-full .loop-text,
 #app-wrapper.modo-full .editar-text {
     display: none;
-}
-
-
-/* --- CRÉDITO AL PIE DE LA BARRA IZQUIERDA --- */
-.sidebar-credits {
-    text-align: center;
-    font-size: 10px;
-    font-weight: bold;
-    color: #666; /* Un gris sutil para que no compita visualmente con los botones */
-    margin-top: 25px; /* Lo separa del botón de la hoja y lo empuja al fondo */
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-}
-
-.sidebar-credits a {
-    color: #ff6600; /* El enlace resalta con el naranja de tu estética */
-    text-decoration: none; /* Le saca el subrayado común */
-    transition: color 0.2s;
-}
-
-.sidebar-credits a:hover {
-    color: #fff; /* Al pasar el mouse o el dedo, brilla en blanco */
-    text-decoration: underline overline; /* Solo se subraya al interactuar */
 }
 
 

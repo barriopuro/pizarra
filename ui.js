@@ -78,8 +78,23 @@ document.addEventListener('click', (e) => {
     if (!dd || !dd.classList.contains('abierto')) return;
     const wrap = document.querySelector('.menu-archivo-wrap');
     if (wrap && wrap.contains(e.target)) return;
+    if (dd.contains(e.target)) return;
     dd.classList.remove('abierto');
 });
+
+// --------------------------------------------------------
+// MODAL "ACERCA DE..."
+// --------------------------------------------------------
+
+function abrirAcercaDe() {
+    const modal = document.getElementById('acercaDeModal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function cerrarAcercaDe() {
+    const modal = document.getElementById('acercaDeModal');
+    if (modal) modal.style.display = 'none';
+}
 
 // --------------------------------------------------------
 // PANTALLA DE CARGA
@@ -226,6 +241,8 @@ function activarInterfaz() {
         if (sIzq) sIzq.innerText = '▲';
         if (sDer) sDer.innerText = '▼';
     }
+
+    if (typeof actualizarIconoCambiarModo === 'function') actualizarIconoCambiarModo();
 }
 
 // Aviso de uso único (guardado en el dispositivo, no vuelve a aparecer):
@@ -368,6 +385,13 @@ function updateStepUI() {
         ctrl.style.display = esPasoInicial ? "" : "none";
     });
 
+    // Deshacer/Rehacer/Historial no tienen ningún uso en el paso 0
+    const mostrarHistorial = currentStep > 0;
+    const undoRow = document.getElementById('undoBtn')?.closest('.icon-row');
+    if (undoRow) undoRow.style.display = mostrarHistorial ? "" : "none";
+    const histToggle = document.getElementById('historialToggle');
+    if (histToggle) histToggle.style.display = mostrarHistorial ? "" : "none";
+
     ajustarAlturaBarras();
 }
 
@@ -396,10 +420,18 @@ function renderTimeline() {
         timelineList.appendChild(btn);
     });
 
-    if (addStepBtn) addStepBtn.style.display = isEditionFinished ? "none" : "";
+    if (addStepBtn) {
+        addStepBtn.style.display = isEditionFinished ? "none" : "";
+        if (!isEditionFinished) timelineList.appendChild(addStepBtn);
+    }
 
-    const stepsCont = document.getElementById('steps-container');
-    if (stepsCont) stepsCont.scrollTop = stepsCont.scrollHeight;
+    // Auto-scroll para que +PASO (al final de la lista) quede siempre
+    // visible, sin que haga falta scrollear manualmente para alcanzarlo.
+    if (courtMode === 'full') {
+        timelineList.scrollLeft = timelineList.scrollWidth;
+    } else {
+        timelineList.scrollTop = timelineList.scrollHeight;
+    }
 }
 
 function addNewStep() {
