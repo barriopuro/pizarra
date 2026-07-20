@@ -26,12 +26,12 @@ function abrirConfirmModal(titulo, texto, textoBoton, callback) {
     if (d) d.innerText = texto;
     if (b) b.innerText = textoBoton;
     confirmModalCallback = callback;
-    if (modal) modal.style.display = "flex";
+    if (modal) modal.classList.add('abierto');
 }
 
 function closeConfirmModal() {
     const modal = document.getElementById('confirmModal');
-    if (modal) modal.style.display = "none";
+    if (modal) modal.classList.remove('abierto');
     confirmModalCallback = null;
 }
 
@@ -88,12 +88,12 @@ document.addEventListener('click', (e) => {
 
 function abrirAcercaDe() {
     const modal = document.getElementById('acercaDeModal');
-    if (modal) modal.style.display = 'flex';
+    if (modal) modal.classList.add('abierto');
 }
 
 function cerrarAcercaDe() {
     const modal = document.getElementById('acercaDeModal');
-    if (modal) modal.style.display = 'none';
+    if (modal) modal.classList.remove('abierto');
 }
 
 // --------------------------------------------------------
@@ -543,7 +543,7 @@ function verificarMenuFlotante() {
         .classList.contains('colapsado');
     const menuFlotante = document.getElementById('fullscreen-floating-menu');
     if (menuFlotante) {
-        menuFlotante.style.display = (isEditionFinished && derEscondido) ? "flex" : "none";
+        menuFlotante.classList.toggle('abierto', isEditionFinished && derEscondido);
     }
 }
 

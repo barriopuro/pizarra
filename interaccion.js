@@ -257,13 +257,13 @@ function pedirDorsal(jugador) {
     const modal = document.getElementById('dorsalModal');
     const input = document.getElementById('dorsalInput');
     if (input) input.value = jugador.label || '';
-    if (modal) modal.style.display = 'flex';
+    if (modal) modal.classList.add('abierto');
     if (input) setTimeout(() => { input.focus(); input.select(); }, 50);
 }
 
 function cerrarDorsalModal() {
     const modal = document.getElementById('dorsalModal');
-    if (modal) modal.style.display = 'none';
+    if (modal) modal.classList.remove('abierto');
     jugadorEditandoDorsal = null;
 }
 
