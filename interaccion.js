@@ -145,8 +145,24 @@ function handleMove(e) {
         }];
     }
 
-    draw();
-    updateFloatingUI();
+    solicitarRedibujo();
+    // La pelota nunca usa el menú flotante (es solo para jugadores):
+    // nos ahorramos ese trabajo extra en cada movimiento.
+    if (activeObj !== ball) updateFloatingUI();
+}
+
+// Agrupa los redibujados en el siguiente frame disponible, en vez de uno
+// por cada evento de mouse/touch (que puede disparar mucho más seguido
+// que la tasa de refresco de la pantalla). Evita el "trabado" al arrastrar
+// rápido, sobre todo notorio en algunos navegadores de PC.
+let _redibujoPendiente = false;
+function solicitarRedibujo() {
+    if (_redibujoPendiente) return;
+    _redibujoPendiente = true;
+    requestAnimationFrame(() => {
+        _redibujoPendiente = false;
+        draw();
+    });
 }
 
 function handleEnd() {
@@ -173,6 +189,7 @@ function handleEnd() {
     if (activeObj === ball) {
         playSound('bounceBall');
 
+        const portadorAntes = ball.portadorPorPaso[currentStep] ?? null;
         const bLast       = ball.steps[currentStep][ball.steps[currentStep].length - 1];
         let minDistance   = 28 * sF;
         let jugadorCercano = null;
@@ -183,7 +200,29 @@ function handleEnd() {
             if (dist < minDistance) { minDistance = dist; jugadorCercano = p; }
         });
 
-        if (jugadorCercano && !jugadorCercano.steps[currentStep][jugadorCercano.steps[currentStep].length - 1].isScreen) {
+        // Imán al aro: revisamos el/los aro(s) según el modo de cancha
+        const aros = [{ x: canvas.width / 2, y: 42 * sF }];
+        if (courtMode === 'full') aros.push({ x: canvas.width / 2, y: canvas.height - 42 * sF });
+        const UMBRAL_ARO = 30 * sF;
+        let aroCercano = null, distAro = Infinity;
+        aros.forEach(a => {
+            const d = Math.hypot(a.x - bLast.x, a.y - bLast.y);
+            if (d < distAro) { distAro = d; aroCercano = a; }
+        });
+        const seImantaAlAro = aroCercano && distAro < UMBRAL_ARO && distAro < minDistance;
+
+        if (seImantaAlAro) {
+            // Imantamos al aro: la pelota queda apoyada justo en su
+            // posición, sin portador (no la lleva ningún jugador).
+            ball.portadorPorPaso[currentStep] = null;
+            const bPath = ball.steps[currentStep];
+            if (bPath.length > 1) {
+                bPath[bPath.length - 1] = { x: aroCercano.x, y: aroCercano.y, isScreen: false, angle: 0 };
+            } else {
+                ball.steps[currentStep] = [{ x: aroCercano.x, y: aroCercano.y, isScreen: false, angle: 0 }];
+            }
+            activarPulsoIman();
+        } else if (jugadorCercano && !jugadorCercano.steps[currentStep][jugadorCercano.steps[currentStep].length - 1].isScreen) {
             // Imantamos al jugador nuevo:
             // Conservamos el path recorrido durante el drag y solo ajustamos
             // el último punto para que quede exactamente sobre el jugador.
@@ -200,8 +239,10 @@ function handleEnd() {
                 // dejamos un punto único sobre el nuevo jugador
                 ball.steps[currentStep] = [{ x: snapX, y: snapY, isScreen: false, angle: 0 }];
             }
+            if (portadorAntes !== jugadorCercano.id) activarPulsoIman();
         } else {
             ball.portadorPorPaso[currentStep] = null;
+            if (portadorAntes !== null) activarPulsoIman();
         }
     } else {
         playSound('dropJersey');
@@ -460,19 +501,19 @@ function updateRedoButton() {
 
 function updateFloatingUI() {
     if (!activeObj || activeObj === ball || isEditionFinished) {
-        floatingUI.style.display = "none";
+        mostrarConFade(floatingUI, false, 'flex');
         return;
     }
 
     const last = activeObj.steps[currentStep][activeObj.steps[currentStep].length - 1];
 
-    floatingUI.style.display       = "flex";
     floatingUI.style.flexDirection = "row";
     floatingUI.style.gap           = "6px";
     floatingUI.style.position      = "absolute";
     floatingUI.style.left          = last.x + "px";
     floatingUI.style.top           = (last.y - 56) + "px";
     floatingUI.style.transform     = "translateX(-50%)";
+    mostrarConFade(floatingUI, true, 'flex');
 
     Array.from(floatingUI.children).forEach(hijo => {
         if (hijo !== rotBtn && hijo.id !== 'spin-btn') {
@@ -511,11 +552,15 @@ function updateFloatingUI() {
         floatingUI.appendChild(spinBtn);
     }
     if (last.isScreen && !esteEsPortador) {
-        spinBtn.style.display = "block";
         spinBtn.textContent   = "🗘";
         spinBtn.title         = "Rotar Cortina";
         spinBtn.onclick = () => { last.angle = (last.angle + 45) % 360; draw(); };
+        mostrarConFade(spinBtn, true, 'block');
     } else {
-        spinBtn.style.display = "none";
+        // Ocultamos al instante (no con fundido): si no, al pasar de un
+        // jugador con cortina a uno sin cortina se ve este botón "de más"
+        // por un momento antes de desvanecerse.
+        spinBtn.classList.remove('oculto-fade');
+        spinBtn.style.display = 'none';
     }
 }

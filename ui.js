@@ -174,9 +174,9 @@ function checkOrientationForMode() {
 
     const bloqueo = getOrientationBlockedScreenId();
 
-    if (modeScreen)      modeScreen.style.display      = (bloqueo === 'mode-select-screen') ? 'flex' : 'none';
-    if (landscapeForcer) landscapeForcer.style.display = (bloqueo === 'landscape-forcer')    ? 'flex' : 'none';
-    if (portraitForcer)  portraitForcer.style.display  = (bloqueo === 'portrait-forcer')     ? 'flex' : 'none';
+    if (modeScreen)      modeScreen.classList.toggle('abierto',      bloqueo === 'mode-select-screen');
+    if (landscapeForcer) landscapeForcer.classList.toggle('abierto', bloqueo === 'landscape-forcer');
+    if (portraitForcer)  portraitForcer.classList.toggle('abierto',  bloqueo === 'portrait-forcer');
 
     if (!bloqueo && courtMode) {
         if (appWrapper) appWrapper.style.display = 'flex';
@@ -220,6 +220,29 @@ function ajustarAlturaBarras() {
     if (courtMode !== 'full') return;
     medirYFijarAltura(document.getElementById('col-izquierda-container'),    document.getElementById('col-izquierda'));
     medirYFijarAltura(document.getElementById('col-linea-tiempo-container'), document.getElementById('col-linea-tiempo'));
+}
+
+// Muestra/oculta un elemento con un fundido + leve escala. El ESPACIO que
+// ocupa (display) se resuelve al instante -para no romper el cálculo de
+// ajustarAlturaBarras()-, solo la apariencia visual queda animada: al
+// ocultar, primero se desvanece y recién después de la transición se le
+// saca el espacio; al mostrar, se le da el espacio al instante y aparece
+// desvanecido, apareciendo enseguida.
+function mostrarConFade(el, mostrar, displayVisible) {
+    if (!el) return;
+    el.classList.add('fade-el');
+    if (mostrar) {
+        const yaVisible = el.style.display !== 'none' && !el.classList.contains('oculto-fade');
+        el.style.display = displayVisible || '';
+        if (!yaVisible) void el.offsetWidth; // fuerza reflow solo si hacía falta animar la entrada
+        el.classList.remove('oculto-fade');
+    } else {
+        if (el.classList.contains('oculto-fade')) return; // ya está ocultándose/oculto
+        el.classList.add('oculto-fade');
+        setTimeout(() => {
+            if (el.classList.contains('oculto-fade')) el.style.display = 'none';
+        }, 190);
+    }
 }
 
 // Se ejecuta una única vez, la primera vez que la app queda visible:
@@ -517,6 +540,13 @@ function backToEdit() {
 
     setPlayButtonsState(false);
     setLoopButtonsColor(false);
+
+    // Si la barra de la línea de tiempo estaba colapsada, la volvemos a
+    // abrir: hace falta verla para poder editar los pasos.
+    const derCont = document.getElementById('col-linea-tiempo-container');
+    if (derCont && derCont.classList.contains('colapsado')) {
+        toggleSidebar('der');
+    }
 
     document.getElementById('playback-controls').style.display = "none";
     document.getElementById('edit-controls').style.display     = "flex";

@@ -1,5 +1,5 @@
 /* ========================================================
-/* ESTILOS PIZARRA OESTE v129 - PARTE 1 DE 3 (ESTRUCTURA)
+/* ESTILOS PIZARRA OESTE v131 - PARTE 1 DE 3 (ESTRUCTURA)
 /* ======================================================== */
 
 * { 
@@ -99,7 +99,7 @@ body {
 
 /* --- PANTALLA DE SELECCIÓN DE MODO DE CANCHA --- */
 #mode-select-screen {
-    display: none;
+    display: flex;
     position: fixed;
     top: 0;
     left: 0;
@@ -113,6 +113,14 @@ body {
     gap: 18px;
     text-align: center;
     padding: 20px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.22s ease, visibility 0s linear 0.22s;
+}
+#mode-select-screen.abierto {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.22s ease, visibility 0s linear 0s;
 }
 
 #mode-select-screen .mode-select-logo {
@@ -229,7 +237,7 @@ body {
 }
 
 /* ========================================================
-/* ESTILOS PIZARRA OESTE v129 - PARTE 2 DE 3 (BOTONES Y UI)
+/* ESTILOS PIZARRA OESTE v131 - PARTE 2 DE 3 (BOTONES Y UI)
 /* ======================================================== */
 
 /* --- ENVOLTORIO DEL CANVAS Y GRÁFICOS --- */
@@ -434,6 +442,18 @@ select:hover:not(:disabled) {
     font-size: 14px;
     margin: 0;
 }
+/* --- UTILIDAD: fundido de aparición/desaparición reutilizable --- */
+/* El tamaño/espacio lo maneja JS al instante (display), esta clase solo
+   anima la apariencia (opacidad + escala), así nunca interfiere con el
+   cálculo de alto de las barras. */
+.fade-el {
+    transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.fade-el.oculto-fade {
+    opacity: 0;
+    transform: scale(0.92);
+}
+
 .icon-btn-fs {
     background: #222;
     color: #fff;
@@ -534,7 +554,7 @@ select:hover:not(:disabled) {
 .f-btn { background: #fff; color: #000; width: 38px; height: 38px; border-radius: 50%; border: 2px solid #c01c33; font-weight: bold; font-size: 20px; line-height: 1; padding: 0; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px rgba(0,0,0,0.8); }
 
 /* ========================================================
-/* ESTILOS PIZARRA OESTE v129 - PARTE 3 DE 3 (SOLAPAS Y ACCESOS)
+/* ESTILOS PIZARRA OESTE v131 - PARTE 3 DE 3 (SOLAPAS Y ACCESOS)
 /* ======================================================== */
 
 /* --- MENÚ FLOTANTE MINIMALISTA DE REPRODUCCIÓN (PLAY) --- */
@@ -575,7 +595,7 @@ select:hover:not(:disabled) {
 /* --- FORZADORES DE ORIENTACIÓN (HORIZONTAL PARA MEDIA CANCHA, VERTICAL PARA CANCHA COMPLETA) --- */
 #landscape-forcer,
 #portrait-forcer { 
-    display: none; 
+    display: flex; 
     position: fixed; 
     top: 0; 
     left: 0; 
@@ -588,6 +608,15 @@ select:hover:not(:disabled) {
     justify-content: center; 
     text-align: center; 
     z-index: 999999 !important; /* Capa máxima para tapar cualquier residuo */
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.22s ease, visibility 0s linear 0.22s;
+}
+#landscape-forcer.abierto,
+#portrait-forcer.abierto {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.22s ease, visibility 0s linear 0s;
 }
 
 #landscape-forcer div,
@@ -605,7 +634,7 @@ select:hover:not(:disabled) {
 }
 
 /* ========================================================
-/* SISTEMA DE SOLAPAS ELÁSTICAS INTELIGENTES (v129)
+/* SISTEMA DE SOLAPAS ELÁSTICAS INTELIGENTES (v131)
 /* ======================================================== */
 
 /* Contenedores laterales elásticos: manejan la transición milimétrica */

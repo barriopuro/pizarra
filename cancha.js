@@ -12,6 +12,16 @@
 // La cancha completa usa el doble de alto (dos medias canchas apiladas).
 const COURT_ASPECT = 1.45;
 
+// --- PULSO SUTIL AL IMANTAR/DESIMANTAR LA PELOTA ---
+let pulsoImanHasta = 0;
+function activarPulsoIman() {
+    pulsoImanHasta = performance.now() + 350;
+    requestAnimationFrame(function tick() {
+        draw();
+        if (performance.now() < pulsoImanHasta) requestAnimationFrame(tick);
+    });
+}
+
 // Convierte una fracción "0 = pegado al aro, ~0.8-0.9 = cerca de la mitad de
 // cancha" en una coordenada Y real. En Media Cancha el aro está arriba
 // (fracción chica = y chico). En Cancha Completa el equipo arranca desde SU
@@ -535,7 +545,7 @@ function _render(modoAnim, paraVideo) {
                 // Círculo de selección sobre la pelota
                 ctx.save();
                 ctx.beginPath();
-                ctx.arc(ballX, ballY, radius*1.15, 0, Math.PI*2);
+                ctx.arc(ballX, ballY, radius*0.9, 0, Math.PI*2);
                 ctx.strokeStyle = "rgba(255,255,255,0.85)";
                 ctx.lineWidth = 3*sF; ctx.setLineDash([4,4]); ctx.stroke();
                 ctx.restore();
@@ -557,6 +567,19 @@ function _render(modoAnim, paraVideo) {
         ctx.textAlign = "center"; ctx.textBaseline = "middle";
         ctx.fillText("🏀", 0, 0);
         ctx.restore();
+
+        // Pulso sutil al imantar/desimantar (dura ~350ms)
+        if (performance.now() < pulsoImanHasta) {
+            const restante = (pulsoImanHasta - performance.now()) / 350;
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, restante) * 0.55;
+            ctx.beginPath();
+            ctx.arc(ballX, ballY, radius * (1.25 + (1 - restante) * 0.7), 0, Math.PI * 2);
+            ctx.strokeStyle = "#c01c33";
+            ctx.lineWidth = 2.2 * sF;
+            ctx.stroke();
+            ctx.restore();
+        }
     }
 
     if (!modoAnim) { updateUndoButton(); updateRedoButton(); }
