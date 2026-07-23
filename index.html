@@ -3,9 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Pizarra Oeste v134</title>
+    <title>Pizarra Oeste v135</title>
     <link rel="icon" type="image/svg+xml" href="logo.svg">
     <link rel="stylesheet" href="estilos.css">
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#c01c33">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Pizarra Oeste">
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./service-worker.js')
+                    .catch(err => console.log('No se pudo registrar el service worker:', err));
+            });
+        }
+    </script>
 
     <!-- Módulos en orden de dependencia -->
     <script src="estado.js"      defer></script>
@@ -222,7 +238,7 @@
     <div class="confirm-box">
         <img src="logo.svg" alt="Escudo Casanova Oeste" style="width:90px; height:90px; object-fit:contain; margin-bottom:14px;">
         <div class="confirm-title" style="font-size:16px;">Pizarra Táctica de Basquetbol</div>
-        <div class="confirm-text" style="font-size:12px; color:#999; margin-bottom:12px;">Versión 134</div>
+        <div class="confirm-text" style="font-size:12px; color:#999; margin-bottom:12px;">Versión 135</div>
         <div class="confirm-text" style="font-size:13px; text-align:left;">
             Esta aplicación está diseñada para la planificación, análisis y desarrollo de estrategias tácticas de basquetbol bajo reglamento FIBA/NBA para el club CASANOVA OESTE.
         </div>
