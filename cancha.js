@@ -413,7 +413,12 @@ function _render(modoAnim, paraVideo) {
     // --------------------------------------------------
     // HISTORIAL DE PASOS
     // --------------------------------------------------
-    if (showHistory) {
+    // Nos lo salteamos mientras se arrastra algo: este bloque recorre
+    // TODOS los pasos anteriores x TODOS los jugadores en cada frame, y
+    // durante un arrastre no cambia nada de lo que dibuja, así que es
+    // trabajo desperdiciado justo cuando más importa que cada frame sea
+    // rápido. Se vuelve a dibujar normal apenas se suelta.
+    if (showHistory && !isDragging) {
         ctx.save();
         for (let si = 0; si <= currentStep; si++) {
             const color        = stepColors[si % stepColors.length];

@@ -477,19 +477,28 @@ function redoLastMove() {
     updateRedoButton();
 }
 
+let _undoBtnCache = null, _redoBtnCache = null;
+let _undoEnabledPrev = null, _redoEnabledPrev = null;
+
 function updateUndoButton() {
-    const undoBtn = document.getElementById('undoBtn');
+    if (!_undoBtnCache) _undoBtnCache = document.getElementById('undoBtn');
+    const undoBtn = _undoBtnCache;
     if (!undoBtn) return;
     const enabled = undoStack.some(item => item.step === currentStep) || currentStep > 0;
+    if (enabled === _undoEnabledPrev) return; // nada cambió, no tocamos el estilo
+    _undoEnabledPrev = enabled;
     undoBtn.style.opacity       = enabled ? "1"       : "0.3";
     undoBtn.style.pointerEvents = enabled ? "auto"    : "none";
     undoBtn.style.cursor        = enabled ? "pointer" : "default";
 }
 
 function updateRedoButton() {
-    const redoBtn = document.getElementById('redoBtn');
+    if (!_redoBtnCache) _redoBtnCache = document.getElementById('redoBtn');
+    const redoBtn = _redoBtnCache;
     if (!redoBtn) return;
     const enabled = redoStack.length > 0;
+    if (enabled === _redoEnabledPrev) return; // nada cambió, no tocamos el estilo
+    _redoEnabledPrev = enabled;
     redoBtn.style.opacity       = enabled ? "1"       : "0.3";
     redoBtn.style.pointerEvents = enabled ? "auto"    : "none";
     redoBtn.style.cursor        = enabled ? "pointer" : "default";
