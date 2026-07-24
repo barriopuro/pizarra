@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Pizarra Oeste v135</title>
+    <title>Pizarra Oeste v136</title>
     <link rel="icon" type="image/svg+xml" href="logo.svg">
     <link rel="stylesheet" href="estilos.css">
 
@@ -18,8 +18,30 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./service-worker.js')
+                    .then(reg => console.log('Service worker registrado OK, scope:', reg.scope))
                     .catch(err => console.log('No se pudo registrar el service worker:', err));
             });
+        }
+
+        // Guardamos el evento de instalación para poder ofrecerla con
+        // nuestro propio botón, en vez de depender del cartel automático
+        // del navegador (que a veces tarda en aparecer o no aparece).
+        let deferredInstallPrompt = null;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredInstallPrompt = e;
+            const btn = document.getElementById('instalarAppBtn');
+            if (btn) btn.style.display = '';
+        });
+        window.addEventListener('appinstalled', () => {
+            deferredInstallPrompt = null;
+            const btn = document.getElementById('instalarAppBtn');
+            if (btn) btn.style.display = 'none';
+        });
+        function instalarApp() {
+            if (!deferredInstallPrompt) return;
+            deferredInstallPrompt.prompt();
+            deferredInstallPrompt.userChoice.then(() => { deferredInstallPrompt = null; });
         }
     </script>
 
@@ -228,6 +250,7 @@
 </div>
 
 <div id="menuArchivoDropdown" class="menu-archivo-dropdown">
+    <button id="instalarAppBtn" class="snd-btn menu-archivo-item" style="display:none;" onclick="cerrarMenuArchivo(); instalarApp();">📲 Instalar App</button>
     <button class="snd-btn menu-archivo-item" onclick="cerrarMenuArchivo(); newPlay();">📄 Nueva Jugada</button>
     <button class="snd-btn menu-archivo-item" onclick="cerrarMenuArchivo(); exportPlay();">💾 Guardar Jugada</button>
     <button class="snd-btn menu-archivo-item" onclick="cerrarMenuArchivo(); document.getElementById('importFile').click();">📂 Cargar Jugada</button>
@@ -238,7 +261,7 @@
     <div class="confirm-box">
         <img src="logo.svg" alt="Escudo Casanova Oeste" style="width:90px; height:90px; object-fit:contain; margin-bottom:14px;">
         <div class="confirm-title" style="font-size:16px;">Pizarra Táctica de Basquetbol</div>
-        <div class="confirm-text" style="font-size:12px; color:#999; margin-bottom:12px;">Versión 135</div>
+        <div class="confirm-text" style="font-size:12px; color:#999; margin-bottom:12px;">Versión 136</div>
         <div class="confirm-text" style="font-size:13px; text-align:left;">
             Esta aplicación está diseñada para la planificación, análisis y desarrollo de estrategias tácticas de basquetbol bajo reglamento FIBA/NBA para el club CASANOVA OESTE.
         </div>

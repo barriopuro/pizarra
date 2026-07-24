@@ -7,7 +7,7 @@
 // vuelve a descargar todo de cero.
 // ========================================================
 
-const CACHE_NAME = 'pizarra-oeste-v135';
+const CACHE_NAME = 'pizarra-oeste-v136';
 
 const ARCHIVOS_A_CACHEAR = [
     './',
@@ -33,7 +33,22 @@ const ARCHIVOS_A_CACHEAR = [
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME)
-            .then((cache) => cache.addAll(ARCHIVOS_A_CACHEAR))
+            .then((cache) => {
+                // Usamos Promise.allSettled en vez de cache.addAll: si UN
+                // solo archivo de la lista no se pudiera cachear (ej. un
+                // nombre que no coincide exactamente), cache.addAll hace
+                // fallar TODA la instalación y el service worker nunca
+                // queda activo -y sin uno activo, el navegador no ofrece
+                // instalar la app-. Así, cacheamos lo que se pueda y
+                // avisamos en la consola lo que no.
+                return Promise.allSettled(
+                    ARCHIVOS_A_CACHEAR.map((url) =>
+                        cache.add(url).catch((err) => {
+                            console.warn('[Service Worker] No se pudo cachear:', url, err);
+                        })
+                    )
+                );
+            })
             .then(() => self.skipWaiting())
     );
 });
