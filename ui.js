@@ -10,6 +10,11 @@
 // de modo de cancha (cuando el archivo fue guardado en el otro modo).
 let pendingImport = null;
 
+// Marca que la app se está mostrando después de un cambio de modo manual
+// (preservando la jugada), para refrescar la UI una vez que init()
+// termine de reescalar las coordenadas.
+let vieneDeCambioDeModo = false;
+
 // --------------------------------------------------------
 // MODAL DE CONFIRMACIÓN GENÉRICO (mismo cartel para Nueva Jugada,
 // Cambiar Modo, y cualquier otra confirmación que haga falta)
@@ -182,6 +187,18 @@ function checkOrientationForMode() {
         if (appWrapper) appWrapper.style.display = 'flex';
         activarInterfaz();
         if (typeof init === 'function') init();
+
+        // Si veníamos de un cambio de modo manual (preservando la jugada):
+        // init() ya reescala solo las coordenadas de jugadores/pelota
+        // según la proporción de ancho nueva (lo hace desde antes, para
+        // cuando cambia el tamaño de ventana). Acá solo refrescamos la UI.
+        if (vieneDeCambioDeModo) {
+            vieneDeCambioDeModo = false;
+            updateStepUI();
+            renderTimeline();
+            draw();
+        }
+
         ajustarAlturaBarras();
 
         if (pendingImport) {
@@ -373,13 +390,41 @@ function resetAEstadoVacio() {
     });
 }
 
-// Cambio de modo manual (botón 🔁): pide confirmación con el mismo cartel
-// que "Nueva Jugada" y vuelve al selector, sin recargar la página.
+// Cambio de modo manual (botón 🔁): preserva la jugada actual, remapeando
+// las coordenadas al nuevo tamaño de cancha. Ya no hace falta confirmar
+// nada porque no se pierde nada.
 function changeCourtMode() {
     const otroModo = (courtMode === 'full') ? 'half' : 'full';
-    abrirConfirmModal("¿CAMBIAR MODO?", "Se perderá la jugada actual.", "CAMBIAR", () => {
-        cambiarModoSilencioso(otroModo);
+
+    shouldStopLoop = true; isLooping = false; isPlaying = false; isEditionFinished = false;
+    activeObj = null; isDragging = false; undoStack = []; redoStack = [];
+    setPlayButtonsState(false); setLoopButtonsColor(false);
+    factorVelocidad = 1;
+    const spdSel = document.getElementById('speedSelect');
+    if (spdSel) spdSel.value = "1";
+    document.getElementById('playback-controls').style.display = "none";
+    document.getElementById('edit-controls').style.display     = "flex";
+    if (addStepBtn) addStepBtn.style.display = "block";
+
+    const appWrapper = document.getElementById('app-wrapper');
+    const colIzqCont = document.getElementById('col-izquierda-container');
+    const colDerCont = document.getElementById('col-linea-tiempo-container');
+    [colIzqCont, colDerCont].forEach(c => { if (c) c.classList.add('sin-transicion'); });
+    if (appWrapper) {
+        appWrapper.classList.toggle('modo-full', otroModo === 'full');
+        appWrapper.style.display = 'none';
+    }
+    [colIzqCont, colDerCont].forEach(cont => {
+        if (cont) { cont.classList.remove('colapsado'); cont.style.height = ''; cont.style.maxHeight = ''; }
     });
+    requestAnimationFrame(() => {
+        [colIzqCont, colDerCont].forEach(c => { if (c) c.classList.remove('sin-transicion'); });
+    });
+
+    vieneDeCambioDeModo = true;
+    solapasActivadas = false;
+    courtMode = otroModo;
+    checkOrientationForMode();
 }
 
 // Cambio de modo automático (al cargar una jugada de otro modo): no pide

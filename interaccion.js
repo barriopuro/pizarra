@@ -75,14 +75,31 @@ function handleStart(e) {
             checkX = last.x;
             checkY = last.y;
         }
+        // Si la ficha está "fuera de foco" en Media Cancha, el punto
+        // clickeable real es el del minicírculo (donde se ve), no su
+        // coordenada verdadera (que está fuera del canvas).
+        if (courtMode === 'half' && checkY > canvas.height) {
+            const mini = posicionMiniCirculo(checkX);
+            checkX = mini.cx; checkY = mini.cy;
+        }
         const dist = Math.hypot(checkX - pos.x, checkY - pos.y);
         if (dist < minDistance) { minDistance = dist; found = obj; }
     });
 
     if (found) {
-        // Snapshot para undo
+        // Snapshot para undo (del estado real, no del minicírculo)
         found._undoSnapshot     = JSON.parse(JSON.stringify(found.steps[currentStep]));
         found._portadorSnapshot = JSON.parse(JSON.stringify(ball.portadorPorPaso));
+
+        // Si lo que agarramos era un minicírculo (fuera de foco en Media
+        // Cancha), arrancamos el arrastre desde su posición visual: así
+        // el trazo no "salta" desde un punto invisible fuera del canvas.
+        const ultimoPunto = found.steps[currentStep][found.steps[currentStep].length - 1];
+        if (courtMode === 'half' && ultimoPunto.y > canvas.height) {
+            const mini = posicionMiniCirculo(ultimoPunto.x);
+            found.steps[currentStep] = [{ x: mini.cx, y: mini.cy, isScreen: false, angle: 0 }];
+        }
+
         // Si agarramos la pelota imantada, actualizamos su path
         // para que arranque desde su posición real (sobre el jugador)
         if (found === ball && ball.portadorPorPaso[currentStep]) {

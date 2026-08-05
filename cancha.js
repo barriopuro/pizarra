@@ -22,6 +22,67 @@ function activarPulsoIman() {
     });
 }
 
+// --- MAPEO INTELIGENTE DE CANCHA (MINICÍRCULOS) ---
+// Convención: una ficha "vive" siempre en su coordenada real, aunque esa
+// coordenada quede fuera del canvas visible. En Media Cancha, si la Y de
+// un jugador (o de la pelota suelta) cae por debajo del borde del canvas,
+// significa que esa ficha está en la mitad de cancha que no se ve en este
+// modo: en vez de la ficha normal, se dibuja un minicírculo flotante
+// sobre el borde inferior. No hace falta ninguna bandera extra: el
+// remapeo de coordenadas entre modos ya deja la Y "fuera de rango" sola,
+// de forma consistente, así que la clasificación es puramente geométrica.
+
+function posicionMiniCirculo(x) {
+    const r = 13 * sF;
+    const cx = Math.max(r + 4*sF, Math.min(canvas.width - r - 4*sF, x));
+    const cy = canvas.height - r - 6*sF;
+    return { cx, cy, r };
+}
+
+function dibujarMiniCirculo(x, color, label, seleccionado) {
+    const { cx, cy, r } = posicionMiniCirculo(x);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.lineWidth = 2 * sF;
+    ctx.strokeStyle = "#fff";
+    ctx.stroke();
+    if (label) {
+        ctx.fillStyle = "white";
+        ctx.font = `bold ${r * 0.9}px sans-serif`;
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText(label, cx, cy + 1);
+    }
+    if (seleccionado) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, r + 4*sF, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(255,255,255,0.85)";
+        ctx.lineWidth = 2.5 * sF; ctx.setLineDash([3, 3]); ctx.stroke();
+        ctx.setLineDash([]);
+    }
+    ctx.restore();
+    return { cx, cy, r };
+}
+
+// Reescala TODAS las coordenadas guardadas (jugadores y pelota, en todos
+// los pasos) según la proporción de ancho entre el canvas anterior y el
+// nuevo. Como ambos anchos representan el mismo ancho real de cancha
+// (~15m), esto preserva la posición proporcional real de cada ficha al
+// cambiar de modo, sin perder ni reiniciar nada.
+function remapearCoordenadas(factor) {
+    if (!factor || !isFinite(factor) || factor <= 0 || factor === 1) return;
+    players.forEach(p => {
+        p.steps.forEach(pathArr => {
+            pathArr.forEach(pt => { pt.x *= factor; pt.y *= factor; });
+        });
+    });
+    ball.steps.forEach(pathArr => {
+        pathArr.forEach(pt => { pt.x *= factor; pt.y *= factor; });
+    });
+}
+
 // Convierte una fracción "0 = pegado al aro, ~0.8-0.9 = cerca de la mitad de
 // cancha" en una coordenada Y real. En Media Cancha el aro está arriba
 // (fracción chica = y chico). En Cancha Completa el equipo arranca desde SU
@@ -482,7 +543,7 @@ function _render(modoAnim, paraVideo) {
     const activeColor = stepColors[currentStep % stepColors.length];
 
     players.forEach(p => {
-        let posX, posY, isScr, ang;
+        let posX, posY, isScr, ang, path, last;
 
         if (modoAnim) {
             posX = (p.ax !== undefined) ? p.ax : p.steps[currentStep][p.steps[currentStep].length-1].x;
@@ -490,11 +551,22 @@ function _render(modoAnim, paraVideo) {
             isScr = p.as !== undefined ? p.as : false;
             ang   = p.aa !== undefined ? p.aa : 0;
         } else {
-            const path = p.steps[currentStep];
+            path = p.steps[currentStep];
             if (!path || path.length === 0) return;
-            const last = path[path.length-1];
+            last = path[path.length-1];
             posX = last.x; posY = last.y; isScr = last.isScreen; ang = last.angle;
+        }
 
+        // Mapeo inteligente: si en Media Cancha la Y real cae fuera del
+        // canvas visible, el jugador está en la mitad de cancha que no
+        // se ve en este modo -> minicírculo flotante en vez de ficha.
+        if (courtMode === 'half' && posY > canvas.height) {
+            const colorMini = p.team === 'red' ? '#c01c33' : '#0044CC';
+            dibujarMiniCirculo(posX, colorMini, p.label, activeObj === p);
+            return;
+        }
+
+        if (!modoAnim) {
             // Círculo de selección
             if (activeObj === p) {
                 ctx.save();
@@ -504,8 +576,9 @@ function _render(modoAnim, paraVideo) {
                 ctx.lineWidth = 3*sF; ctx.setLineDash([4,4]); ctx.stroke();
                 ctx.restore();
             }
-            // Trazo del paso activo
-            if (currentStep > 0 && path.length > 1) {
+            // Trazo del paso activo (si arrancó fuera de foco -recién
+            // "traído" de un minicírculo- no arrastramos una línea gigante)
+            if (currentStep > 0 && path.length > 1 && path[0].y <= canvas.height) {
                 drawSmoothPath(path, activeColor, 3.5*sF, false);
             }
         }
@@ -566,24 +639,34 @@ function _render(modoAnim, paraVideo) {
             }
         }
 
-        ctx.save();
-        ctx.translate(ballX, ballY);
-        ctx.font = `${radius*1.6}px Arial`;
-        ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        ctx.fillText("🏀", 0, 0);
-        ctx.restore();
+        const tieneCarrier = !!(ball.portadorPorPaso[currentStep] ?? null);
+        const fueraDeFoco  = courtMode === 'half' && ballY > canvas.height;
 
-        // Pulso sutil al imantar/desimantar (dura ~350ms)
-        if (performance.now() < pulsoImanHasta) {
-            const restante = (pulsoImanHasta - performance.now()) / 350;
+        if (fueraDeFoco && tieneCarrier) {
+            // La pelota "viaja" implícita dentro del minicírculo de su
+            // portador: no se dibuja aparte para no duplicar el indicador.
+        } else if (fueraDeFoco) {
+            dibujarMiniCirculo(ballX, '#c07a00', '🏀', activeObj === ball);
+        } else {
             ctx.save();
-            ctx.globalAlpha = Math.max(0, restante) * 0.55;
-            ctx.beginPath();
-            ctx.arc(ballX, ballY, radius * (1.25 + (1 - restante) * 0.7), 0, Math.PI * 2);
-            ctx.strokeStyle = "#c01c33";
-            ctx.lineWidth = 2.2 * sF;
-            ctx.stroke();
+            ctx.translate(ballX, ballY);
+            ctx.font = `${radius*1.6}px Arial`;
+            ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.fillText("🏀", 0, 0);
             ctx.restore();
+
+            // Pulso sutil al imantar/desimantar (dura ~350ms)
+            if (performance.now() < pulsoImanHasta) {
+                const restante = (pulsoImanHasta - performance.now()) / 350;
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, restante) * 0.55;
+                ctx.beginPath();
+                ctx.arc(ballX, ballY, radius * (1.25 + (1 - restante) * 0.7), 0, Math.PI * 2);
+                ctx.strokeStyle = "#c01c33";
+                ctx.lineWidth = 2.2 * sF;
+                ctx.stroke();
+                ctx.restore();
+            }
         }
     }
 
