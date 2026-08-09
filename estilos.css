@@ -1,5 +1,5 @@
 /* ========================================================
-/* ESTILOS PIZARRA OESTE v138 - PARTE 1 DE 3 (ESTRUCTURA)
+/* ESTILOS PIZARRA OESTE v139 - PARTE 1 DE 3 (ESTRUCTURA)
 /* ======================================================== */
 
 * { 
@@ -237,7 +237,7 @@ body {
 }
 
 /* ========================================================
-/* ESTILOS PIZARRA OESTE v138 - PARTE 2 DE 3 (BOTONES Y UI)
+/* ESTILOS PIZARRA OESTE v139 - PARTE 2 DE 3 (BOTONES Y UI)
 /* ======================================================== */
 
 /* --- ENVOLTORIO DEL CANVAS Y GRÁFICOS --- */
@@ -429,6 +429,12 @@ select:hover:not(:disabled) {
 .btn-arch { background: #333; color: #fff; border: 1px solid #444; font-size: 10px; }
 .btn-danger { background: #222; color: #999; border: 1px solid #333; font-size: 10px; margin-top: 10px; }
 
+/* Alto fijo para que el botón de "cambiar modo de cancha" no cambie de
+   tamaño según el ícono que le toque mostrar (Cancha Completa = ícono
+   más alto, Media Cancha = ícono más bajo). Sin esto, al alternar entre
+   modos el botón se agranda/achica y la interfaz "salta". */
+#changeCourtModeBtn { height: 38px; }
+
 /* --- FILAS DE BOTONES-ÍCONO (reemplaza los antiguos display:table) --- */
 .icon-row {
     display: flex;
@@ -554,7 +560,7 @@ select:hover:not(:disabled) {
 .f-btn { background: #fff; color: #000; width: 38px; height: 38px; border-radius: 50%; border: 2px solid #c01c33; font-weight: bold; font-size: 20px; line-height: 1; padding: 0; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px rgba(0,0,0,0.8); }
 
 /* ========================================================
-/* ESTILOS PIZARRA OESTE v138 - PARTE 3 DE 3 (SOLAPAS Y ACCESOS)
+/* ESTILOS PIZARRA OESTE v139 - PARTE 3 DE 3 (SOLAPAS Y ACCESOS)
 /* ======================================================== */
 
 /* --- MENÚ FLOTANTE MINIMALISTA DE REPRODUCCIÓN (PLAY) --- */
@@ -634,7 +640,7 @@ select:hover:not(:disabled) {
 }
 
 /* ========================================================
-/* SISTEMA DE SOLAPAS ELÁSTICAS INTELIGENTES (v138)
+/* SISTEMA DE SOLAPAS ELÁSTICAS INTELIGENTES (v139)
 /* ======================================================== */
 
 /* Contenedores laterales elásticos: manejan la transición milimétrica */

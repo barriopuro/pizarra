@@ -7,7 +7,7 @@
 // vuelve a descargar todo de cero.
 // ========================================================
 
-const CACHE_NAME = 'pizarra-oeste-v138';
+const CACHE_NAME = 'pizarra-oeste-v139';
 
 const ARCHIVOS_A_CACHEAR = [
     './',

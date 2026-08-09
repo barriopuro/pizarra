@@ -234,9 +234,28 @@ function medirYFijarAltura(container, inner) {
 }
 
 function ajustarAlturaBarras() {
-    if (courtMode !== 'full') return;
-    medirYFijarAltura(document.getElementById('col-izquierda-container'),    document.getElementById('col-izquierda'));
-    medirYFijarAltura(document.getElementById('col-linea-tiempo-container'), document.getElementById('col-linea-tiempo'));
+    const colIzqCont = document.getElementById('col-izquierda-container');
+    const colDerCont = document.getElementById('col-linea-tiempo-container');
+
+    // La medición por contenido (alto = lo que ocupan los controles) solo
+    // tiene sentido cuando las barras son franjas horizontales arriba/abajo
+    // (Cancha Completa en celu/tablet). En cualquier otro caso -Media
+    // Cancha, o Cancha Completa en PC- las barras son columnas laterales
+    // y deben ocupar el 100% del alto disponible, tal como ya lo define
+    // el CSS por defecto. Si veníamos de haber fijado un alto explícito
+    // (por ejemplo, tras cambiar de modo de cancha) lo limpiamos acá para
+    // que ese 100% de altura vuelva a aplicarse.
+    if (!esLayoutFullVertical()) {
+        [colIzqCont, colDerCont].forEach(cont => {
+            if (!cont) return;
+            cont.style.height    = '';
+            cont.style.maxHeight = '';
+        });
+        return;
+    }
+
+    medirYFijarAltura(colIzqCont, document.getElementById('col-izquierda'));
+    medirYFijarAltura(colDerCont, document.getElementById('col-linea-tiempo'));
 }
 
 // Muestra/oculta un elemento con un fundido + leve escala. El ESPACIO que
@@ -265,6 +284,36 @@ function mostrarConFade(el, mostrar, displayVisible) {
 // Se ejecuta una única vez, la primera vez que la app queda visible:
 // despierta las solapas y, en Cancha Completa, activa el layout de barras
 // horizontales (arriba/abajo) en vez de verticales (izq/der).
+// En escritorio (mouse, pantalla grande) las barras siempre van a los
+// costados, aunque estemos en Cancha Completa: ahí sobra ancho de sobra
+// y ponerlas arriba/abajo solo le resta alto al dibujo de la cancha. En
+// celu/tablet se mantiene el comportamiento adaptativo de siempre.
+function esDispositivoDeEscritorio() {
+    return window.matchMedia('(pointer: fine) and (hover: hover)').matches;
+}
+
+function actualizarClaseModoFull() {
+    const appWrapper = document.getElementById('app-wrapper');
+    if (!appWrapper) return;
+    const usarLayoutVertical = (courtMode === 'full') && !esDispositivoDeEscritorio();
+    appWrapper.classList.toggle('modo-full', usarLayoutVertical);
+    return usarLayoutVertical;
+}
+
+// Único punto de verdad para saber si la interfaz está usando el layout
+// de barras arriba/abajo (Cancha Completa en celu/tablet). Es lo mismo
+// que la clase .modo-full que ya se le aplica a #app-wrapper.
+// IMPORTANTE: en PC, Cancha Completa usa barras laterales (igual que
+// Media Cancha), así que esto devuelve false en ese caso: cualquier
+// lógica que deba comportarse "como en Media Cancha" cuando las barras
+// están a los costados (sea por estar en Media Cancha, o por estar en
+// Cancha Completa pero en PC) debe consultar esta función en vez de
+// mirar directamente `courtMode`.
+function esLayoutFullVertical() {
+    const appWrapper = document.getElementById('app-wrapper');
+    return !!(appWrapper && appWrapper.classList.contains('modo-full'));
+}
+
 function activarInterfaz() {
     if (solapasActivadas) return;
     solapasActivadas = true;
@@ -275,8 +324,8 @@ function activarInterfaz() {
     if (sIzq) sIzq.classList.add('solapa-activa');
     if (sDer) sDer.classList.add('solapa-activa');
 
-    if (courtMode === 'full') {
-        if (appWrapper) appWrapper.classList.add('modo-full');
+    const usaLayoutVertical = actualizarClaseModoFull();
+    if (usaLayoutVertical) {
         // Íconos iniciales para el layout arriba/abajo (barras expandidas)
         if (sIzq) sIzq.innerText = '▲';
         if (sDer) sDer.innerText = '▼';
@@ -395,25 +444,30 @@ function resetAEstadoVacio() {
 // nada porque no se pierde nada.
 function changeCourtMode() {
     const otroModo = (courtMode === 'full') ? 'half' : 'full';
+    const estabaEnReproduccion = isEditionFinished;
 
-    shouldStopLoop = true; isLooping = false; isPlaying = false; isEditionFinished = false;
+    if (!estabaEnReproduccion) {
+        shouldStopLoop = true; isLooping = false; isPlaying = false; isEditionFinished = false;
+        setPlayButtonsState(false); setLoopButtonsColor(false);
+        factorVelocidad = 1;
+        const spdSel = document.getElementById('speedSelect');
+        if (spdSel) spdSel.value = "1";
+        document.getElementById('playback-controls').style.display = "none";
+        document.getElementById('edit-controls').style.display     = "flex";
+        if (addStepBtn) addStepBtn.style.display = "block";
+    }
+    // Si estaba reproduciéndose (o pausada en modo reproducción), no
+    // tocamos nada de lo anterior: sigue reproduciéndose después del
+    // cambio de modo, sin volver a "editar pasos".
     activeObj = null; isDragging = false; undoStack = []; redoStack = [];
-    setPlayButtonsState(false); setLoopButtonsColor(false);
-    factorVelocidad = 1;
-    const spdSel = document.getElementById('speedSelect');
-    if (spdSel) spdSel.value = "1";
-    document.getElementById('playback-controls').style.display = "none";
-    document.getElementById('edit-controls').style.display     = "flex";
-    if (addStepBtn) addStepBtn.style.display = "block";
 
     const appWrapper = document.getElementById('app-wrapper');
     const colIzqCont = document.getElementById('col-izquierda-container');
     const colDerCont = document.getElementById('col-linea-tiempo-container');
     [colIzqCont, colDerCont].forEach(c => { if (c) c.classList.add('sin-transicion'); });
-    if (appWrapper) {
-        appWrapper.classList.toggle('modo-full', otroModo === 'full');
-        appWrapper.style.display = 'none';
-    }
+    courtMode = otroModo;
+    actualizarClaseModoFull();
+    if (appWrapper) appWrapper.style.display = 'none';
     [colIzqCont, colDerCont].forEach(cont => {
         if (cont) { cont.classList.remove('colapsado'); cont.style.height = ''; cont.style.maxHeight = ''; }
     });
@@ -423,7 +477,6 @@ function changeCourtMode() {
 
     vieneDeCambioDeModo = true;
     solapasActivadas = false;
-    courtMode = otroModo;
     checkOrientationForMode();
 }
 
@@ -483,7 +536,11 @@ function renderTimeline() {
         const btn = document.createElement('button');
         const color = stepColors[i % stepColors.length];
         btn.className  = `step-btn snd-btn ${i === currentStep ? 'active' : ''}`;
-        btn.innerText  = (courtMode === 'full')
+        // Abreviado ("INI"/"P1") solo hace falta en el layout de barras
+        // horizontales de celu/tablet, donde el espacio es limitado. En
+        // PC, aunque estemos en Cancha Completa, las barras son laterales
+        // y hay lugar de sobra para el texto completo.
+        btn.innerText  = esLayoutFullVertical()
             ? (i === 0 ? "INI" : `P${i}`)
             : (i === 0 ? "INICIO" : `PASO ${i}`);
         btn.style.borderLeft = `4px solid ${color}`;
@@ -507,7 +564,10 @@ function renderTimeline() {
 
     // Auto-scroll para que +PASO (al final de la lista) quede siempre
     // visible, sin que haga falta scrollear manualmente para alcanzarlo.
-    if (courtMode === 'full') {
+    // La lista es horizontal solo en el layout de barras arriba/abajo
+    // (Cancha Completa en celu/tablet); en cualquier otro caso -incluida
+    // Cancha Completa en PC- es una columna vertical.
+    if (esLayoutFullVertical()) {
         timelineList.scrollLeft = timelineList.scrollWidth;
     } else {
         timelineList.scrollTop = timelineList.scrollHeight;
@@ -632,7 +692,7 @@ function toggleSidebar(lado) {
     contenedor.classList.toggle('colapsado');
     const colapsado = contenedor.classList.contains('colapsado');
 
-    if (courtMode === 'full') {
+    if (esLayoutFullVertical()) {
         if (lado === 'izq') boton.innerText = colapsado ? "▼" : "▲";
         else                boton.innerText = colapsado ? "▲" : "▼";
     } else {
