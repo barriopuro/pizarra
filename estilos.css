@@ -274,6 +274,21 @@ canvas {
     display: block; 
 }
 
+/* Lienzo de dibujo libre (Modo Pizarra Rápida): superpuesto exactamente
+   sobre #canvas. Por defecto no captura clics/toques (pointer-events:none)
+   para no interferir con el arrastre de fichas del Modo Táctico; JS lo
+   habilita (pointer-events:auto) solo mientras el modo está activo. */
+#drawCanvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 6;
+    touch-action: none;
+    pointer-events: none;
+}
+
 /* --- CONTENEDORES DE LA TIMELINE --- */
 #steps-container { 
     flex: 1; 
@@ -960,6 +975,140 @@ select:hover:not(:disabled) {
 #app-wrapper.modo-full .loop-text,
 #app-wrapper.modo-full .editar-text {
     display: none;
+}
+
+/* ========================================================
+   MODO "PIZARRA RÁPIDA" (dibujo libre tipo acrílico)
+   Clase `pizarra-libre-activa`, agregada por JS tanto a <body> (para
+   alcanzar el menú Archivo, que vive fuera de #app-wrapper) como a
+   #app-wrapper (para las barras laterales).
+   ======================================================== */
+
+/* --- Menú Archivo: en este modo solo quedan "Nueva Jugada" (que pasa
+   a actuar como "Limpiar Pizarra") y "Acerca de..." --- */
+body.pizarra-libre-activa #menuArchivoDropdown .menu-solo-tactico {
+    display: none !important;
+}
+
+/* --- Barra izquierda: se ocultan los controles puramente tácticos.
+   Quedan visibles: Archivo, el propio switch de Pizarra Rápida,
+   Deshacer/Rehacer, Cambiar Cancha, Sonido y Pantalla Completa. --- */
+#app-wrapper.pizarra-libre-activa #countRed,
+#app-wrapper.pizarra-libre-activa #countBlue,
+#app-wrapper.pizarra-libre-activa #formationSelect,
+#app-wrapper.pizarra-libre-activa #ballBtn,
+#app-wrapper.pizarra-libre-activa #historialToggle {
+    display: none !important;
+}
+
+/* --- Barra derecha: se oculta la línea de tiempo táctica y se muestran
+   los controles de dibujo libre en su lugar. --- */
+#app-wrapper.pizarra-libre-activa #steps-container,
+#app-wrapper.pizarra-libre-activa #actions-timeline {
+    display: none !important;
+}
+#app-wrapper:not(.pizarra-libre-activa) #pizarra-libre-controls {
+    display: none !important;
+}
+
+#pizarra-libre-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1;
+    min-height: 0;
+}
+.plib-section-label {
+    font-size: 10px;
+    color: #aaa;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin: 0 2px;
+}
+.plib-colores {
+    display: flex;
+    gap: 8px;
+    padding: 0 2px;
+}
+.plib-color-btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    min-width: 0;
+    border-radius: 50%;
+    border: 2px solid #444;
+    flex: 0 0 auto;
+}
+.plib-color-btn.activo {
+    border-color: #fff;
+    box-shadow: 0 0 0 2px #c01c33;
+}
+.plib-grosores {
+    display: flex;
+    gap: 6px;
+    padding: 0 2px;
+}
+.plib-grosor-btn {
+    flex: 1 1 0;
+    background: #333;
+    color: #ddd;
+    border: 1px solid #444;
+    padding: 8px 2px;
+    font-size: 13px;
+}
+.plib-grosor-btn:nth-child(1) { font-size: 8px; }
+.plib-grosor-btn:nth-child(2) { font-size: 13px; }
+.plib-grosor-btn:nth-child(3) { font-size: 18px; }
+.plib-grosor-btn.activo {
+    background: #c01c33;
+    color: #fff;
+    border-color: #ff4444;
+}
+.plib-tool-btn.activo {
+    background: #c01c33 !important;
+    color: #fff !important;
+}
+#plibLimpiarBtn {
+    margin-top: auto;
+}
+
+/* --- Adaptación al layout horizontal de barras (Cancha Completa en
+   celu/tablet): una sola fila compacta, igual que el resto de la barra. --- */
+#app-wrapper.modo-full #pizarra-libre-controls {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+#app-wrapper.modo-full .plib-section-label {
+    display: none;
+}
+#app-wrapper.modo-full .plib-colores,
+#app-wrapper.modo-full .plib-grosores {
+    flex-shrink: 0;
+}
+#app-wrapper.modo-full .plib-color-btn {
+    width: 26px;
+    height: 26px;
+}
+#app-wrapper.modo-full .plib-tool-text {
+    display: none;
+}
+#app-wrapper.modo-full #plibPincelBtn,
+#app-wrapper.modo-full #plibGomaBtn {
+    width: 40px;
+    flex: 0 0 auto;
+}
+#app-wrapper.modo-full #plibLimpiarBtn {
+    margin-top: 0;
+    width: auto;
+    min-width: 44px;
+    white-space: nowrap;
+    padding: 10px 10px;
+    flex-shrink: 0;
 }
 
 

@@ -394,6 +394,16 @@ function resetAEstadoVacio() {
         portadorPorPaso: [null]
     };
 
+    // Reset total también de Pizarra Rápida (ambas caras), por prolijidad:
+    // este reset solo ocurre al cargar una jugada de otro modo, algo que
+    // ya está bloqueado desde el menú mientras Pizarra Rápida está activa.
+    lienzosLibres = {
+        full: { trazos: [], deshechos: [], sF: null },
+        half: { trazos: [], deshechos: [], sF: null }
+    };
+    trazoActual = null;
+    if (typeof redibujarLienzoLibre === "function") redibujarLienzoLibre();
+
     setPlayButtonsState(false);
     setLoopButtonsColor(false);
     factorVelocidad = 1;
@@ -496,6 +506,18 @@ window.addEventListener('orientationchange', () => setTimeout(checkOrientationFo
 // --------------------------------------------------------
 
 function updateStepUI() {
+    if (modoPizarraRapida) {
+        // El "paso" táctico queda congelado (no se toca) mientras se
+        // dibuja: toda esta función (que depende de currentStep) no
+        // aplica. Deshacer/Rehacer, eso sí, deben quedar SIEMPRE
+        // visibles acá (aplican a los trazos), sin importar en qué paso
+        // haya quedado la jugada de fondo.
+        const undoRow = document.getElementById('undoBtn')?.closest('.icon-row');
+        if (undoRow) undoRow.style.display = '';
+        ajustarAlturaBarras();
+        return;
+    }
+
     const delBtn = document.getElementById('delStepBtn');
     if (delBtn) delBtn.style.display = (currentStep > 0 && !isEditionFinished) ? "" : "none";
 
@@ -678,7 +700,10 @@ function verificarMenuFlotante() {
         .classList.contains('colapsado');
     const menuFlotante = document.getElementById('fullscreen-floating-menu');
     if (menuFlotante) {
-        menuFlotante.classList.toggle('abierto', isEditionFinished && derEscondido);
+        // El menú flotante de Play/Loop/Editar es puramente táctico: no
+        // tiene sentido mostrarlo en Pizarra Rápida aunque ambas barras
+        // estén colapsadas.
+        menuFlotante.classList.toggle('abierto', !modoPizarraRapida && isEditionFinished && derEscondido);
     }
 }
 
@@ -828,6 +853,11 @@ function changeSpeed() {
 // --------------------------------------------------------
 
 function newPlay() {
+    // En Pizarra Rápida, "Nueva Jugada" pasa a actuar como "Limpiar
+    // Pizarra": borra los trazos del lienzo activo, sin tocar la jugada
+    // táctica (que sigue intacta, oculta, esperando a que se vuelva a
+    // Modo Táctico).
+    if (modoPizarraRapida) { confirmarLimpiarPizarraLibre(); return; }
     abrirConfirmModal("¿BORRAR JUGADA?", "Se perderá toda la jugada actual.", "BORRAR", confirmNewPlay);
 }
 
@@ -855,6 +885,108 @@ function confirmNewPlay() {
     updateStepUI();
     renderTimeline();
     draw();
+}
+
+// --------------------------------------------------------
+// MODO "PIZARRA RÁPIDA" (dibujo libre tipo acrílico)
+// --------------------------------------------------------
+
+function togglePizarraLibre() {
+    modoPizarraRapida = !modoPizarraRapida;
+    aplicarModoPizarraLibre();
+}
+
+// Único punto de entrada que sincroniza TODA la interfaz con el estado
+// de modoPizarraRapida: clases CSS (barras + menú Archivo), captura de
+// eventos del lienzo de dibujo, textos, y un refresco general.
+function aplicarModoPizarraLibre() {
+    const appWrapper = document.getElementById('app-wrapper');
+    const checkbox    = document.getElementById('pizarraLibreCheckbox');
+    if (checkbox) checkbox.checked = modoPizarraRapida;
+
+    // Clase en <body> (alcanza al menú Archivo, que vive fuera de
+    // #app-wrapper) y en #app-wrapper (barras laterales).
+    document.body.classList.toggle('pizarra-libre-activa', modoPizarraRapida);
+    if (appWrapper) appWrapper.classList.toggle('pizarra-libre-activa', modoPizarraRapida);
+
+    // El lienzo de dibujo solo debe capturar clics/toques mientras el
+    // modo está activo; en Modo Táctico queda completamente "transparente"
+    // a los clics para no interferir con el arrastre de fichas.
+    if (drawCanvas) drawCanvas.style.pointerEvents = modoPizarraRapida ? 'auto' : 'none';
+
+    // "Nueva Jugada" cambia de rótulo para reflejar que en este modo
+    // actúa como "Limpiar Pizarra".
+    const nuevaJugadaItem = document.getElementById('nuevaJugadaMenuItem');
+    if (nuevaJugadaItem) nuevaJugadaItem.innerText = modoPizarraRapida ? '🧹 Limpiar Pizarra' : '📄 Nueva Jugada';
+
+    // Soltamos cualquier arrastre/trazo a medio hacer al cambiar de modo.
+    activeObj       = null;
+    isDragging      = false;
+    trazoActual     = null;
+    dibujandoLibre  = false;
+    borrandoConGoma = false;
+
+    actualizarHerramientaUI();
+    redibujarLienzoLibre();
+    draw();               // refresca el canvas táctico (oculta/muestra fichas)
+    updateStepUI();        // restaura/oculta según corresponda (ver updateStepUI)
+    updateFloatingUI();
+    verificarMenuFlotante();
+    attachButtonSounds();
+}
+
+// --- SELECCIÓN DE COLOR / GROSOR / HERRAMIENTA ---
+
+function elegirColorTrazo(color, btnEl) {
+    colorTrazoActivo = color;
+    document.querySelectorAll('.plib-color-btn').forEach(b => b.classList.remove('activo'));
+    if (btnEl) btnEl.classList.add('activo');
+    // Elegir un color da a entender que se quiere dibujar: si estábamos
+    // con la goma puesta, volvemos solos al pincel (como agarrar un
+    // fibrón de color en la mano).
+    elegirHerramienta('pincel');
+}
+
+function elegirGrosorTrazo(valor, btnEl) {
+    grosorTrazoActivo = valor;
+    document.querySelectorAll('.plib-grosor-btn').forEach(b => b.classList.remove('activo'));
+    if (btnEl) btnEl.classList.add('activo');
+}
+
+function elegirHerramienta(herramienta) {
+    herramientaActiva = herramienta; // 'pincel' | 'goma'
+    const pincelBtn = document.getElementById('plibPincelBtn');
+    const gomaBtn   = document.getElementById('plibGomaBtn');
+    if (pincelBtn) pincelBtn.classList.toggle('activo', herramienta === 'pincel');
+    if (gomaBtn)   gomaBtn.classList.toggle('activo',   herramienta === 'goma');
+    if (drawCanvas) drawCanvas.style.cursor = (herramienta === 'goma') ? 'cell' : 'crosshair';
+}
+
+// Sincroniza los botones de color/grosor/herramienta con el estado
+// actual (hace falta al reactivar el modo, o al cambiar de cara).
+function actualizarHerramientaUI() {
+    elegirHerramienta(herramientaActiva);
+    document.querySelectorAll('.plib-color-btn').forEach(b => {
+        b.classList.toggle('activo', b.dataset.color === colorTrazoActivo);
+    });
+    document.querySelectorAll('.plib-grosor-btn').forEach(b => {
+        b.classList.toggle('activo', Number(b.dataset.grosor) === grosorTrazoActivo);
+    });
+}
+
+// --- LIMPIAR PIZARRA (borra todos los trazos del lienzo activo) ---
+
+function confirmarLimpiarPizarraLibre() {
+    abrirConfirmModal("¿LIMPIAR PIZARRA?", "Se borrarán todos los trazos de este lienzo.", "LIMPIAR", limpiarPizarraLibreActiva);
+}
+
+function limpiarPizarraLibreActiva() {
+    const l = lienzoActivo();
+    l.trazos    = [];
+    l.deshechos = [];
+    trazoActual = null;
+    redibujarLienzoLibre();
+    actualizarBotonesUndoRedo();
 }
 
 // --------------------------------------------------------

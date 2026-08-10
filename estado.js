@@ -14,6 +14,11 @@ const timelineList  = document.getElementById('steps-list');
 const addStepBtn    = document.getElementById('addStepBtn');
 const historyToggle = document.getElementById('historyToggle');
 
+// Lienzo de dibujo libre (Modo Pizarra Rápida): capa independiente,
+// superpuesta exactamente sobre #canvas. Ver más abajo.
+const drawCanvas    = document.getElementById('drawCanvas');
+const drawCtx       = drawCanvas.getContext('2d');
+
 const rs = document.getElementById('countRed');
 const bs = document.getElementById('countBlue');
 const fs = document.getElementById('formationSelect');
@@ -64,6 +69,42 @@ let isMuted = localStorage.getItem('pizarraMuted') === 'true';
 // --- HISTORIAL DE DESHACER / REHACER ---
 let undoStack = [];
 let redoStack = [];
+
+// ========================================================
+// MODO "PIZARRA RÁPIDA" (acrílico digital de doble cara)
+// ========================================================
+// Dibujo libre a mano alzada, pensado para tiempos muertos. Convive con
+// el Modo Táctico sin pisarlo: al activarse, las fichas/pelota/pasos se
+// invisibilizan (no se dibujan) pero sus datos (players, ball, etc. de
+// arriba) quedan intactos en memoria, listos para cuando se vuelva a
+// desactivar.
+let modoPizarraRapida = false;
+
+// Herramienta y estilo de trazo actualmente seleccionados.
+let colorTrazoActivo  = "#ffffff";
+let grosorTrazoActivo = 5;
+let herramientaActiva = 'pincel'; // 'pincel' | 'goma'
+
+// Trazo que se está dibujando en este momento (mientras dura el
+// mousedown/touchstart -> mouseup/touchend), o null si no hay ninguno activo.
+let trazoActual    = null;
+let dibujandoLibre = false;
+let borrandoConGoma = false;
+
+// Lienzos independientes por cara de cancha ("doble cara" del acrílico
+// físico): los trazos de Cancha Completa y Media Cancha nunca se mezclan
+// ni se convierten entre sí. Cada trazo: { color, grosor, puntos:[{x,y}] }.
+// `deshechos` es la pila de "rehacer" de ESE lienzo en particular.
+// `sF` guarda la escala (sF) del canvas a la que están calibrados los
+// puntos de ESTA cara ahora mismo (null hasta que se dibuja o se
+// reescala por primera vez): permite reubicar sus trazos proporcio-
+// nalmente cuando esta cara vuelve a activarse con un tamaño de canvas
+// distinto (resize de ventana mientras tanto, u otro tamaño de pantalla),
+// sin depender de lo que le haya pasado a la OTRA cara mientras tanto.
+let lienzosLibres = {
+    full: { trazos: [], deshechos: [], sF: null },
+    half: { trazos: [], deshechos: [], sF: null }
+};
 
 // --- PALETA DE COLORES POR PASO ---
 const stepColors = ["#ffffff", "#38b000", "#00b4d8", "#ffb703", "#e040fb", "#ff5722"];

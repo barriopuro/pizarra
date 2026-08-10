@@ -119,6 +119,15 @@
 
             <hr>
 
+            <div id="pizarraLibreToggle" class="toggle-container"
+                style="display:flex; flex-direction:row; align-items:center; justify-content:space-between; gap:4px; margin:0 2px 5px; padding:0 4px;">
+                <span style="font-size:10px; color:#aaa; font-weight:bold; letter-spacing:0.3px; white-space:nowrap;">🎨 <span class="plib-toggle-text">PIZARRA RÁPIDA</span></span>
+                <label class="switch" style="transform:scale(0.8); transform-origin:right center; margin:0;">
+                    <input type="checkbox" id="pizarraLibreCheckbox" onchange="togglePizarraLibre()">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
             <select id="countRed"        class="snd-btn" onchange="syncPlayers()"></select>
             <select id="countBlue"       class="snd-btn" onchange="syncPlayers()"></select>
             <select id="formationSelect" class="snd-btn" onchange="applyFormation()">
@@ -195,6 +204,7 @@
                     </g>
                 </svg>
                 <canvas id="canvas"></canvas>
+                <canvas id="drawCanvas"></canvas>
 
                 <div id="floating-ui">
                     <button id="rot-btn" class="f-btn snd-btn" title="Cortina">🛡️</button>
@@ -244,16 +254,43 @@
                     </button>
                 </div>
             </div>
+
+            <!-- Controles de dibujo libre (Modo Pizarra Rápida). Ocultos por
+                 defecto: aparecen en lugar de #steps-container/#actions-timeline
+                 cuando #app-wrapper tiene la clase pizarra-libre-activa. -->
+            <div id="pizarra-libre-controls">
+                <div class="plib-section-label">Color</div>
+                <div id="plibColores" class="plib-colores">
+                    <button class="plib-color-btn snd-btn activo" data-color="#ffffff" style="background:#ffffff;" onclick="elegirColorTrazo('#ffffff', this)" title="Blanco"></button>
+                    <button class="plib-color-btn snd-btn" data-color="#c01c33" style="background:#c01c33;" onclick="elegirColorTrazo('#c01c33', this)" title="Rojo"></button>
+                    <button class="plib-color-btn snd-btn" data-color="#0044CC" style="background:#0044CC;" onclick="elegirColorTrazo('#0044CC', this)" title="Azul"></button>
+                    <button class="plib-color-btn snd-btn" data-color="#ffc107" style="background:#ffc107;" onclick="elegirColorTrazo('#ffc107', this)" title="Amarillo"></button>
+                </div>
+
+                <div class="plib-section-label">Grosor</div>
+                <div id="plibGrosores" class="plib-grosores">
+                    <button class="plib-grosor-btn snd-btn" data-grosor="3" onclick="elegirGrosorTrazo(3, this)" title="Fino">●</button>
+                    <button class="plib-grosor-btn snd-btn activo" data-grosor="5" onclick="elegirGrosorTrazo(5, this)" title="Medio">●</button>
+                    <button class="plib-grosor-btn snd-btn" data-grosor="8" onclick="elegirGrosorTrazo(8, this)" title="Grueso">●</button>
+                </div>
+
+                <div class="icon-row">
+                    <button id="plibPincelBtn" class="snd-btn icon-btn plib-tool-btn activo" onclick="elegirHerramienta('pincel')" title="Pincel">🖌️<span class="plib-tool-text"> PINCEL</span></button>
+                    <button id="plibGomaBtn"   class="snd-btn icon-btn plib-tool-btn"        onclick="elegirHerramienta('goma')"   title="Goma de borrar">🧽<span class="plib-tool-text"> GOMA</span></button>
+                </div>
+
+                <button id="plibLimpiarBtn" class="snd-btn btn-danger" onclick="confirmarLimpiarPizarraLibre()" title="Limpiar Pizarra">🧹 LIMPIAR PIZARRA</button>
+            </div>
         </div>
     </div>
 
 </div>
 
 <div id="menuArchivoDropdown" class="menu-archivo-dropdown">
-    <button id="instalarAppBtn" class="snd-btn menu-archivo-item" style="display:none;" onclick="cerrarMenuArchivo(); instalarApp();">📲 Instalar App</button>
-    <button class="snd-btn menu-archivo-item" onclick="cerrarMenuArchivo(); newPlay();">📄 Nueva Jugada</button>
-    <button class="snd-btn menu-archivo-item" onclick="cerrarMenuArchivo(); exportPlay();">💾 Guardar Jugada</button>
-    <button class="snd-btn menu-archivo-item" onclick="cerrarMenuArchivo(); document.getElementById('importFile').click();">📂 Cargar Jugada</button>
+    <button id="instalarAppBtn" class="snd-btn menu-archivo-item menu-solo-tactico" style="display:none;" onclick="cerrarMenuArchivo(); instalarApp();">📲 Instalar App</button>
+    <button id="nuevaJugadaMenuItem" class="snd-btn menu-archivo-item" onclick="cerrarMenuArchivo(); newPlay();">📄 Nueva Jugada</button>
+    <button class="snd-btn menu-archivo-item menu-solo-tactico" onclick="cerrarMenuArchivo(); exportPlay();">💾 Guardar Jugada</button>
+    <button class="snd-btn menu-archivo-item menu-solo-tactico" onclick="cerrarMenuArchivo(); document.getElementById('importFile').click();">📂 Cargar Jugada</button>
     <button class="snd-btn menu-archivo-item" onclick="cerrarMenuArchivo(); abrirAcercaDe();">ℹ️ Acerca de...</button>
 </div>
 

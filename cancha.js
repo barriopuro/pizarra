@@ -124,6 +124,10 @@ function init() {
     wrap.style.height = finalH + "px";
     canvas.width  = finalW;
     canvas.height = finalH;
+    // El lienzo de dibujo libre siempre acompaña al mismo tamaño de
+    // #canvas (están superpuestos exactamente). Cambiar width/height de
+    // un canvas borra su contenido, así que más abajo se redibuja.
+    if (drawCanvas) { drawCanvas.width = finalW; drawCanvas.height = finalH; }
 
     const scaleMultiplier = (oldSF !== 1 && oldSF !== 0) ? (finalW / 500) / oldSF : 1;
     sF = finalW / 500;
@@ -142,6 +146,28 @@ function init() {
         });
     }
 
+    // Reescala el lienzo libre de LA CARA ACTIVA para que sus trazos
+    // mantengan su tamaño/posición proporcional en el nuevo canvas.
+    // IMPORTANTE: a diferencia de jugadores/pelota (arriba, que son un
+    // único estado compartido), cada cara del acrílico es autónoma, así
+    // que la comparación se hace contra la ÚLTIMA escala propia de ESTA
+    // cara (caraLibre.sF) -no contra `oldSF`, que puede pertenecer a la
+    // OTRA cara si lo que acaba de pasar fue un cambio de modo de cancha,
+    // y comparar contra eso deformaría los trazos sin sentido-. Así, ni
+    // un resize de ventana ni un cambio de modo de cancha estiran o
+    // deforman el dibujo: cada cara solo se reescala contra sí misma.
+    if (typeof lienzosLibres !== 'undefined') {
+        const caraLibre = lienzosLibres[modo];
+        if (caraLibre) {
+            if (caraLibre.sF && caraLibre.sF !== sF) {
+                const factorPropio = sF / caraLibre.sF;
+                caraLibre.trazos.forEach(t => t.puntos.forEach(pt => { pt.x *= factorPropio; pt.y *= factorPropio; }));
+                caraLibre.deshechos.forEach(t => t.puntos.forEach(pt => { pt.x *= factorPropio; pt.y *= factorPropio; }));
+            }
+            caraLibre.sF = sF;
+        }
+    }
+
     updateCourtDrawing(finalW, finalH);
     updateMuteBtnUI();
 
@@ -157,6 +183,10 @@ function init() {
     draw();
     attachButtonSounds();
     if (typeof updateFloatingUI === "function") updateFloatingUI();
+    // El resize de drawCanvas (arriba) borra su contenido: lo redibujamos
+    // siempre, sea que Pizarra Rápida esté activa (se ven los trazos) o
+    // no (redibujarLienzoLibre() lo deja simplemente limpio).
+    if (typeof redibujarLienzoLibre === "function") redibujarLienzoLibre();
 }
 
 // --- LÍNEAS DE CANCHA (SVG OVERLAY) ---
@@ -468,6 +498,18 @@ function _render(modoAnim, paraVideo) {
     }
     drawLogo();
 
+    // --------------------------------------------------
+    // MODO PIZARRA RÁPIDA: las fichas/pelota/pasos se invisibilizan (no
+    // se dibuja nada de lo que sigue), pero sus datos (players, ball,
+    // currentStep, etc.) quedan intactos en memoria sin tocarse. El
+    // parquet y el logo de arriba sí se siguen dibujando normalmente,
+    // para que la cancha se vea "completa" debajo del dibujo libre.
+    // --------------------------------------------------
+    if (typeof modoPizarraRapida !== 'undefined' && modoPizarraRapida) {
+        if (!modoAnim && typeof actualizarBotonesUndoRedo === "function") actualizarBotonesUndoRedo();
+        return;
+    }
+
     const radius      = 15 * sF;
     const showHistory = historyToggle ? historyToggle.checked : true;
 
@@ -670,12 +712,73 @@ function _render(modoAnim, paraVideo) {
         }
     }
 
-    if (!modoAnim) { updateUndoButton(); updateRedoButton(); }
+    if (!modoAnim && typeof actualizarBotonesUndoRedo === "function") actualizarBotonesUndoRedo();
 }
 
 // --- API PÚBLICA ---
 function draw()       { _render(false, false); }
 function renderAnim() { _render(true,  isExporting); }
+
+// ========================================================
+// MOTOR DE DIBUJO LIBRE (Modo Pizarra Rápida)
+// ========================================================
+
+// Devuelve el lienzo (trazos + pila de rehacer) de la cara de cancha
+// actualmente activa. Es la única fuente de verdad: nunca se mezclan
+// los trazos de Cancha Completa con los de Media Cancha.
+function lienzoActivo() {
+    return lienzosLibres[(courtMode === 'full') ? 'full' : 'half'];
+}
+
+// Dibuja un trazo (ya terminado o en progreso) sobre el contexto 2D que
+// se le pase. Con puntas y uniones redondeadas, para que se sienta como
+// un marcador/fibrón real y no como una polilínea angulosa.
+function dibujarTrazoLibre(ctxDestino, trazo) {
+    const pts = trazo.puntos;
+    if (!pts || pts.length === 0) return;
+    const ancho = trazo.grosor * sF;
+
+    ctxDestino.save();
+    ctxDestino.strokeStyle = trazo.color;
+    ctxDestino.fillStyle   = trazo.color;
+    ctxDestino.lineWidth   = ancho;
+    ctxDestino.lineCap     = 'round';
+    ctxDestino.lineJoin    = 'round';
+
+    if (pts.length === 1) {
+        // Toque sin arrastre: un puntito, no una línea invisible.
+        ctxDestino.beginPath();
+        ctxDestino.arc(pts[0].x, pts[0].y, ancho / 2, 0, Math.PI * 2);
+        ctxDestino.fill();
+        ctxDestino.restore();
+        return;
+    }
+
+    ctxDestino.beginPath();
+    ctxDestino.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length - 1; i++) {
+        const c = pts[i], n = pts[i + 1];
+        ctxDestino.quadraticCurveTo(c.x, c.y, (c.x + n.x) / 2, (c.y + n.y) / 2);
+    }
+    ctxDestino.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
+    ctxDestino.stroke();
+    ctxDestino.restore();
+}
+
+// Redibuja por completo el lienzo de dibujo libre (drawCanvas) a partir
+// de los datos en memoria: todos los trazos guardados de la cara activa,
+// más el trazo en curso (si hay uno a medio dibujar). Se llama después
+// de cualquier cambio: nuevo punto, trazo terminado, borrado, undo/redo,
+// cambio de cara, resize, o al activar/desactivar el modo.
+function redibujarLienzoLibre() {
+    if (!drawCtx || !drawCanvas) return;
+    drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+    if (!modoPizarraRapida) return; // oculto por completo en Modo Táctico
+
+    const l = lienzoActivo();
+    l.trazos.forEach(t => dibujarTrazoLibre(drawCtx, t));
+    if (trazoActual) dibujarTrazoLibre(drawCtx, trazoActual);
+}
 
 // --- ÍCONOS SVG COMPARTIDOS (pantalla completa y cambiar modo de cancha) ---
 const SVG_FULLSCREEN_ENTER =

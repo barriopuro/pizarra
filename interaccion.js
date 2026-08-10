@@ -293,6 +293,96 @@ window.addEventListener('mouseup',    handleEnd);
 window.addEventListener('touchend',   handleEnd);
 
 // --------------------------------------------------------
+// DIBUJO LIBRE (Modo Pizarra Rápida)
+// --------------------------------------------------------
+// drawCanvas está superpuesto exactamente a #canvas, así que getPos(e)
+// (que usa canvas.getBoundingClientRect()) sirve tal cual para ubicar el
+// puntero también sobre el lienzo de dibujo libre.
+
+const RADIO_GOMA = 18; // px lógicos (se escala con sF), umbral de "contacto" de la goma
+
+function handleDrawStart(e) {
+    if (!modoPizarraRapida) return;
+    e.preventDefault();
+    const pos = getPos(e);
+
+    if (herramientaActiva === 'goma') {
+        borrandoConGoma = true;
+        borrarTrazosEnPunto(pos);
+        return;
+    }
+
+    trazoActual    = { color: colorTrazoActivo, grosor: grosorTrazoActivo, puntos: [pos] };
+    dibujandoLibre = true;
+    redibujarLienzoLibre();
+}
+
+function handleDrawMove(e) {
+    if (!modoPizarraRapida) return;
+    if (!dibujandoLibre && !borrandoConGoma) return;
+    e.preventDefault();
+    const pos = getPos(e);
+
+    if (borrandoConGoma) {
+        borrarTrazosEnPunto(pos);
+        return;
+    }
+
+    if (trazoActual) {
+        const ultimo = trazoActual.puntos[trazoActual.puntos.length - 1];
+        // Evita amontonar puntos redundantes cuando el puntero casi no se
+        // movió entre dos eventos (más liviano de dibujar y de guardar).
+        if (Math.hypot(pos.x - ultimo.x, pos.y - ultimo.y) > 1.5) {
+            trazoActual.puntos.push(pos);
+            redibujarLienzoLibre();
+        }
+    }
+}
+
+function handleDrawEnd() {
+    if (borrandoConGoma) { borrandoConGoma = false; return; }
+    if (!dibujandoLibre) return;
+    dibujandoLibre = false;
+
+    if (trazoActual) {
+        if (trazoActual.puntos.length > 1) trazoActual.puntos = simplifyPath(trazoActual.puntos);
+        const l = lienzoActivo();
+        l.trazos.push(trazoActual);
+        l.deshechos = []; // un trazo nuevo invalida el "rehacer" pendiente
+    }
+    trazoActual = null;
+    redibujarLienzoLibre();
+    actualizarBotonesUndoRedo();
+    playSound('dropJersey');
+}
+
+// Goma "de contacto": tocar/pasar por encima de un trazo lo borra por
+// completo (como pasar el trapo sobre una línea del acrílico), en vez de
+// borrar píxel por píxel.
+function borrarTrazosEnPunto(pos) {
+    const l = lienzoActivo();
+    const radio = RADIO_GOMA * sF;
+    const antes = l.trazos.length;
+
+    l.trazos = l.trazos.filter(t => {
+        return !t.puntos.some(pt => Math.hypot(pt.x - pos.x, pt.y - pos.y) < radio);
+    });
+
+    if (l.trazos.length !== antes) {
+        redibujarLienzoLibre();
+        actualizarBotonesUndoRedo();
+        playSound('dropJersey');
+    }
+}
+
+drawCanvas.addEventListener('mousedown',  handleDrawStart);
+drawCanvas.addEventListener('touchstart', handleDrawStart, { passive: false });
+window.addEventListener('mousemove',  handleDrawMove);
+window.addEventListener('touchmove',  handleDrawMove,  { passive: false });
+window.addEventListener('mouseup',    handleDrawEnd);
+window.addEventListener('touchend',   handleDrawEnd);
+
+// --------------------------------------------------------
 // ASIGNAR DORSAL: doble clic (mouse) / doble toque (táctil)
 // --------------------------------------------------------
 
@@ -384,6 +474,8 @@ canvas.addEventListener('touchend', handleTouchEndDobleToque);
 // --------------------------------------------------------
 
 function undoLastMove() {
+    if (modoPizarraRapida) { undoTrazoLibre(); return; }
+
     let index = -1;
     for (let i = undoStack.length - 1; i >= 0; i--) {
         if (undoStack[i].step === currentStep) { index = i; break; }
@@ -455,6 +547,8 @@ function undoLastMove() {
 }
 
 function redoLastMove() {
+    if (modoPizarraRapida) { redoTrazoLibre(); return; }
+
     if (redoStack.length === 0) return;
     const accion = redoStack.pop();
 
@@ -497,28 +591,68 @@ function redoLastMove() {
 let _undoBtnCache = null, _redoBtnCache = null;
 let _undoEnabledPrev = null, _redoEnabledPrev = null;
 
+// Aplica el estado visual (habilitado/deshabilitado) a un botón de
+// deshacer/rehacer. Compartido entre el circuito táctico y el de dibujo
+// libre, que solo difieren en CÓMO deciden si `enabled` es true o false.
+function _setUndoRedoBtnState(btn, enabled, prevCacheKey) {
+    if (!btn) return enabled;
+    if (enabled === prevCacheKey) return enabled; // nada cambió, no tocamos el estilo
+    btn.style.opacity       = enabled ? "1"       : "0.3";
+    btn.style.pointerEvents = enabled ? "auto"    : "none";
+    btn.style.cursor        = enabled ? "pointer" : "default";
+    return enabled;
+}
+
 function updateUndoButton() {
     if (!_undoBtnCache) _undoBtnCache = document.getElementById('undoBtn');
-    const undoBtn = _undoBtnCache;
-    if (!undoBtn) return;
     const enabled = undoStack.some(item => item.step === currentStep) || currentStep > 0;
-    if (enabled === _undoEnabledPrev) return; // nada cambió, no tocamos el estilo
-    _undoEnabledPrev = enabled;
-    undoBtn.style.opacity       = enabled ? "1"       : "0.3";
-    undoBtn.style.pointerEvents = enabled ? "auto"    : "none";
-    undoBtn.style.cursor        = enabled ? "pointer" : "default";
+    _undoEnabledPrev = _setUndoRedoBtnState(_undoBtnCache, enabled, _undoEnabledPrev);
 }
 
 function updateRedoButton() {
     if (!_redoBtnCache) _redoBtnCache = document.getElementById('redoBtn');
-    const redoBtn = _redoBtnCache;
-    if (!redoBtn) return;
     const enabled = redoStack.length > 0;
-    if (enabled === _redoEnabledPrev) return; // nada cambió, no tocamos el estilo
-    _redoEnabledPrev = enabled;
-    redoBtn.style.opacity       = enabled ? "1"       : "0.3";
-    redoBtn.style.pointerEvents = enabled ? "auto"    : "none";
-    redoBtn.style.cursor        = enabled ? "pointer" : "default";
+    _redoEnabledPrev = _setUndoRedoBtnState(_redoBtnCache, enabled, _redoEnabledPrev);
+}
+
+// --------------------------------------------------------
+// DESHACER / REHACER DE TRAZOS (Modo Pizarra Rápida)
+// --------------------------------------------------------
+// Reutiliza los mismos botones #undoBtn/#redoBtn de la barra izquierda,
+// pero operando sobre los trazos del lienzo activo en vez de sobre los
+// movimientos de fichas. El borrado con la goma NO pasa por acá (queda
+// fuera del historial), igual que en un acrílico físico.
+
+function undoTrazoLibre() {
+    const l = lienzoActivo();
+    if (l.trazos.length === 0) return;
+    l.deshechos.push(l.trazos.pop());
+    redibujarLienzoLibre();
+    actualizarBotonesUndoRedo();
+}
+
+function redoTrazoLibre() {
+    const l = lienzoActivo();
+    if (l.deshechos.length === 0) return;
+    l.trazos.push(l.deshechos.pop());
+    redibujarLienzoLibre();
+    actualizarBotonesUndoRedo();
+}
+
+// Único punto de entrada para refrescar el estado visual de Deshacer/
+// Rehacer: decide solo, según el modo activo, si esos botones reflejan
+// el historial táctico o el de trazos del lienzo libre.
+function actualizarBotonesUndoRedo() {
+    if (modoPizarraRapida) {
+        if (!_undoBtnCache) _undoBtnCache = document.getElementById('undoBtn');
+        if (!_redoBtnCache) _redoBtnCache = document.getElementById('redoBtn');
+        const l = lienzoActivo();
+        _undoEnabledPrev = _setUndoRedoBtnState(_undoBtnCache, l.trazos.length > 0,    _undoEnabledPrev);
+        _redoEnabledPrev = _setUndoRedoBtnState(_redoBtnCache, l.deshechos.length > 0, _redoEnabledPrev);
+    } else {
+        updateUndoButton();
+        updateRedoButton();
+    }
 }
 
 // --------------------------------------------------------
@@ -526,7 +660,7 @@ function updateRedoButton() {
 // --------------------------------------------------------
 
 function updateFloatingUI() {
-    if (!activeObj || activeObj === ball || isEditionFinished) {
+    if (modoPizarraRapida || !activeObj || activeObj === ball || isEditionFinished) {
         mostrarConFade(floatingUI, false, 'flex');
         return;
     }
