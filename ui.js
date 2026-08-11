@@ -184,6 +184,11 @@ function checkOrientationForMode() {
     if (portraitForcer)  portraitForcer.classList.toggle('abierto',  bloqueo === 'portrait-forcer');
 
     if (!bloqueo && courtMode) {
+        // El cambio de cancha (si lo hubo) quedó confirmado: ya no hace
+        // falta la foto de "por si cancelan" (ver changeCourtMode() /
+        // cancelarCambioDeCancha()).
+        estadoPrevioCambioCancha = null;
+
         if (appWrapper) appWrapper.style.display = 'flex';
         activarInterfaz();
         if (typeof init === 'function') init();
@@ -456,6 +461,19 @@ function changeCourtMode() {
     const otroModo = (courtMode === 'full') ? 'half' : 'full';
     const estabaEnReproduccion = isEditionFinished;
 
+    // Foto de cómo estaba todo ANTES de tocar nada: si el cartel de
+    // rotación que puede aparecer a continuación se cancela, se restaura
+    // exactamente desde acá (ver cancelarCambioDeCancha()).
+    const colIzqContPrevio = document.getElementById('col-izquierda-container');
+    const colDerContPrevio = document.getElementById('col-linea-tiempo-container');
+    estadoPrevioCambioCancha = {
+        courtMode:  courtMode,
+        undoStack:  undoStack.slice(),
+        redoStack:  redoStack.slice(),
+        izqColapsado: colIzqContPrevio ? colIzqContPrevio.classList.contains('colapsado') : false,
+        derColapsado: colDerContPrevio ? colDerContPrevio.classList.contains('colapsado') : false,
+    };
+
     if (!estabaEnReproduccion) {
         shouldStopLoop = true; isLooping = false; isPlaying = false; isEditionFinished = false;
         setPlayButtonsState(false); setLoopButtonsColor(false);
@@ -498,6 +516,62 @@ function changeCourtMode() {
     vieneDeCambioDeModo = true;
     solapasActivadas = false;
     checkOrientationForMode();
+}
+
+// Se dispara desde el botón "✕ Cancelar" de los carteles de rotación
+// (#landscape-forcer / #portrait-forcer). Dos escenarios posibles:
+//
+// 1) Había una jugada en curso y el cartel apareció por un toque
+//    accidental en "Cambiar Cancha": restauramos exactamente el modo de
+//    cancha, el historial de deshacer/rehacer y el estado de las barras
+//    que había ANTES de ese toque (estadoPrevioCambioCancha, capturado al
+//    principio de changeCourtMode()). Nada de la jugada se pierde porque
+//    nunca se llegó a tocar: el bloqueo por orientación corta el flujo
+//    antes de reescalar coordenadas o redibujar nada.
+// 2) No había ningún cambio de cancha en curso (el cartel apareció recién
+//    al elegir modo por primera vez, desde la pantalla de selección):
+//    no hay nada que "revertir", así que simplemente se vuelve a mostrar
+//    esa misma pantalla para elegir de nuevo.
+function cancelarCambioDeCancha() {
+    if (!estadoPrevioCambioCancha) {
+        courtMode = null;
+        checkOrientationForMode();
+        return;
+    }
+
+    const previo = estadoPrevioCambioCancha;
+    estadoPrevioCambioCancha = null;
+
+    const colIzqCont = document.getElementById('col-izquierda-container');
+    const colDerCont = document.getElementById('col-linea-tiempo-container');
+    [colIzqCont, colDerCont].forEach(c => { if (c) c.classList.add('sin-transicion'); });
+
+    courtMode = previo.courtMode;
+    undoStack = previo.undoStack;
+    redoStack = previo.redoStack;
+    actualizarClaseModoFull();
+    if (colIzqCont) {
+        colIzqCont.classList.toggle('colapsado', previo.izqColapsado);
+        colIzqCont.style.height = ''; colIzqCont.style.maxHeight = '';
+    }
+    if (colDerCont) {
+        colDerCont.classList.toggle('colapsado', previo.derColapsado);
+        colDerCont.style.height = ''; colDerCont.style.maxHeight = '';
+    }
+    sincronizarIconoSolapa('izq');
+    sincronizarIconoSolapa('der');
+
+    // El modo de cancha al que volvemos es, por definición, el que ya
+    // se estaba usando antes del toque accidental: la orientación actual
+    // del dispositivo ya era compatible con él, así que checkOrientation-
+    // ForMode() va a cerrar los carteles y mostrar la app de nuevo sin
+    // pedir ninguna rotación.
+    vieneDeCambioDeModo = true;
+    checkOrientationForMode();
+
+    requestAnimationFrame(() => {
+        [colIzqCont, colDerCont].forEach(c => { if (c) c.classList.remove('sin-transicion'); });
+    });
 }
 
 // Cambio de modo automático (al cargar una jugada de otro modo): no pide

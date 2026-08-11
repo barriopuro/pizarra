@@ -70,6 +70,13 @@ let isMuted = localStorage.getItem('pizarraMuted') === 'true';
 let undoStack = [];
 let redoStack = [];
 
+// Guarda una "foto" mínima de cómo estaba todo justo antes de un cambio
+// de modo de cancha (courtMode anterior + estado de las barras + historial
+// de deshacer/rehacer), para poder revertir sin pérdidas si el cartel de
+// "girá tu celular" se cancela. null cuando no hay ningún cambio de
+// cancha pendiente de confirmar por rotación.
+let estadoPrevioCambioCancha = null;
+
 // ========================================================
 // MODO "PIZARRA RÁPIDA" (acrílico digital de doble cara)
 // ========================================================

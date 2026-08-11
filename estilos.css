@@ -654,6 +654,26 @@ select:hover:not(:disabled) {
     margin: 5px 0;
 }
 
+/* Botón de escape del cartel de rotación (ver item de UX: antes, si el
+   usuario tocaba "Cambiar Cancha" sin querer, quedaba trabado acá sin
+   ninguna salida más que rotar el celular de verdad). */
+.orientation-cancel-btn {
+    margin-top: 30px;
+    padding: 13px 28px;
+    background: transparent;
+    color: #ccc;
+    border: 1px solid #555;
+    border-radius: 24px;
+    font-size: 14px;
+    font-weight: bold;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+}
+.orientation-cancel-btn:active {
+    background: #222;
+    border-color: #777;
+}
+
 /* ========================================================
 /* SISTEMA DE SOLAPAS ELÁSTICAS INTELIGENTES (v139)
 /* ======================================================== */
