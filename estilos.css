@@ -658,8 +658,11 @@ select:hover:not(:disabled) {
    usuario tocaba "Cambiar Cancha" sin querer, quedaba trabado acá sin
    ninguna salida más que rotar el celular de verdad). */
 .orientation-cancel-btn {
+    align-self: center;
+    width: auto;
+    max-width: 220px;
     margin-top: 30px;
-    padding: 13px 28px;
+    padding: 13px 30px;
     background: transparent;
     color: #ccc;
     border: 1px solid #555;
@@ -1136,26 +1139,49 @@ body.pizarra-libre-activa #menuArchivoDropdown .menu-solo-tactico {
 /* --- Adaptación al layout horizontal de barras (Cancha Completa en
    celu/tablet): una sola fila compacta, igual que el resto de la barra.
    Color y Grosor pasan de fila fija a desplegable real (<details>), para
-   no comerse todo el espacio disponible en una barra ya apretada. --- */
+   no comerse todo el espacio disponible en una barra ya apretada.
+
+   TODOS los "chips" de esta fila (Color, Grosor, Pincel, Goma, Exportar,
+   Limpiar) comparten la MISMA altura fija (42px) a propósito: así la fila
+   entera también puede ser de altura fija, sin importar si un desplegable
+   está abierto o cerrado -nada dentro de la fila puede superar esa altura,
+   así que nunca hace falta scroll vertical, solo el horizontal (esperable,
+   son varias herramientas en poco ancho de pantalla)-. */
 #app-wrapper.modo-full #pizarra-libre-controls {
     flex-direction: row;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     flex-wrap: nowrap;
+    height: 42px;
+    padding: 0 2px;
     overflow-x: auto;
     overflow-y: hidden;
 }
 #app-wrapper.modo-full .plib-dropdown {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
     position: relative;
     flex-shrink: 0;
+    height: 42px;
+}
+/* .icon-row trae width:100% y margin-bottom pensados para la fila
+   vertical de PC; acá adentro de la fila horizontal hay que anularlos,
+   o rompen el acomodo de todo lo que viene después (Exportar/Limpiar). */
+#app-wrapper.modo-full #pizarra-libre-controls .icon-row {
+    width: auto;
+    margin-bottom: 0;
+    flex-shrink: 0;
+    gap: 6px;
 }
 #app-wrapper.modo-full .plib-dropdown summary {
     cursor: pointer;
     background: #333;
     border: 1px solid #444;
-    border-radius: 4px;
-    width: 40px;
-    height: 44px;
+    border-radius: 6px;
+    width: 36px;
+    height: 42px;
     box-sizing: border-box;
     justify-content: center;
     margin: 0;
@@ -1165,8 +1191,8 @@ body.pizarra-libre-activa #menuArchivoDropdown .menu-solo-tactico {
 }
 #app-wrapper.modo-full .plib-dropdown-swatch {
     display: block;
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     border-radius: 50%;
     border: 2px solid #fff;
 }
@@ -1177,47 +1203,60 @@ body.pizarra-libre-activa #menuArchivoDropdown .menu-solo-tactico {
 }
 /* El puntito de grosor cambia de tamaño según el grosor elegido, para
    que de un vistazo se note cuál está activo sin abrir el desplegable. */
-#app-wrapper.modo-full .plib-dropdown-dot[data-grosor="3"] { width: 8px;  height: 8px; }
-#app-wrapper.modo-full .plib-dropdown-dot[data-grosor="5"] { width: 13px; height: 13px; }
-#app-wrapper.modo-full .plib-dropdown-dot[data-grosor="8"] { width: 18px; height: 18px; }
+#app-wrapper.modo-full .plib-dropdown-dot[data-grosor="3"] { width: 7px;  height: 7px; }
+#app-wrapper.modo-full .plib-dropdown-dot[data-grosor="5"] { width: 11px; height: 11px; }
+#app-wrapper.modo-full .plib-dropdown-dot[data-grosor="8"] { width: 16px; height: 16px; }
 /* El panel de opciones aparece EN LÍNEA, dentro de la misma fila con
-   scroll horizontal (no floreciendo por encima con position:absolute):
-   la barra en este layout tiene su propio recorte vertical -altura fija
+   scroll horizontal (no flotando por encima con position:absolute): la
+   barra en este layout tiene su propio recorte vertical -altura fija
    calculada por ajustarAlturaBarras() + overflow-y:auto heredado de
    #col-linea-tiempo-, así que cualquier panel que "flote" por encima
    termina invisible/inclickeable detrás de ese recorte. En línea, en
    cambio, nunca hay overflow vertical que lo tape: si no entra todo en
    el ancho de pantalla, se llega scrolleando la fila para el costado,
-   igual que el resto de esta barra. */
+   igual que el resto de esta barra. Su altura (26px + padding = 40px)
+   queda siempre por debajo de los 42px de la fila, para que abrir un
+   desplegable nunca la haga crecer ni pida scroll vertical. */
 #app-wrapper.modo-full .plib-colores,
 #app-wrapper.modo-full .plib-grosores {
     flex-shrink: 0;
-    gap: 6px;
+    height: 40px;
+    box-sizing: border-box;
+    gap: 5px;
     background: #1a1a1a;
     border: 1px solid #444;
     border-radius: 8px;
-    padding: 6px 8px;
+    padding: 0 6px;
 }
 #app-wrapper.modo-full .plib-color-btn {
-    width: 30px;
-    height: 30px;
+    width: 26px;
+    height: 26px;
 }
-#app-wrapper.modo-full .plib-tool-text {
+#app-wrapper.modo-full .plib-grosor-btn {
+    padding: 0 6px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+#app-wrapper.modo-full .plib-tool-text,
+#app-wrapper.modo-full .plib-btn-text {
     display: none;
 }
 #app-wrapper.modo-full #plibPincelBtn,
-#app-wrapper.modo-full #plibGomaBtn {
-    width: 40px;
-    flex: 0 0 auto;
-}
+#app-wrapper.modo-full #plibGomaBtn,
 #app-wrapper.modo-full #plibExportarBtn,
 #app-wrapper.modo-full #plibLimpiarBtn {
-    margin-top: 0;
-    width: auto;
-    min-width: 44px;
-    white-space: nowrap;
-    padding: 10px 10px;
+    width: 36px;
+    height: 42px;
+    padding: 0;
+    margin: 0;
     flex-shrink: 0;
+    font-size: 16px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* ========================================================
