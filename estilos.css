@@ -1180,20 +1180,23 @@ body.pizarra-libre-activa #menuArchivoDropdown .menu-solo-tactico {
 #app-wrapper.modo-full .plib-dropdown-dot[data-grosor="3"] { width: 8px;  height: 8px; }
 #app-wrapper.modo-full .plib-dropdown-dot[data-grosor="5"] { width: 13px; height: 13px; }
 #app-wrapper.modo-full .plib-dropdown-dot[data-grosor="8"] { width: 18px; height: 18px; }
-/* El panel de opciones flota por ENCIMA de la barra (no empuja el resto
-   de los controles) mientras el <details> está abierto. */
+/* El panel de opciones aparece EN LÍNEA, dentro de la misma fila con
+   scroll horizontal (no floreciendo por encima con position:absolute):
+   la barra en este layout tiene su propio recorte vertical -altura fija
+   calculada por ajustarAlturaBarras() + overflow-y:auto heredado de
+   #col-linea-tiempo-, así que cualquier panel que "flote" por encima
+   termina invisible/inclickeable detrás de ese recorte. En línea, en
+   cambio, nunca hay overflow vertical que lo tape: si no entra todo en
+   el ancho de pantalla, se llega scrolleando la fila para el costado,
+   igual que el resto de esta barra. */
 #app-wrapper.modo-full .plib-colores,
 #app-wrapper.modo-full .plib-grosores {
-    position: absolute;
-    bottom: 50px;
-    left: 0;
+    flex-shrink: 0;
+    gap: 6px;
     background: #1a1a1a;
     border: 1px solid #444;
     border-radius: 8px;
-    padding: 8px;
-    z-index: 20;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-    width: max-content;
+    padding: 6px 8px;
 }
 #app-wrapper.modo-full .plib-color-btn {
     width: 30px;
