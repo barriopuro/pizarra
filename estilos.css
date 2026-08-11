@@ -1018,13 +1018,34 @@ body.pizarra-libre-activa #menuArchivoDropdown .menu-solo-tactico {
     flex: 1;
     min-height: 0;
 }
-.plib-section-label {
+.plib-section-label-inline {
     font-size: 10px;
     color: #aaa;
     font-weight: bold;
     letter-spacing: 0.5px;
     text-transform: uppercase;
+}
+
+/* --- <details> de Color/Grosor: en PC quedan siempre expandidos (se ven
+   igual que una fila fija de toda la vida); en modo-full (celu/tablet)
+   se transforman en un desplegable compacto -ver más abajo-. La flechita
+   nativa del <summary> se saca en los dos casos: en PC porque no hace
+   falta (no es clickeable, JS le cancela el toggle), y en mobile porque
+   usamos nuestro propio "puntito" de color/grosor como indicador. --- */
+.plib-dropdown summary {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
     margin: 0 2px;
+}
+.plib-dropdown summary::-webkit-details-marker,
+.plib-dropdown summary::marker {
+    display: none;
+}
+.plib-dropdown-swatch,
+.plib-dropdown-dot {
+    display: none; /* solo se usan en el desplegable compacto de mobile */
 }
 .plib-colores {
     display: flex;
@@ -1069,30 +1090,94 @@ body.pizarra-libre-activa #menuArchivoDropdown .menu-solo-tactico {
     background: #c01c33 !important;
     color: #fff !important;
 }
+/* Ícono arriba / texto abajo, forzado por igual en Pincel y en Goma: sin
+   esto, el ancho distinto de cada emoji + palabra hace que uno de los
+   dos textos rompa línea y el otro no, dando una altura inconsistente
+   entre ambos botones. */
+.plib-tool-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    font-size: 15px;
+    line-height: 1;
+}
+.plib-tool-btn .plib-tool-text {
+    font-size: 9px;
+    font-weight: bold;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+}
 #plibLimpiarBtn {
     margin-top: auto;
 }
 
 /* --- Adaptación al layout horizontal de barras (Cancha Completa en
-   celu/tablet): una sola fila compacta, igual que el resto de la barra. --- */
+   celu/tablet): una sola fila compacta, igual que el resto de la barra.
+   Color y Grosor pasan de fila fija a desplegable real (<details>), para
+   no comerse todo el espacio disponible en una barra ya apretada. --- */
 #app-wrapper.modo-full #pizarra-libre-controls {
     flex-direction: row;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     flex-wrap: nowrap;
     overflow-x: auto;
     overflow-y: hidden;
 }
-#app-wrapper.modo-full .plib-section-label {
-    display: none;
-}
-#app-wrapper.modo-full .plib-colores,
-#app-wrapper.modo-full .plib-grosores {
+#app-wrapper.modo-full .plib-dropdown {
+    position: relative;
     flex-shrink: 0;
 }
+#app-wrapper.modo-full .plib-dropdown summary {
+    cursor: pointer;
+    background: #333;
+    border: 1px solid #444;
+    border-radius: 4px;
+    width: 40px;
+    height: 44px;
+    box-sizing: border-box;
+    justify-content: center;
+    margin: 0;
+}
+#app-wrapper.modo-full .plib-section-label-inline {
+    display: none; /* en mobile el "resumen" es el puntito de color/grosor, no la palabra */
+}
+#app-wrapper.modo-full .plib-dropdown-swatch {
+    display: block;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+}
+#app-wrapper.modo-full .plib-dropdown-dot {
+    display: block;
+    border-radius: 50%;
+    background: #ccc;
+}
+/* El puntito de grosor cambia de tamaño según el grosor elegido, para
+   que de un vistazo se note cuál está activo sin abrir el desplegable. */
+#app-wrapper.modo-full .plib-dropdown-dot[data-grosor="3"] { width: 8px;  height: 8px; }
+#app-wrapper.modo-full .plib-dropdown-dot[data-grosor="5"] { width: 13px; height: 13px; }
+#app-wrapper.modo-full .plib-dropdown-dot[data-grosor="8"] { width: 18px; height: 18px; }
+/* El panel de opciones flota por ENCIMA de la barra (no empuja el resto
+   de los controles) mientras el <details> está abierto. */
+#app-wrapper.modo-full .plib-colores,
+#app-wrapper.modo-full .plib-grosores {
+    position: absolute;
+    bottom: 50px;
+    left: 0;
+    background: #1a1a1a;
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 8px;
+    z-index: 20;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    width: max-content;
+}
 #app-wrapper.modo-full .plib-color-btn {
-    width: 26px;
-    height: 26px;
+    width: 30px;
+    height: 30px;
 }
 #app-wrapper.modo-full .plib-tool-text {
     display: none;
@@ -1102,6 +1187,7 @@ body.pizarra-libre-activa #menuArchivoDropdown .menu-solo-tactico {
     width: 40px;
     flex: 0 0 auto;
 }
+#app-wrapper.modo-full #plibExportarBtn,
 #app-wrapper.modo-full #plibLimpiarBtn {
     margin-top: 0;
     width: auto;
@@ -1109,6 +1195,57 @@ body.pizarra-libre-activa #menuArchivoDropdown .menu-solo-tactico {
     white-space: nowrap;
     padding: 10px 10px;
     flex-shrink: 0;
+}
+
+/* ========================================================
+   MENÚS FLOTANTES DEL MODO PIZARRA RÁPIDA (item 6)
+   Aparecen, cada uno de forma independiente, cuando la barra
+   correspondiente queda oculta mientras el modo está activo.
+   ======================================================== */
+.floating-menu-mini {
+    position: absolute;
+    bottom: 15px;
+    z-index: 999;
+    background: rgba(26, 26, 26, 0.85);
+    padding: 6px;
+    border-radius: 8px;
+    border: 1px solid #444;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    backdrop-filter: blur(4px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px) scale(0.94);
+    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0s linear 0.2s;
+}
+.floating-menu-mini.abierto {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0s linear 0s;
+}
+.floating-menu-mini.pos-izq { left: 15px; }
+.floating-menu-mini.pos-der { right: 15px; }
+.plib-tool-btn-mini {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    font-size: 16px;
+    border-radius: 5px;
+}
+.floating-colores {
+    display: flex;
+    gap: 4px;
+    padding-left: 6px;
+    margin-left: 2px;
+    border-left: 1px solid #555;
+}
+.floating-colores .plib-color-btn {
+    width: 22px;
+    height: 22px;
 }
 
 

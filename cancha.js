@@ -736,7 +736,12 @@ function lienzoActivo() {
 function dibujarTrazoLibre(ctxDestino, trazo) {
     const pts = trazo.puntos;
     if (!pts || pts.length === 0) return;
-    const ancho = trazo.grosor * sF;
+    // A propósito SIN *sF: el grosor debe verse igual sea cual sea el
+    // modo de cancha activo (Completa/Media) o el tamaño de pantalla -es
+    // un ancho de trazo "de marcador", no un elemento táctico que deba
+    // guardar proporción con el tamaño de la cancha, como sí lo son los
+    // jugadores (radius = 15*sF)-.
+    const ancho = trazo.grosor;
 
     ctxDestino.save();
     ctxDestino.strokeStyle = trazo.color;

@@ -479,8 +479,18 @@ function changeCourtMode() {
     actualizarClaseModoFull();
     if (appWrapper) appWrapper.style.display = 'none';
     [colIzqCont, colDerCont].forEach(cont => {
-        if (cont) { cont.classList.remove('colapsado'); cont.style.height = ''; cont.style.maxHeight = ''; }
+        if (!cont) return;
+        // En Modo Táctico, cambiar de cancha siempre vuelve a mostrar
+        // ambas barras (reorienta al usuario tras un cambio grande). En
+        // Pizarra Rápida, en cambio, respetamos tal cual el estado de
+        // colapso que tenía cada barra: si estaba oculta para tener más
+        // lugar para dibujar, debe seguir oculta después del cambio.
+        if (!modoPizarraRapida) cont.classList.remove('colapsado');
+        cont.style.height = ''; cont.style.maxHeight = '';
     });
+    sincronizarIconoSolapa('izq');
+    sincronizarIconoSolapa('der');
+    verificarMenuFlotante();
     requestAnimationFrame(() => {
         [colIzqCont, colDerCont].forEach(c => { if (c) c.classList.remove('sin-transicion'); });
     });
@@ -695,28 +705,16 @@ function backToEdit() {
 // SOLAPAS LATERALES
 // --------------------------------------------------------
 
-function verificarMenuFlotante() {
-    const derEscondido = document.getElementById('col-linea-tiempo-container')
-        .classList.contains('colapsado');
-    const menuFlotante = document.getElementById('fullscreen-floating-menu');
-    if (menuFlotante) {
-        // El menú flotante de Play/Loop/Editar es puramente táctico: no
-        // tiene sentido mostrarlo en Pizarra Rápida aunque ambas barras
-        // estén colapsadas.
-        menuFlotante.classList.toggle('abierto', !modoPizarraRapida && isEditionFinished && derEscondido);
-    }
-}
-
-function toggleSidebar(lado) {
-    const contenedor = document.getElementById(
-        lado === 'izq' ? 'col-izquierda-container' : 'col-linea-tiempo-container'
-    );
-    const boton = document.getElementById(lado === 'izq' ? 'solapa-izq' : 'solapa-der');
+// Actualiza el ícono (▶◀ o ▲▼, según el layout activo) de la solapa que
+// colapsa/expande una barra, sin tocar el estado de colapso en sí.
+// Separado de toggleSidebar() para poder reusarlo también después de un
+// cambio de modo de cancha (que puede alterar qué layout corresponde sin
+// que el usuario haya tocado la solapa).
+function sincronizarIconoSolapa(lado) {
+    const contenedor = document.getElementById(lado === 'izq' ? 'col-izquierda-container' : 'col-linea-tiempo-container');
+    const boton      = document.getElementById(lado === 'izq' ? 'solapa-izq' : 'solapa-der');
     if (!contenedor || !boton) return;
-
-    contenedor.classList.toggle('colapsado');
     const colapsado = contenedor.classList.contains('colapsado');
-
     if (esLayoutFullVertical()) {
         if (lado === 'izq') boton.innerText = colapsado ? "▼" : "▲";
         else                boton.innerText = colapsado ? "▲" : "▼";
@@ -724,7 +722,40 @@ function toggleSidebar(lado) {
         if (lado === 'izq') boton.innerText = colapsado ? "▶" : "◀";
         else                boton.innerText = colapsado ? "◀" : "▶";
     }
+}
 
+function verificarMenuFlotante() {
+    const izqCont = document.getElementById('col-izquierda-container');
+    const derCont = document.getElementById('col-linea-tiempo-container');
+    const izqEscondido = izqCont ? izqCont.classList.contains('colapsado') : false;
+    const derEscondido = derCont ? derCont.classList.contains('colapsado') : false;
+
+    const menuFlotante = document.getElementById('fullscreen-floating-menu');
+    if (menuFlotante) {
+        // El menú flotante de Play/Loop/Editar es puramente táctico: no
+        // tiene sentido mostrarlo en Pizarra Rápida aunque ambas barras
+        // estén colapsadas.
+        menuFlotante.classList.toggle('abierto', !modoPizarraRapida && isEditionFinished && derEscondido);
+    }
+
+    // Modo Pizarra Rápida: si una barra queda oculta, sus controles
+    // imprescindibles reaparecen como un mini menú flotante, para no
+    // perder acceso a la herramienta activa mientras se dibuja a
+    // pantalla completa. Cada uno es independiente del otro.
+    const floatIzq = document.getElementById('floatMenuIzqLibre');
+    const floatDer = document.getElementById('floatMenuDerLibre');
+    if (floatIzq) floatIzq.classList.toggle('abierto', modoPizarraRapida && izqEscondido);
+    if (floatDer) floatDer.classList.toggle('abierto', modoPizarraRapida && derEscondido);
+}
+
+function toggleSidebar(lado) {
+    const contenedor = document.getElementById(
+        lado === 'izq' ? 'col-izquierda-container' : 'col-linea-tiempo-container'
+    );
+    if (!contenedor) return;
+
+    contenedor.classList.toggle('colapsado');
+    sincronizarIconoSolapa(lado);
     verificarMenuFlotante();
 
     // Esperamos a que termine la transición CSS para recalcular el canvas
@@ -928,6 +959,18 @@ function aplicarModoPizarraLibre() {
 
     actualizarHerramientaUI();
     redibujarLienzoLibre();
+
+    // En el layout compacto de mobile, los desplegables de Color/Grosor
+    // arrancan cerrados (si no, la barra se abre ya ocupada); en PC no
+    // corresponde tocarlos: ahí quedan siempre expandidos.
+    const enModoFull = appWrapper && appWrapper.classList.contains('modo-full');
+    if (enModoFull) {
+        const cd = document.getElementById('plibColoresDetails');
+        const gd = document.getElementById('plibGrosoresDetails');
+        if (cd) cd.open = false;
+        if (gd) gd.open = false;
+    }
+
     draw();               // refresca el canvas táctico (oculta/muestra fichas)
     updateStepUI();        // restaura/oculta según corresponda (ver updateStepUI)
     updateFloatingUI();
@@ -937,28 +980,42 @@ function aplicarModoPizarraLibre() {
 
 // --- SELECCIÓN DE COLOR / GROSOR / HERRAMIENTA ---
 
-function elegirColorTrazo(color, btnEl) {
+function elegirColorTrazo(color) {
     colorTrazoActivo = color;
-    document.querySelectorAll('.plib-color-btn').forEach(b => b.classList.remove('activo'));
-    if (btnEl) btnEl.classList.add('activo');
+    // Por data-color (no por el botón clickeado): el mismo color existe
+    // duplicado en la barra derecha Y en el menú flotante, y ambos deben
+    // quedar en sincro sin importar desde cuál de los dos se eligió.
+    document.querySelectorAll('.plib-color-btn').forEach(b => {
+        b.classList.toggle('activo', b.dataset.color === color);
+    });
+    // El puntito del desplegable compacto (mobile) también refleja el
+    // color elegido, para poder verlo de un vistazo sin abrirlo.
+    const resumen = document.getElementById('plibColorSummarySwatch');
+    if (resumen) resumen.style.background = color;
     // Elegir un color da a entender que se quiere dibujar: si estábamos
     // con la goma puesta, volvemos solos al pincel (como agarrar un
     // fibrón de color en la mano).
     elegirHerramienta('pincel');
 }
 
-function elegirGrosorTrazo(valor, btnEl) {
+function elegirGrosorTrazo(valor) {
     grosorTrazoActivo = valor;
-    document.querySelectorAll('.plib-grosor-btn').forEach(b => b.classList.remove('activo'));
-    if (btnEl) btnEl.classList.add('activo');
+    document.querySelectorAll('.plib-grosor-btn').forEach(b => {
+        b.classList.toggle('activo', Number(b.dataset.grosor) === valor);
+    });
+    const resumen = document.getElementById('plibGrosorSummaryDot');
+    if (resumen) resumen.dataset.grosor = String(valor);
 }
 
 function elegirHerramienta(herramienta) {
     herramientaActiva = herramienta; // 'pincel' | 'goma'
-    const pincelBtn = document.getElementById('plibPincelBtn');
-    const gomaBtn   = document.getElementById('plibGomaBtn');
-    if (pincelBtn) pincelBtn.classList.toggle('activo', herramienta === 'pincel');
-    if (gomaBtn)   gomaBtn.classList.toggle('activo',   herramienta === 'goma');
+    // querySelectorAll en vez de IDs fijos: así sincroniza por igual los
+    // botones de la barra derecha Y los del menú flotante (mismo atributo
+    // data-herramienta en ambos), sin tener que mantener dos copias de
+    // esta función.
+    document.querySelectorAll('[data-herramienta]').forEach(b => {
+        b.classList.toggle('activo', b.dataset.herramienta === herramienta);
+    });
     if (drawCanvas) drawCanvas.style.cursor = (herramienta === 'goma') ? 'cell' : 'crosshair';
 }
 
@@ -972,6 +1029,10 @@ function actualizarHerramientaUI() {
     document.querySelectorAll('.plib-grosor-btn').forEach(b => {
         b.classList.toggle('activo', Number(b.dataset.grosor) === grosorTrazoActivo);
     });
+    const resumenColor = document.getElementById('plibColorSummarySwatch');
+    if (resumenColor) resumenColor.style.background = colorTrazoActivo;
+    const resumenGrosor = document.getElementById('plibGrosorSummaryDot');
+    if (resumenGrosor) resumenGrosor.dataset.grosor = String(grosorTrazoActivo);
 }
 
 // --- LIMPIAR PIZARRA (borra todos los trazos del lienzo activo) ---
@@ -987,6 +1048,63 @@ function limpiarPizarraLibreActiva() {
     trazoActual = null;
     redibujarLienzoLibre();
     actualizarBotonesUndoRedo();
+}
+
+// --- DESPLEGABLES DE COLOR/GROSOR (<details>) ---
+// En PC quedan siempre expandidos (el atributo `open` ya los muestra
+// así); acá solo les cancelamos el toggle nativo para que un clic en el
+// resumen no los llegue a cerrar. En mobile (modo-full) si dejamos que
+// se comporten como un <details> normal: clic en el resumen abre/cierra,
+// y clic afuera los cierra (esto último no es nativo, lo agregamos).
+document.querySelectorAll('.plib-dropdown > summary').forEach(resumen => {
+    resumen.addEventListener('click', (e) => {
+        const appWrapper = document.getElementById('app-wrapper');
+        const enModoFull = appWrapper && appWrapper.classList.contains('modo-full');
+        if (!enModoFull) e.preventDefault(); // en PC no hay nada que abrir/cerrar
+    });
+});
+document.addEventListener('click', (e) => {
+    document.querySelectorAll('.plib-dropdown[open]').forEach(det => {
+        const appWrapper = document.getElementById('app-wrapper');
+        const enModoFull = appWrapper && appWrapper.classList.contains('modo-full');
+        if (enModoFull && !det.contains(e.target)) det.open = false;
+    });
+});
+
+// --- EXPORTAR IMAGEN (Modo Pizarra Rápida) ---
+// Las líneas de la cancha viven en el SVG (#court-layer), no en el
+// canvas: para exportar una imagen completa armamos, sobre el mismo
+// canvas que usa la app, un frame "quemado" con cancha + logo + trazos
+// -igual que ya se hace para el video (ver drawCourtOnCanvas)-, lo
+// exportamos, y volvemos a dejar todo como estaba (draw() restaura la
+// vista normal, con las líneas otra vez a cargo del SVG).
+function exportarImagenPizarra() {
+    const btn = document.getElementById('plibExportarBtn');
+    if (btn) { btn.disabled = true; btn.style.opacity = "0.6"; }
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#c19a6b";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    drawParquetTexture();
+    drawCourtOnCanvas();
+    drawLogo();
+    lienzoActivo().trazos.forEach(t => dibujarTrazoLibre(ctx, t));
+
+    let dataUrl = null;
+    try {
+        dataUrl = canvas.toDataURL('image/png');
+    } catch (err) {
+        alert("Error al generar la imagen: " + err.message);
+    }
+
+    draw(); // vuelve a la vista normal (SVG a cargo de las líneas otra vez)
+    if (btn) { btn.disabled = false; btn.style.opacity = "1"; }
+    if (!dataUrl) return;
+
+    const a = document.createElement('a');
+    a.href     = dataUrl;
+    a.download = 'pizarra_oeste.png';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }
 
 // --------------------------------------------------------

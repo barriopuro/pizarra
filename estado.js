@@ -80,8 +80,9 @@ let redoStack = [];
 // desactivar.
 let modoPizarraRapida = false;
 
-// Herramienta y estilo de trazo actualmente seleccionados.
-let colorTrazoActivo  = "#ffffff";
+// Herramienta y estilo de trazo actualmente seleccionados. Negro por
+// defecto: el blanco se confunde con las líneas de la cancha.
+let colorTrazoActivo  = "#000000";
 let grosorTrazoActivo = 5;
 let herramientaActiva = 'pincel'; // 'pincel' | 'goma'
 

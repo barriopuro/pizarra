@@ -299,7 +299,9 @@ window.addEventListener('touchend',   handleEnd);
 // (que usa canvas.getBoundingClientRect()) sirve tal cual para ubicar el
 // puntero también sobre el lienzo de dibujo libre.
 
-const RADIO_GOMA = 18; // px lógicos (se escala con sF), umbral de "contacto" de la goma
+const RADIO_GOMA = 18; // px lógicos, umbral de "contacto" de la goma (fijo,
+                        // no *sF, por la misma razón que el grosor del pincel:
+                        // debe sentirse igual en cualquier modo de cancha)
 
 function handleDrawStart(e) {
     if (!modoPizarraRapida) return;
@@ -361,7 +363,7 @@ function handleDrawEnd() {
 // borrar píxel por píxel.
 function borrarTrazosEnPunto(pos) {
     const l = lienzoActivo();
-    const radio = RADIO_GOMA * sF;
+    const radio = RADIO_GOMA;
     const antes = l.trazos.length;
 
     l.trazos = l.trazos.filter(t => {
