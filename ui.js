@@ -899,7 +899,7 @@ async function playFullPlay(loopMode) {
 
                     [...players, ball].forEach(p => {
                         if (!p.steps[i]) return;
-                        const s = p.steps[i];
+                        const s = pathEfectivo(p, i);
                         if (s.length === 0) return;
 
                         // La pelota omite su path propio SOLO si no tiene recorrido
@@ -1305,7 +1305,7 @@ async function exportVideo() {
 
                 [...players, ball].forEach(p => {
                     if (!p.steps[i]) return;
-                    const s = p.steps[i]; if (s.length === 0) return;
+                    const s = pathEfectivo(p, i); if (s.length === 0) return;
 
                     // Misma lógica que playFullPlay: pelota sin recorrido → la pinta _render()
                     if (p === ball && imantadoA && s.length <= 1) return;

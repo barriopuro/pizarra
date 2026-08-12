@@ -454,6 +454,38 @@ function getBallDrawPos(stepIdx) {
     return null;
 }
 
+// --------------------------------------------------------
+// ORIGEN DINÁMICO DE CADA PASO
+// --------------------------------------------------------
+// Cada paso guarda su propio recorrido (steps[paso]): el ÚLTIMO punto es
+// el destino de ese paso (un waypoint absoluto, fijo, editable de forma
+// independiente). El PRIMER punto, en cambio, NO se trata como un valor
+// guardado y fijo: esta función lo recalcula siempre, en el momento de
+// dibujar o animar, a partir de la posición real de ese jugador (o de la
+// pelota) al FINAL del paso anterior. Así, si se edita un paso intermedio,
+// el paso siguiente arranca automáticamente desde ahí -sin "saltos"-, sin
+// necesidad de tocar ni guardar nada en los pasos posteriores. El resto
+// del recorrido (la forma ya dibujada, el destino) se devuelve intacto.
+function pathEfectivo(obj, paso) {
+    const original = obj.steps[paso];
+    if (!original || original.length === 0 || paso === 0) return original;
+
+    let origen;
+    if (obj === ball) {
+        origen = getBallDrawPos(paso - 1);
+    } else {
+        const anterior = obj.steps[paso - 1];
+        origen = (anterior && anterior.length > 0)
+            ? { x: anterior[anterior.length - 1].x, y: anterior[anterior.length - 1].y }
+            : null;
+    }
+    if (!origen) return original;
+
+    const primero      = original[0];
+    const nuevoPrimero  = { x: origen.x, y: origen.y, isScreen: primero.isScreen, angle: primero.angle };
+    return original.length === 1 ? [nuevoPrimero] : [nuevoPrimero, ...original.slice(1)];
+}
+
 // Helper animación: posición de la pelota en modo reproducción.
 // Si la pelota tiene recorrido propio (ax/ay seteados por el interpolador), lo usa.
 // Si no (un único punto, siempre pegada), deriva la posición del jugador portador.
@@ -534,7 +566,7 @@ function _render(modoAnim, paraVideo) {
                 if (!path || path.length === 0) return;
                 // Trazo: solo si hay desplazamiento real (más de 1 punto)
                 if (si > 0 && path.length > 1) {
-                    drawSmoothPath(path, color, esPasoActual ? 3.5*sF : 2*sF, false);
+                    drawSmoothPath(pathEfectivo(p, si), color, esPasoActual ? 3.5*sF : 2*sF, false);
                 }
                 // Fantasma en pasos anteriores (no en el actual)
                 if (!modoAnim && !esPasoActual) {
@@ -560,7 +592,7 @@ function _render(modoAnim, paraVideo) {
                 // Siempre dibujamos el trazo propio de la pelota si tiene recorrido,
                 // tanto si está suelta como si al final del path se imantó a un jugador.
                 if (bPath && si > 0 && bPath.length > 1) {
-                    drawSmoothPath(bPath, color, esPasoActual ? 3.5*sF : 2*sF, true);
+                    drawSmoothPath(pathEfectivo(ball, si), color, esPasoActual ? 3.5*sF : 2*sF, true);
                 }
                 // Fantasma de posición final en pasos anteriores
                 if (!modoAnim && !esPasoActual) {
@@ -620,8 +652,11 @@ function _render(modoAnim, paraVideo) {
             }
             // Trazo del paso activo (si arrancó fuera de foco -recién
             // "traído" de un minicírculo- no arrastramos una línea gigante)
-            if (currentStep > 0 && path.length > 1 && path[0].y <= canvas.height) {
-                drawSmoothPath(path, activeColor, 3.5*sF, false);
+            if (currentStep > 0 && path.length > 1) {
+                const trazo = pathEfectivo(p, currentStep);
+                if (trazo[0].y <= canvas.height) {
+                    drawSmoothPath(trazo, activeColor, 3.5*sF, false);
+                }
             }
         }
 
@@ -672,7 +707,7 @@ function _render(modoAnim, paraVideo) {
 
                 // Trazo de la pelota suelta en el paso activo
                 if (currentStep > 0 && ball.steps[currentStep].length > 1) {
-                    drawSmoothPath(ball.steps[currentStep], activeColor, 3.5*sF, true);
+                    drawSmoothPath(pathEfectivo(ball, currentStep), activeColor, 3.5*sF, true);
                 }
             } else {
                 const pos = getBallDrawPos(currentStep);
