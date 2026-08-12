@@ -1041,35 +1041,15 @@ body.pizarra-libre-activa #menuArchivoDropdown .menu-solo-tactico {
     flex: 1;
     min-height: 0;
 }
-.plib-section-label-inline {
+.plib-section-label {
     font-size: 10px;
     color: #aaa;
     font-weight: bold;
     letter-spacing: 0.5px;
     text-transform: uppercase;
-}
-
-/* --- <details> de Color/Grosor: en PC quedan siempre expandidos (se ven
-   igual que una fila fija de toda la vida); en modo-full (celu/tablet)
-   se transforman en un desplegable compacto -ver más abajo-. La flechita
-   nativa del <summary> se saca en los dos casos: en PC porque no hace
-   falta (no es clickeable, JS le cancela el toggle), y en mobile porque
-   usamos nuestro propio "puntito" de color/grosor como indicador. --- */
-.plib-dropdown summary {
-    list-style: none;
-    display: flex;
-    align-items: center;
-    gap: 6px;
     margin: 0 2px;
 }
-.plib-dropdown summary::-webkit-details-marker,
-.plib-dropdown summary::marker {
-    display: none;
-}
-.plib-dropdown-swatch,
-.plib-dropdown-dot {
-    display: none; /* solo se usan en el desplegable compacto de mobile */
-}
+
 .plib-colores {
     display: flex;
     gap: 8px;
@@ -1087,27 +1067,6 @@ body.pizarra-libre-activa #menuArchivoDropdown .menu-solo-tactico {
 .plib-color-btn.activo {
     border-color: #fff;
     box-shadow: 0 0 0 2px #c01c33;
-}
-.plib-grosores {
-    display: flex;
-    gap: 6px;
-    padding: 0 2px;
-}
-.plib-grosor-btn {
-    flex: 1 1 0;
-    background: #333;
-    color: #ddd;
-    border: 1px solid #444;
-    padding: 8px 2px;
-    font-size: 13px;
-}
-.plib-grosor-btn:nth-child(1) { font-size: 8px; }
-.plib-grosor-btn:nth-child(2) { font-size: 13px; }
-.plib-grosor-btn:nth-child(3) { font-size: 18px; }
-.plib-grosor-btn.activo {
-    background: #c01c33;
-    color: #fff;
-    border-color: #ff4444;
 }
 .plib-tool-btn.activo {
     background: #c01c33 !important;
@@ -1147,6 +1106,19 @@ body.pizarra-libre-activa #menuArchivoDropdown .menu-solo-tactico {
    está abierto o cerrado -nada dentro de la fila puede superar esa altura,
    así que nunca hace falta scroll vertical, solo el horizontal (esperable,
    son varias herramientas en poco ancho de pantalla)-. */
+/* --- Adaptación al layout horizontal de barras (Cancha Completa en
+   celu/tablet): una sola fila compacta, igual que el resto de la barra.
+   Ya no hay <details>/desplegable: Color queda siempre visible, en línea,
+   con la misma fila con scroll horizontal que el resto de la barra -se
+   sacó ese mecanismo porque el estado abierto/cerrado quedaba pegado al
+   cambiar entre Cancha Completa y Media Cancha, haciendo que el panel
+   pareciera "desaparecer". Menos partes móviles, menos bugs.
+
+   TODOS los "chips" de esta fila (Color, Pincel, Goma, Exportar, Limpiar)
+   comparten la MISMA altura fija (42px) a propósito: así la fila entera
+   también puede ser de altura fija, y nunca hace falta scroll vertical,
+   solo el horizontal (esperable, son varias herramientas en poco ancho
+   de pantalla). */
 #app-wrapper.modo-full #pizarra-libre-controls {
     flex-direction: row;
     align-items: center;
@@ -1157,14 +1129,8 @@ body.pizarra-libre-activa #menuArchivoDropdown .menu-solo-tactico {
     overflow-x: auto;
     overflow-y: hidden;
 }
-#app-wrapper.modo-full .plib-dropdown {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 6px;
-    position: relative;
-    flex-shrink: 0;
-    height: 42px;
+#app-wrapper.modo-full .plib-section-label {
+    display: none; /* en mobile el color ya se distingue solo (no hace falta la palabra) */
 }
 /* .icon-row trae width:100% y margin-bottom pensados para la fila
    vertical de PC; acá adentro de la fila horizontal hay que anularlos,
@@ -1175,53 +1141,11 @@ body.pizarra-libre-activa #menuArchivoDropdown .menu-solo-tactico {
     flex-shrink: 0;
     gap: 6px;
 }
-#app-wrapper.modo-full .plib-dropdown summary {
-    cursor: pointer;
-    background: #333;
-    border: 1px solid #444;
-    border-radius: 6px;
-    width: 36px;
-    height: 42px;
-    box-sizing: border-box;
-    justify-content: center;
-    margin: 0;
-}
-#app-wrapper.modo-full .plib-section-label-inline {
-    display: none; /* en mobile el "resumen" es el puntito de color/grosor, no la palabra */
-}
-#app-wrapper.modo-full .plib-dropdown-swatch {
-    display: block;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    border: 2px solid #fff;
-}
-#app-wrapper.modo-full .plib-dropdown-dot {
-    display: block;
-    border-radius: 50%;
-    background: #ccc;
-}
-/* El puntito de grosor cambia de tamaño según el grosor elegido, para
-   que de un vistazo se note cuál está activo sin abrir el desplegable. */
-#app-wrapper.modo-full .plib-dropdown-dot[data-grosor="3"] { width: 7px;  height: 7px; }
-#app-wrapper.modo-full .plib-dropdown-dot[data-grosor="5"] { width: 11px; height: 11px; }
-#app-wrapper.modo-full .plib-dropdown-dot[data-grosor="8"] { width: 16px; height: 16px; }
-/* El panel de opciones aparece EN LÍNEA, dentro de la misma fila con
-   scroll horizontal (no flotando por encima con position:absolute): la
-   barra en este layout tiene su propio recorte vertical -altura fija
-   calculada por ajustarAlturaBarras() + overflow-y:auto heredado de
-   #col-linea-tiempo-, así que cualquier panel que "flote" por encima
-   termina invisible/inclickeable detrás de ese recorte. En línea, en
-   cambio, nunca hay overflow vertical que lo tape: si no entra todo en
-   el ancho de pantalla, se llega scrolleando la fila para el costado,
-   igual que el resto de esta barra. Su altura (26px + padding = 40px)
-   queda siempre por debajo de los 42px de la fila, para que abrir un
-   desplegable nunca la haga crecer ni pida scroll vertical. */
-#app-wrapper.modo-full .plib-colores,
-#app-wrapper.modo-full .plib-grosores {
+#app-wrapper.modo-full .plib-colores {
     flex-shrink: 0;
     height: 40px;
     box-sizing: border-box;
+    align-items: center;
     gap: 5px;
     background: #1a1a1a;
     border: 1px solid #444;
@@ -1231,13 +1155,6 @@ body.pizarra-libre-activa #menuArchivoDropdown .menu-solo-tactico {
 #app-wrapper.modo-full .plib-color-btn {
     width: 26px;
     height: 26px;
-}
-#app-wrapper.modo-full .plib-grosor-btn {
-    padding: 0 6px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 #app-wrapper.modo-full .plib-tool-text,
 #app-wrapper.modo-full .plib-btn-text {

@@ -1034,17 +1034,6 @@ function aplicarModoPizarraLibre() {
     actualizarHerramientaUI();
     redibujarLienzoLibre();
 
-    // En el layout compacto de mobile, los desplegables de Color/Grosor
-    // arrancan cerrados (si no, la barra se abre ya ocupada); en PC no
-    // corresponde tocarlos: ahí quedan siempre expandidos.
-    const enModoFull = appWrapper && appWrapper.classList.contains('modo-full');
-    if (enModoFull) {
-        const cd = document.getElementById('plibColoresDetails');
-        const gd = document.getElementById('plibGrosoresDetails');
-        if (cd) cd.open = false;
-        if (gd) gd.open = false;
-    }
-
     draw();               // refresca el canvas táctico (oculta/muestra fichas)
     updateStepUI();        // restaura/oculta según corresponda (ver updateStepUI)
     updateFloatingUI();
@@ -1052,7 +1041,9 @@ function aplicarModoPizarraLibre() {
     attachButtonSounds();
 }
 
-// --- SELECCIÓN DE COLOR / GROSOR / HERRAMIENTA ---
+// --- SELECCIÓN DE COLOR / HERRAMIENTA ---
+// (El grosor de trazo se simplificó a un único valor medio fijo -ver
+// grosorTrazoActivo en estado.js-, ya no hay selector para elegirlo.)
 
 function elegirColorTrazo(color) {
     colorTrazoActivo = color;
@@ -1062,23 +1053,10 @@ function elegirColorTrazo(color) {
     document.querySelectorAll('.plib-color-btn').forEach(b => {
         b.classList.toggle('activo', b.dataset.color === color);
     });
-    // El puntito del desplegable compacto (mobile) también refleja el
-    // color elegido, para poder verlo de un vistazo sin abrirlo.
-    const resumen = document.getElementById('plibColorSummarySwatch');
-    if (resumen) resumen.style.background = color;
     // Elegir un color da a entender que se quiere dibujar: si estábamos
     // con la goma puesta, volvemos solos al pincel (como agarrar un
     // fibrón de color en la mano).
     elegirHerramienta('pincel');
-}
-
-function elegirGrosorTrazo(valor) {
-    grosorTrazoActivo = valor;
-    document.querySelectorAll('.plib-grosor-btn').forEach(b => {
-        b.classList.toggle('activo', Number(b.dataset.grosor) === valor);
-    });
-    const resumen = document.getElementById('plibGrosorSummaryDot');
-    if (resumen) resumen.dataset.grosor = String(valor);
 }
 
 function elegirHerramienta(herramienta) {
@@ -1093,20 +1071,13 @@ function elegirHerramienta(herramienta) {
     if (drawCanvas) drawCanvas.style.cursor = (herramienta === 'goma') ? 'cell' : 'crosshair';
 }
 
-// Sincroniza los botones de color/grosor/herramienta con el estado
-// actual (hace falta al reactivar el modo, o al cambiar de cara).
+// Sincroniza los botones de color/herramienta con el estado actual (hace
+// falta al reactivar el modo, o al cambiar de cara).
 function actualizarHerramientaUI() {
     elegirHerramienta(herramientaActiva);
     document.querySelectorAll('.plib-color-btn').forEach(b => {
         b.classList.toggle('activo', b.dataset.color === colorTrazoActivo);
     });
-    document.querySelectorAll('.plib-grosor-btn').forEach(b => {
-        b.classList.toggle('activo', Number(b.dataset.grosor) === grosorTrazoActivo);
-    });
-    const resumenColor = document.getElementById('plibColorSummarySwatch');
-    if (resumenColor) resumenColor.style.background = colorTrazoActivo;
-    const resumenGrosor = document.getElementById('plibGrosorSummaryDot');
-    if (resumenGrosor) resumenGrosor.dataset.grosor = String(grosorTrazoActivo);
 }
 
 // --- LIMPIAR PIZARRA (borra todos los trazos del lienzo activo) ---
@@ -1123,27 +1094,6 @@ function limpiarPizarraLibreActiva() {
     redibujarLienzoLibre();
     actualizarBotonesUndoRedo();
 }
-
-// --- DESPLEGABLES DE COLOR/GROSOR (<details>) ---
-// En PC quedan siempre expandidos (el atributo `open` ya los muestra
-// así); acá solo les cancelamos el toggle nativo para que un clic en el
-// resumen no los llegue a cerrar. En mobile (modo-full) si dejamos que
-// se comporten como un <details> normal: clic en el resumen abre/cierra,
-// y clic afuera los cierra (esto último no es nativo, lo agregamos).
-document.querySelectorAll('.plib-dropdown > summary').forEach(resumen => {
-    resumen.addEventListener('click', (e) => {
-        const appWrapper = document.getElementById('app-wrapper');
-        const enModoFull = appWrapper && appWrapper.classList.contains('modo-full');
-        if (!enModoFull) e.preventDefault(); // en PC no hay nada que abrir/cerrar
-    });
-});
-document.addEventListener('click', (e) => {
-    document.querySelectorAll('.plib-dropdown[open]').forEach(det => {
-        const appWrapper = document.getElementById('app-wrapper');
-        const enModoFull = appWrapper && appWrapper.classList.contains('modo-full');
-        if (enModoFull && !det.contains(e.target)) det.open = false;
-    });
-});
 
 // --- EXPORTAR IMAGEN (Modo Pizarra Rápida) ---
 // Las líneas de la cancha viven en el SVG (#court-layer), no en el

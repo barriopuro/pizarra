@@ -90,7 +90,7 @@ let modoPizarraRapida = false;
 // Herramienta y estilo de trazo actualmente seleccionados. Negro por
 // defecto: el blanco se confunde con las líneas de la cancha.
 let colorTrazoActivo  = "#000000";
-let grosorTrazoActivo = 5;
+let grosorTrazoActivo = 5; // grosor único (medio), ya no es seleccionable
 let herramientaActiva = 'pincel'; // 'pincel' | 'goma'
 
 // Trazo que se está dibujando en este momento (mientras dura el

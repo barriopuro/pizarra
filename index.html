@@ -278,36 +278,20 @@
             <!-- Controles de dibujo libre (Modo Pizarra Rápida). Ocultos por
                  defecto: aparecen en lugar de #steps-container/#actions-timeline
                  cuando #app-wrapper tiene la clase pizarra-libre-activa.
-                 Los desplegables quedan SIEMPRE abiertos en PC (se les saca la
-                 flechita nativa vía CSS/JS y se ven como una fila fija, igual
-                 que antes); en el modo compacto de celu/tablet (modo-full)
-                 se convierten en un desplegable real para no ocupar tanto
-                 lugar en una barra ya apretada. -->
+                 Sin selector de grosor (se simplificó a un único grosor
+                 medio fijo) y sin desplegable para el color: fila simple,
+                 siempre visible, igual en PC y en mobile -se sacó el
+                 mecanismo de desplegable colapsable porque en la práctica
+                 quedaba en un estado inconsistente (cerrado) al cambiar
+                 entre Cancha Completa y Media Cancha. -->
             <div id="pizarra-libre-controls">
-                <details class="plib-dropdown" id="plibColoresDetails" open>
-                    <summary>
-                        <span class="plib-section-label-inline">Color</span>
-                        <span id="plibColorSummarySwatch" class="plib-dropdown-swatch" style="background:#000000;"></span>
-                    </summary>
-                    <div id="plibColores" class="plib-colores">
-                        <button class="plib-color-btn snd-btn activo" data-color="#000000" style="background:#000000;" onclick="elegirColorTrazo('#000000')" title="Negro"></button>
-                        <button class="plib-color-btn snd-btn" data-color="#c01c33" style="background:#c01c33;" onclick="elegirColorTrazo('#c01c33')" title="Rojo"></button>
-                        <button class="plib-color-btn snd-btn" data-color="#0044CC" style="background:#0044CC;" onclick="elegirColorTrazo('#0044CC')" title="Azul"></button>
-                        <button class="plib-color-btn snd-btn" data-color="#ffc107" style="background:#ffc107;" onclick="elegirColorTrazo('#ffc107')" title="Amarillo"></button>
-                    </div>
-                </details>
-
-                <details class="plib-dropdown" id="plibGrosoresDetails" open>
-                    <summary>
-                        <span class="plib-section-label-inline">Grosor</span>
-                        <span id="plibGrosorSummaryDot" class="plib-dropdown-dot" data-grosor="5"></span>
-                    </summary>
-                    <div id="plibGrosores" class="plib-grosores">
-                        <button class="plib-grosor-btn snd-btn" data-grosor="3" onclick="elegirGrosorTrazo(3)" title="Fino">●</button>
-                        <button class="plib-grosor-btn snd-btn activo" data-grosor="5" onclick="elegirGrosorTrazo(5)" title="Medio">●</button>
-                        <button class="plib-grosor-btn snd-btn" data-grosor="8" onclick="elegirGrosorTrazo(8)" title="Grueso">●</button>
-                    </div>
-                </details>
+                <div class="plib-section-label">Color</div>
+                <div id="plibColores" class="plib-colores">
+                    <button class="plib-color-btn snd-btn activo" data-color="#000000" style="background:#000000;" onclick="elegirColorTrazo('#000000')" title="Negro"></button>
+                    <button class="plib-color-btn snd-btn" data-color="#c01c33" style="background:#c01c33;" onclick="elegirColorTrazo('#c01c33')" title="Rojo"></button>
+                    <button class="plib-color-btn snd-btn" data-color="#0044CC" style="background:#0044CC;" onclick="elegirColorTrazo('#0044CC')" title="Azul"></button>
+                    <button class="plib-color-btn snd-btn" data-color="#ffc107" style="background:#ffc107;" onclick="elegirColorTrazo('#ffc107')" title="Amarillo"></button>
+                </div>
 
                 <div class="icon-row">
                     <button id="plibPincelBtn" class="snd-btn icon-btn plib-tool-btn activo" data-herramienta="pincel" onclick="elegirHerramienta('pincel')" title="Pincel">🖌️<span class="plib-tool-text">PINCEL</span></button>
