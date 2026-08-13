@@ -437,21 +437,54 @@ function drawSmoothPath(path, color, width, dashed=false) {
 }
 
 // --------------------------------------------------------
+// FIN EFECTIVO DE UN PASO (resuelve la cadena hacia atrás)
+// --------------------------------------------------------
+// Devuelve dónde termina REALMENTE un jugador (o la pelota) al final del
+// `paso` dado. Si ese paso tiene un destino propio dibujado (2+ puntos),
+// es simplemente su último punto -un waypoint fijo, nunca se toca-. Pero
+// si el paso está "quieto" (un solo punto, el jugador no se movió ahí),
+// su fin real NO es ese punto guardado: depende de dónde terminó en el
+// paso anterior. Y ese paso anterior podría estar quieto también, y el
+// anterior a ese... por eso la resolución es recursiva: sigue la cadena
+// hacia atrás, paso por paso, hasta encontrar un destino realmente fijo
+// (o llegar al Paso 0). Sin esto, dos o más pasos quietos seguidos
+// "cortan" la propagación en el primero y los siguientes vuelven a leer
+// coordenadas viejas -el bug de "salto" reportado al editar un paso
+// intermedio seguido de otro sin movimiento-.
+function finEfectivo(obj, paso) {
+    if (obj === ball) {
+        const portadorId = ball.portadorPorPaso[paso] ?? null;
+        if (portadorId) {
+            const p = players.find(pl => pl.id === portadorId);
+            if (p && p.steps[paso]) {
+                const finPortador = finEfectivo(p, paso);
+                if (finPortador) return { x: finPortador.x + 13*sF, y: finPortador.y - 13*sF };
+            }
+        }
+        const path = ball.steps[paso];
+        if (!path || path.length === 0) return null;
+        if (paso > 0 && path.length === 1) {
+            // Pelota suelta y quieta este paso: su fin real es -en cadena- el del paso anterior.
+            return finEfectivo(ball, paso - 1) || { x: path[0].x, y: path[0].y };
+        }
+        return { x: path[path.length - 1].x, y: path[path.length - 1].y };
+    }
+
+    const path = obj.steps[paso];
+    if (!path || path.length === 0) return null;
+    if (paso > 0 && path.length === 1) {
+        // Paso quieto: el destino real es -en cadena- el del paso anterior.
+        return finEfectivo(obj, paso - 1) || { x: path[0].x, y: path[0].y };
+    }
+    return { x: path[path.length - 1].x, y: path[path.length - 1].y };
+}
+
+// --------------------------------------------------------
 // HELPER: posición de la pelota en un paso (imantada o libre)
 // en modo estático (editor). En animación se usa getBallAnimPos().
 // --------------------------------------------------------
 function getBallDrawPos(stepIdx) {
-    const portadorId = ball.portadorPorPaso[stepIdx] ?? null;
-    if (portadorId) {
-        const p = players.find(pl => pl.id === portadorId);
-        if (p && p.steps[stepIdx]) {
-            const last = p.steps[stepIdx][p.steps[stepIdx].length - 1];
-            return { x: last.x + 13*sF, y: last.y - 13*sF };
-        }
-    }
-    const path = ball.steps[stepIdx];
-    if (path && path.length > 0) return { x: path[path.length-1].x, y: path[path.length-1].y };
-    return null;
+    return finEfectivo(ball, stepIdx);
 }
 
 // --------------------------------------------------------
@@ -462,29 +495,47 @@ function getBallDrawPos(stepIdx) {
 // independiente). El PRIMER punto, en cambio, NO se trata como un valor
 // guardado y fijo: esta función lo recalcula siempre, en el momento de
 // dibujar o animar, a partir de la posición real de ese jugador (o de la
-// pelota) al FINAL del paso anterior. Así, si se edita un paso intermedio,
-// el paso siguiente arranca automáticamente desde ahí -sin "saltos"-, sin
-// necesidad de tocar ni guardar nada en los pasos posteriores. El resto
-// del recorrido (la forma ya dibujada, el destino) se devuelve intacto.
+// pelota) al FINAL del paso anterior -resuelta en cadena por finEfectivo,
+// por si el paso anterior (o varios seguidos) están quietos-. Así, si se
+// edita un paso intermedio, todos los pasos "quietos" que le siguen
+// arrastran la corrección automáticamente -sin "saltos"-, hasta el
+// próximo paso con destino realmente fijo, sin necesidad de tocar ni
+// guardar nada en los pasos posteriores.
+//
+// Cuando el trazo de ese paso tiene puntos intermedios (una curva dibujada
+// a mano, no solo origen+destino), no alcanza con mover el primer punto:
+// dejar los intermedios en sus coordenadas viejas separa al punto 0 del
+// punto 1, y se ve como un salto/retroceso hacia la forma vieja antes de
+// retomar el destino. Para evitarlo, el desplazamiento del origen se
+// aplica de forma decreciente a lo largo de todo el trazo -pleno en el
+// primer punto, nulo en el último-, de modo que la curva se reancla
+// suavemente al nuevo origen sin deformar su arco ni mover el destino.
 function pathEfectivo(obj, paso) {
     const original = obj.steps[paso];
     if (!original || original.length === 0 || paso === 0) return original;
 
-    let origen;
-    if (obj === ball) {
-        origen = getBallDrawPos(paso - 1);
-    } else {
-        const anterior = obj.steps[paso - 1];
-        origen = (anterior && anterior.length > 0)
-            ? { x: anterior[anterior.length - 1].x, y: anterior[anterior.length - 1].y }
-            : null;
-    }
+    const origen = finEfectivo(obj, paso - 1);
     if (!origen) return original;
 
-    const primero      = original[0];
-    const nuevoPrimero  = { x: origen.x, y: origen.y, isScreen: primero.isScreen, angle: primero.angle };
-    return original.length === 1 ? [nuevoPrimero] : [nuevoPrimero, ...original.slice(1)];
+    const viejoInicio = original[0];
+    const deltaX = origen.x - viejoInicio.x;
+    const deltaY = origen.y - viejoInicio.y;
+    if (!deltaX && !deltaY) return original; // ya estaba alineado, nada que re-anclar
+
+    const n = original.length - 1; // índice del último punto (destino fijo, no se toca)
+    if (n === 0) {
+        // Paso sin destino propio dibujado (un único punto = todavía no
+        // fue tocado por el usuario): ese punto sigue al origen tal cual.
+        return [{ x: origen.x, y: origen.y, isScreen: viejoInicio.isScreen, angle: viejoInicio.angle }];
+    }
+
+    return original.map((pt, i) => {
+        if (i === n) return pt; // destino: waypoint fijo, se devuelve intacto
+        const factor = (n - i) / n; // 1.0 en el origen -> ~0 llegando al destino
+        return { x: pt.x + deltaX * factor, y: pt.y + deltaY * factor, isScreen: pt.isScreen, angle: pt.angle };
+    });
 }
+
 
 // Helper animación: posición de la pelota en modo reproducción.
 // Si la pelota tiene recorrido propio (ax/ay seteados por el interpolador), lo usa.

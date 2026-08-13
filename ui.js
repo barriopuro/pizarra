@@ -735,6 +735,12 @@ function finishEdition() {
     document.getElementById('edit-controls').style.display     = "none";
     if (addStepBtn) addStepBtn.style.display = "none";
 
+    // Deshacer/Rehacer son acciones de EDICIÓN: no deben quedar disponibles
+    // en modo reproducción (permitía deshacer movimientos sin haber
+    // entrado a "Editar"). Se restauran en backToEdit() vía updateStepUI().
+    const undoRow = document.getElementById('undoBtn')?.closest('.icon-row');
+    if (undoRow) undoRow.style.display = 'none';
+
     const spdSel = document.getElementById('speedSelect');
     if (spdSel) { spdSel.disabled = false; spdSel.style.opacity = "1"; spdSel.style.pointerEvents = "auto"; }
 
