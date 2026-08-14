@@ -39,28 +39,47 @@ let courtMode        = null;
 let solapasActivadas = false;
 let cargaCompleta    = false;
 
-// --- OBJETOS DEL JUEGO ---
-// ball.portadorPorPaso[i] = ID del jugador que lleva la pelota en el paso i,
-//                           o null si la pelota está suelta en ese paso.
-// Esta estructura es la fuente de verdad para el imán, en lugar de imantadoA global.
-let ball = {
-    active:         true,
-    team:           'ball',
-    steps:          [[{ x: 0, y: 0, isScreen: false, angle: 0 }]],
+// --- OBJETOS DEL JUEGO: PELOTAS (arreglo unificado balls[], v142) ---
+// balls[].portadorPorPaso[i] = ID del jugador que lleva ESA pelota en el
+// paso i, o null si está suelta en ese paso. Ya no existe una única
+// variable global `ball`: balls[] admite cero, una o varias pelotas en
+// cancha (Refactor de Pelotas Múltiples). El botón 🏀 de la barra
+// principal agrega una pelota nueva al arreglo (ver addBall() en
+// jugadores.js); cada una se puede eliminar de forma independiente sin
+// afectar la renderización ni el arrastre de las demás.
+let balls = [{
+    id:              'ball-0',
+    active:          true,
+    team:            'ball',
+    steps:           [[{ x: 0, y: 0, isScreen: false, angle: 0 }]],
     portadorPorPaso: [null]   // índice sincronizado con steps
-};
-let players = [];
+}];
+let nextBallId = 1;
+let players    = [];
+
+// Cantidad total de pasos de la jugada. Antes se derivaba de
+// ball.steps.length (la única pelota siempre existía y su longitud era
+// fuente de verdad confiable); ahora que balls[] puede tener 0 o varios
+// elementos, se lleva aparte como fuente de verdad independiente (ver
+// addNewStep/deleteLastStep/renderTimeline en ui.js).
+let stepCount = 1;
+
+// --- UTILERÍA Y OBJETOS TÁCTICOS DE ENTRENAMIENTO (nuevo en v142) ---
+// Capa estática de fondo: cada objeto es un único punto (x,y) + tipo,
+// sin pasos ni trayectoria (a diferencia de jugadores/pelotas), así que
+// no se anima ni se guarda en la línea de tiempo. Solo se pueden agregar,
+// mover o eliminar en el Paso Inicial -ver updateStepUI() en ui.js-, pero
+// se dibujan igual en TODOS los pasos (capa de fondo fija).
+const PROP_TYPES = ['cono', 'escalera', 'valla', 'obstaculo'];
+function esUtileria(obj) {
+    return !!obj && PROP_TYPES.includes(obj.type);
+}
+let props      = [];
+let nextPropId = 1;
 
 // --- DRAG & DROP ---
 let isDragging = false;
 let activeObj  = null;
-
-// --- CONTROL TÁCTICO (alias conveniente = portador en el paso actual) ---
-// Se mantiene como propiedad derivada; la fuente de verdad es ball.portadorPorPaso
-Object.defineProperty(window, 'imantadoA', {
-    get() { return ball.portadorPorPaso[currentStep] ?? null; },
-    set(v) { ball.portadorPorPaso[currentStep] = v; }
-});
 
 // --- ESCALA Y AUDIO ---
 let sF      = 1;
@@ -81,10 +100,10 @@ let estadoPrevioCambioCancha = null;
 // MODO "PIZARRA RÁPIDA" (acrílico digital de doble cara)
 // ========================================================
 // Dibujo libre a mano alzada, pensado para tiempos muertos. Convive con
-// el Modo Táctico sin pisarlo: al activarse, las fichas/pelota/pasos se
-// invisibilizan (no se dibujan) pero sus datos (players, ball, etc. de
-// arriba) quedan intactos en memoria, listos para cuando se vuelva a
-// desactivar.
+// el Modo Táctico sin pisarlo: al activarse, las fichas/pelotas/utilería/
+// pasos se invisibilizan (no se dibujan) pero sus datos (players, balls,
+// props, etc. de arriba) quedan intactos en memoria, listos para cuando
+// se vuelva a desactivar.
 let modoPizarraRapida = false;
 
 // Herramienta y estilo de trazo actualmente seleccionados. Negro por

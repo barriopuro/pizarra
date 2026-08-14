@@ -12,13 +12,17 @@
 // La cancha completa usa el doble de alto (dos medias canchas apiladas).
 const COURT_ASPECT = 1.45;
 
-// --- PULSO SUTIL AL IMANTAR/DESIMANTAR LA PELOTA ---
-let pulsoImanHasta = 0;
-function activarPulsoIman() {
-    pulsoImanHasta = performance.now() + 350;
+// --- PULSO SUTIL AL IMANTAR/DESIMANTAR UNA PELOTA ---
+// Se guarda como propiedad (_pulsoImanHasta) de la pelota específica que
+// se imantó/desimantó, en vez de un único timestamp global: con varias
+// pelotas en cancha, cada una puede pulsar de forma independiente sin
+// pisarse entre sí.
+function activarPulsoIman(ballObj) {
+    if (!ballObj) return;
+    ballObj._pulsoImanHasta = performance.now() + 350;
     requestAnimationFrame(function tick() {
         draw();
-        if (performance.now() < pulsoImanHasta) requestAnimationFrame(tick);
+        if (performance.now() < ballObj._pulsoImanHasta) requestAnimationFrame(tick);
     });
 }
 
@@ -78,9 +82,13 @@ function remapearCoordenadas(factor) {
             pathArr.forEach(pt => { pt.x *= factor; pt.y *= factor; });
         });
     });
-    ball.steps.forEach(pathArr => {
-        pathArr.forEach(pt => { pt.x *= factor; pt.y *= factor; });
+    balls.forEach(b => {
+        b.steps.forEach(pathArr => {
+            pathArr.forEach(pt => { pt.x *= factor; pt.y *= factor; });
+        });
     });
+    // Objetos de utilería: un único punto (x,y), sin pasos.
+    props.forEach(p => { p.x *= factor; p.y *= factor; });
 }
 
 // Convierte una fracción "0 = pegado al aro, ~0.8-0.9 = cerca de la mitad de
@@ -132,10 +140,12 @@ function init() {
     const scaleMultiplier = (oldSF !== 1 && oldSF !== 0) ? (finalW / 500) / oldSF : 1;
     sF = finalW / 500;
 
-    if (ball && ball.steps && scaleMultiplier !== 1 && oldSF !== 1) {
-        ball.steps.forEach(sp => sp.forEach(pt => { pt.x *= scaleMultiplier; pt.y *= scaleMultiplier; }));
-        if (ball.ax !== undefined) ball.ax *= scaleMultiplier;
-        if (ball.ay !== undefined) ball.ay *= scaleMultiplier;
+    if (balls && balls.length > 0 && scaleMultiplier !== 1 && oldSF !== 1) {
+        balls.forEach(b => {
+            b.steps.forEach(sp => sp.forEach(pt => { pt.x *= scaleMultiplier; pt.y *= scaleMultiplier; }));
+            if (b.ax !== undefined) b.ax *= scaleMultiplier;
+            if (b.ay !== undefined) b.ay *= scaleMultiplier;
+        });
     }
 
     if (players && players.length > 0 && scaleMultiplier !== 1 && oldSF !== 1) {
@@ -144,6 +154,11 @@ function init() {
             if (pl.ax !== undefined) pl.ax *= scaleMultiplier;
             if (pl.ay !== undefined) pl.ay *= scaleMultiplier;
         });
+    }
+
+    // Objetos de utilería: un único punto (x,y) cada uno, sin ax/ay.
+    if (props && props.length > 0 && scaleMultiplier !== 1 && oldSF !== 1) {
+        props.forEach(p => { p.x *= scaleMultiplier; p.y *= scaleMultiplier; });
     }
 
     // Reescala el lienzo libre de LA CARA ACTIVA para que sus trazos
@@ -171,9 +186,12 @@ function init() {
     updateCourtDrawing(finalW, finalH);
     updateMuteBtnUI();
 
-    if (ball.steps[0][0].x === 0) {
+    // Solo la pelota "de arranque" (balls[0]) necesita esta ubicación por
+    // defecto: cualquier pelota agregada después vía addBall() ya nace
+    // con coordenadas reales explícitas.
+    if (balls.length > 0 && balls[0].steps[0][0].x === 0) {
         const hRefBall = (modo === 'full') ? finalH / 2 : finalH;
-        ball.steps[0] = [{ x: finalW / 2, y: yPorFraccion(0.45, hRefBall), isScreen: false, angle: 0 }];
+        balls[0].steps[0] = [{ x: finalW / 2, y: yPorFraccion(0.45, hRefBall), isScreen: false, angle: 0 }];
     }
     if (players.length === 0) syncPlayers();
 
@@ -452,8 +470,8 @@ function drawSmoothPath(path, color, width, dashed=false) {
 // coordenadas viejas -el bug de "salto" reportado al editar un paso
 // intermedio seguido de otro sin movimiento-.
 function finEfectivo(obj, paso) {
-    if (obj === ball) {
-        const portadorId = ball.portadorPorPaso[paso] ?? null;
+    if (obj.team === 'ball') {
+        const portadorId = obj.portadorPorPaso[paso] ?? null;
         if (portadorId) {
             const p = players.find(pl => pl.id === portadorId);
             if (p && p.steps[paso]) {
@@ -461,11 +479,11 @@ function finEfectivo(obj, paso) {
                 if (finPortador) return { x: finPortador.x + 13*sF, y: finPortador.y - 13*sF };
             }
         }
-        const path = ball.steps[paso];
+        const path = obj.steps[paso];
         if (!path || path.length === 0) return null;
         if (paso > 0 && path.length === 1) {
             // Pelota suelta y quieta este paso: su fin real es -en cadena- el del paso anterior.
-            return finEfectivo(ball, paso - 1) || { x: path[0].x, y: path[0].y };
+            return finEfectivo(obj, paso - 1) || { x: path[0].x, y: path[0].y };
         }
         return { x: path[path.length - 1].x, y: path[path.length - 1].y };
     }
@@ -483,8 +501,8 @@ function finEfectivo(obj, paso) {
 // HELPER: posición de la pelota en un paso (imantada o libre)
 // en modo estático (editor). En animación se usa getBallAnimPos().
 // --------------------------------------------------------
-function getBallDrawPos(stepIdx) {
-    return finEfectivo(ball, stepIdx);
+function getBallDrawPos(ballObj, stepIdx) {
+    return finEfectivo(ballObj, stepIdx);
 }
 
 // --------------------------------------------------------
@@ -540,9 +558,9 @@ function pathEfectivo(obj, paso) {
 // Helper animación: posición de la pelota en modo reproducción.
 // Si la pelota tiene recorrido propio (ax/ay seteados por el interpolador), lo usa.
 // Si no (un único punto, siempre pegada), deriva la posición del jugador portador.
-function getBallAnimPos() {
-    const portadorId = ball.portadorPorPaso[currentStep] ?? null;
-    const bPath      = ball.steps[currentStep];
+function getBallAnimPos(ballObj) {
+    const portadorId = ballObj.portadorPorPaso[currentStep] ?? null;
+    const bPath      = ballObj.steps[currentStep];
     const tieneRecorrido = bPath && bPath.length > 1;
 
     if (portadorId && !tieneRecorrido) {
@@ -557,9 +575,144 @@ function getBallAnimPos() {
     // Pelota con recorrido propio (suelta o que viajó antes de imantarse):
     // el interpolador ya cargó ax/ay, los usamos directamente.
     return {
-        x: (ball.ax !== undefined) ? ball.ax : bPath[bPath.length-1].x,
-        y: (ball.ay !== undefined) ? ball.ay : bPath[bPath.length-1].y
+        x: (ballObj.ax !== undefined) ? ballObj.ax : bPath[bPath.length-1].x,
+        y: (ballObj.ay !== undefined) ? ballObj.ay : bPath[bPath.length-1].y
     };
+}
+
+// ========================================================
+// UTILERÍA Y OBJETOS TÁCTICOS DE ENTRENAMIENTO (capa estática, v142)
+// ========================================================
+// A diferencia de jugadores/pelotas, los objetos de utilería no tienen
+// pasos ni trayectoria: una única posición (x,y) fija que se dibuja
+// igual en TODOS los pasos de la jugada (capa de fondo). Solo se pueden
+// agregar/mover/eliminar en el Paso Inicial -ver updateStepUI() en ui.js
+// y los controles en interaccion.js-.
+
+function dibujarCirculoSeleccionProp(p, radioAprox) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, radioAprox, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(255,255,255,0.85)";
+    ctx.lineWidth = 2.5 * sF; ctx.setLineDash([4, 4]); ctx.stroke();
+    ctx.restore();
+}
+
+function dibujarCono(p) {
+    const r = 15 * sF; // mismo radio de referencia que un jugador
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.fillStyle   = p.color || '#ff7a00';
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+    ctx.lineWidth   = 1.5 * sF;
+    // Base (elipse)
+    ctx.beginPath();
+    ctx.ellipse(0, r * 0.82, r * 0.85, r * 0.28, 0, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+    // Cuerpo (trapecio, forma de cono)
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.18, -r * 0.95);
+    ctx.lineTo( r * 0.18, -r * 0.95);
+    ctx.lineTo( r * 0.62,  r * 0.72);
+    ctx.lineTo(-r * 0.62,  r * 0.72);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    // Franja clara característica de los conos de entrenamiento
+    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    ctx.fillRect(-r * 0.5, r * 0.18, r * 1.0, r * 0.16);
+    ctx.restore();
+    if (activeObj === p) dibujarCirculoSeleccionProp(p, r * 1.15);
+}
+
+function dibujarEscalera(p) {
+    const escalas = { chica: 0.7, mediana: 1, grande: 1.35 };
+    const factor  = escalas[p.size] || 1;
+    const largo   = 100 * sF * factor;
+    const ancho   = 26  * sF * factor;
+    const travesanos = 6;
+
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate((p.angle || 0) * Math.PI / 180);
+    // Rieles laterales
+    ctx.strokeStyle = '#ffc107';
+    ctx.lineWidth   = 3 * sF;
+    ctx.lineCap     = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-largo / 2, -ancho / 2); ctx.lineTo(largo / 2, -ancho / 2);
+    ctx.moveTo(-largo / 2,  ancho / 2); ctx.lineTo(largo / 2,  ancho / 2);
+    ctx.stroke();
+    // Travesaños
+    ctx.strokeStyle = '#eeeeee';
+    ctx.lineWidth   = 3.5 * sF;
+    for (let i = 0; i <= travesanos; i++) {
+        const x = -largo / 2 + (largo / travesanos) * i;
+        ctx.beginPath();
+        ctx.moveTo(x, -ancho / 2); ctx.lineTo(x, ancho / 2);
+        ctx.stroke();
+    }
+    ctx.restore();
+    if (activeObj === p) dibujarCirculoSeleccionProp(p, Math.max(largo, ancho) * 0.62);
+}
+
+function dibujarValla(p) {
+    const ancho = 56 * sF, alto = 30 * sF;
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate((p.angle || 0) * Math.PI / 180);
+    // Patas en X a cada lado (soportes de la valla/hurdle)
+    ctx.strokeStyle = '#c01c33';
+    ctx.lineWidth   = 3 * sF;
+    ctx.lineCap     = 'round';
+    [-ancho / 2, ancho / 2].forEach(sideX => {
+        ctx.beginPath();
+        ctx.moveTo(sideX - alto * 0.32,  alto / 2); ctx.lineTo(sideX + alto * 0.32, -alto / 2);
+        ctx.moveTo(sideX - alto * 0.32, -alto / 2); ctx.lineTo(sideX + alto * 0.32,  alto / 2);
+        ctx.stroke();
+    });
+    // Barra horizontal a franjas (rojo/blanco), típica de las vallas de agilidad
+    const barraAlto = 8 * sF;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(-ancho / 2, -barraAlto / 2, ancho, barraAlto);
+    ctx.fillStyle = '#c01c33';
+    const franjas = 5;
+    for (let i = 0; i < franjas; i++) {
+        if (i % 2 === 0) continue;
+        ctx.fillRect(-ancho / 2 + (ancho / franjas) * i, -barraAlto / 2, ancho / franjas, barraAlto);
+    }
+    ctx.restore();
+    if (activeObj === p) dibujarCirculoSeleccionProp(p, Math.max(ancho, alto) * 0.75);
+}
+
+function dibujarObstaculo(p) {
+    const ancho = 34 * sF, alto = 24 * sF;
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate((p.angle || 0) * Math.PI / 180);
+    ctx.fillStyle   = p.color || '#555555';
+    ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+    ctx.lineWidth   = 2 * sF;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(-ancho / 2, -alto / 2, ancho, alto, 4 * sF);
+    else ctx.rect(-ancho / 2, -alto / 2, ancho, alto);
+    ctx.fill(); ctx.stroke();
+    // Sombreado simple para dar volumen (simula silla/defensor estático)
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.fillRect(-ancho / 2, -alto / 2, ancho, alto * 0.35);
+    ctx.restore();
+    if (activeObj === p) dibujarCirculoSeleccionProp(p, Math.max(ancho, alto) * 0.85);
+}
+
+function dibujarProps() {
+    if (!props || props.length === 0) return;
+    props.forEach(p => {
+        switch (p.type) {
+            case 'cono':      dibujarCono(p);      break;
+            case 'escalera':  dibujarEscalera(p);  break;
+            case 'valla':     dibujarValla(p);     break;
+            case 'obstaculo': dibujarObstaculo(p); break;
+        }
+    });
 }
 
 // --------------------------------------------------------
@@ -583,8 +736,8 @@ function _render(modoAnim, paraVideo) {
 
     // --------------------------------------------------
     // MODO PIZARRA RÁPIDA: las fichas/pelota/pasos se invisibilizan (no
-    // se dibuja nada de lo que sigue), pero sus datos (players, ball,
-    // currentStep, etc.) quedan intactos en memoria sin tocarse. El
+    // se dibuja nada de lo que sigue), pero sus datos (players, balls,
+    // props, currentStep, etc.) quedan intactos en memoria sin tocarse. El
     // parquet y el logo de arriba sí se siguen dibujando normalmente,
     // para que la cancha se vea "completa" debajo del dibujo libre.
     // --------------------------------------------------
@@ -592,6 +745,10 @@ function _render(modoAnim, paraVideo) {
         if (!modoAnim && typeof actualizarBotonesUndoRedo === "function") actualizarBotonesUndoRedo();
         return;
     }
+
+    // Capa de fondo fija de Utilería (conos, escalera, valla, obstáculos):
+    // se dibuja siempre igual, en cualquier paso y aunque se esté animando.
+    dibujarProps();
 
     const radius      = 15 * sF;
     const showHistory = historyToggle ? historyToggle.checked : true;
@@ -637,17 +794,18 @@ function _render(modoAnim, paraVideo) {
                 }
             });
 
-            // — Trazo y posición de la pelota —
-            if (ball.active) {
-                const bPath = ball.steps[si];
+            // — Trazo y posición de cada pelota —
+            balls.forEach(ballObj => {
+                if (!ballObj.active) return;
+                const bPath = ballObj.steps[si];
                 // Siempre dibujamos el trazo propio de la pelota si tiene recorrido,
                 // tanto si está suelta como si al final del path se imantó a un jugador.
                 if (bPath && si > 0 && bPath.length > 1) {
-                    drawSmoothPath(pathEfectivo(ball, si), color, esPasoActual ? 3.5*sF : 2*sF, true);
+                    drawSmoothPath(pathEfectivo(ballObj, si), color, esPasoActual ? 3.5*sF : 2*sF, true);
                 }
                 // Fantasma de posición final en pasos anteriores
                 if (!modoAnim && !esPasoActual) {
-                    const pos = getBallDrawPos(si);
+                    const pos = getBallDrawPos(ballObj, si);
                     if (pos) {
                         ctx.save();
                         ctx.translate(pos.x, pos.y);
@@ -657,7 +815,7 @@ function _render(modoAnim, paraVideo) {
                         ctx.restore();
                     }
                 }
-            }
+            });
         }
         ctx.restore();
     }
@@ -733,18 +891,20 @@ function _render(modoAnim, paraVideo) {
     });
 
     // --------------------------------------------------
-    // PASO ACTIVO — pelota
+    // PASO ACTIVO — pelotas (balls[], puede haber 0, 1 o varias)
     // --------------------------------------------------
-    if (ball.active) {
+    balls.forEach(ballObj => {
+        if (!ballObj.active) return;
+
         let ballX, ballY;
 
         if (modoAnim) {
-            const bp = getBallAnimPos();
+            const bp = getBallAnimPos(ballObj);
             ballX = bp.x; ballY = bp.y;
         } else {
-            // Mientras se arrastra la pelota libre, la mostramos en su posición real
-            if (activeObj === ball) {
-                const path = ball.steps[currentStep];
+            // Mientras se arrastra esta pelota, la mostramos en su posición real
+            if (activeObj === ballObj) {
+                const path = ballObj.steps[currentStep];
                 const last = path[path.length-1];
                 ballX = last.x; ballY = last.y;
 
@@ -757,24 +917,26 @@ function _render(modoAnim, paraVideo) {
                 ctx.restore();
 
                 // Trazo de la pelota suelta en el paso activo
-                if (currentStep > 0 && ball.steps[currentStep].length > 1) {
-                    drawSmoothPath(pathEfectivo(ball, currentStep), activeColor, 3.5*sF, true);
+                if (currentStep > 0 && ballObj.steps[currentStep].length > 1) {
+                    drawSmoothPath(pathEfectivo(ballObj, currentStep), activeColor, 3.5*sF, true);
                 }
             } else {
-                const pos = getBallDrawPos(currentStep);
+                const pos = getBallDrawPos(ballObj, currentStep);
+                // Si esta pelota puntual no tiene posición resoluble, la
+                // salteamos sin afectar el render de las demás pelotas.
                 if (!pos) return;
                 ballX = pos.x; ballY = pos.y;
             }
         }
 
-        const tieneCarrier = !!(ball.portadorPorPaso[currentStep] ?? null);
+        const tieneCarrier = !!(ballObj.portadorPorPaso[currentStep] ?? null);
         const fueraDeFoco  = courtMode === 'half' && ballY > canvas.height;
 
         if (fueraDeFoco && tieneCarrier) {
             // La pelota "viaja" implícita dentro del minicírculo de su
             // portador: no se dibuja aparte para no duplicar el indicador.
         } else if (fueraDeFoco) {
-            dibujarMiniCirculo(ballX, '#c07a00', '🏀', activeObj === ball);
+            dibujarMiniCirculo(ballX, '#c07a00', '🏀', activeObj === ballObj);
         } else {
             ctx.save();
             ctx.translate(ballX, ballY);
@@ -783,9 +945,10 @@ function _render(modoAnim, paraVideo) {
             ctx.fillText("🏀", 0, 0);
             ctx.restore();
 
-            // Pulso sutil al imantar/desimantar (dura ~350ms)
-            if (performance.now() < pulsoImanHasta) {
-                const restante = (pulsoImanHasta - performance.now()) / 350;
+            // Pulso sutil al imantar/desimantar ESTA pelota (dura ~350ms)
+            const pulsoHasta = ballObj._pulsoImanHasta || 0;
+            if (performance.now() < pulsoHasta) {
+                const restante = (pulsoHasta - performance.now()) / 350;
                 ctx.save();
                 ctx.globalAlpha = Math.max(0, restante) * 0.55;
                 ctx.beginPath();
@@ -796,7 +959,7 @@ function _render(modoAnim, paraVideo) {
                 ctx.restore();
             }
         }
-    }
+    });
 
     if (!modoAnim && typeof actualizarBotonesUndoRedo === "function") actualizarBotonesUndoRedo();
 }

@@ -65,11 +65,15 @@ function syncPlayers() {
         let teamList = players.filter(p => p.team === team);
 
         if (teamList.length > count) {
-            // Si el jugador que llevaba la pelota fue eliminado, la liberamos
-            if (imantadoA && imantadoA.startsWith(team)) {
-                const indexImantado = parseInt(imantadoA.split('-')[1]);
-                if (indexImantado >= count) imantadoA = null;
-            }
+            // Si el jugador que llevaba alguna pelota fue eliminado, la liberamos
+            // (recorremos TODAS las pelotas: cualquiera podría estar imantada a él)
+            balls.forEach(b => {
+                const portador = b.portadorPorPaso[currentStep] ?? null;
+                if (portador && portador.startsWith(team)) {
+                    const indexImantado = parseInt(portador.split('-')[1]);
+                    if (indexImantado >= count) b.portadorPorPaso[currentStep] = null;
+                }
+            });
             players = players.filter(p => !(p.team === team && teamList.indexOf(p) >= count));
         } else {
             for (let i = teamList.length; i < count; i++) {
@@ -208,10 +212,72 @@ function applyFormation() {
     draw();
 }
 
-// --- VISIBILIDAD DE LA PELOTA ---
-function toggleBall() {
-    ball.active = !ball.active;
+// --- AGREGAR PELOTA (balls[], v142) ---
+// El botón 🏀 ya no muestra/oculta una única pelota: agrega una pelota
+// nueva e independiente al arreglo balls[] (Refactor de Pelotas Múltiples).
+// Solo tiene sentido en el Paso Inicial (el botón mismo ya se oculta fuera
+// de ahí -ver updateStepUI() en ui.js-; el chequeo de acá es una guarda
+// extra, igual que en pedirDorsal()).
+function addBall() {
+    if (currentStep !== 0 || isEditionFinished) return;
+
+    const hRef   = (courtMode === 'full') ? canvas.height / 2 : canvas.height;
+    // Pequeño desplazamiento por cada pelota nueva para que no queden
+    // todas apiladas exactamente en el mismo punto.
+    const jitter = (balls.length % 5) * 18 * sF;
+
+    const nuevaBola = {
+        id:     'ball-' + (nextBallId++),
+        active: true,
+        team:   'ball',
+        steps:  [[{ x: (canvas.width / 2) + jitter, y: yPorFraccion(0.45, hRef) + jitter, isScreen: false, angle: 0 }]],
+        portadorPorPaso: [null]
+    };
+    balls.push(nuevaBola);
+
+    // La dejamos seleccionada: aparecen enseguida sus controles flotantes
+    // (por ahora solo "Eliminar"), lista para arrastrarla a su lugar.
+    activeObj  = nuevaBola;
+    isDragging = false;
+    updateFloatingUI();
     draw();
-    const bBtn = document.getElementById('ballBtn');
-    if (bBtn) bBtn.style.background = ball.active ? "#333" : "#111";
+    playSound('bounceBall');
+}
+
+// --- UTILERÍA Y OBJETOS TÁCTICOS DE ENTRENAMIENTO (v142) ---
+// Agrega un objeto estático nuevo (cono/escalera/valla/obstáculo) al
+// arreglo props[]. Solo disponible en el Paso Inicial (la barra flotante
+// que llama a esta función ya está oculta fuera de ahí).
+function agregarUtileria(tipo) {
+    if (currentStep !== 0 || isEditionFinished || !PROP_TYPES.includes(tipo)) return;
+
+    const hRef   = (courtMode === 'full') ? canvas.height / 2 : canvas.height;
+    const jitter = (props.length % 5) * 16 * sF;
+
+    const nuevoObjeto = {
+        id:    'prop-' + (nextPropId++),
+        type:  tipo,
+        // Los aparecemos hacia el centro de la cancha (no pegados arriba):
+        // como la barra de Utilería ahora queda abierta tras agregar cada
+        // objeto (ver comentario más abajo), conviene que no nazcan justo
+        // debajo de ella.
+        x:     (canvas.width / 2) + jitter,
+        y:     yPorFraccion(0.45, hRef) + jitter,
+        angle: 0
+    };
+    if (tipo === 'cono')      nuevoObjeto.color = '#ff7a00';
+    if (tipo === 'obstaculo') nuevoObjeto.color = '#555555';
+    if (tipo === 'escalera')  nuevoObjeto.size  = 'mediana';
+
+    props.push(nuevoObjeto);
+
+    // La dejamos seleccionada: aparecen enseguida sus controles flotantes,
+    // lista para arrastrarla y ajustarla sin pasos extra. A propósito NO
+    // cerramos la barra de Utilería acá: así se pueden agregar varios
+    // objetos seguidos sin tener que volver a tocar el botón 🧰 cada vez.
+    activeObj  = nuevoObjeto;
+    isDragging = false;
+    updateFloatingUI();
+    draw();
+    playSound('grabJersey');
 }

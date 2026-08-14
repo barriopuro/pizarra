@@ -31,10 +31,10 @@ function simplifyPath(path) {
     return simplified;
 }
 
-// Devuelve la posición actual de la pelota en el paso dado,
+// Devuelve la posición actual de UNA pelota en el paso dado,
 // considerando si está imantada a algún jugador en ese paso.
-function getBallPosEnPaso(stepIdx) {
-    const portadorId = ball.portadorPorPaso[stepIdx] ?? null;
+function getBallPosEnPaso(ballObj, stepIdx) {
+    const portadorId = ballObj.portadorPorPaso[stepIdx] ?? null;
     if (portadorId) {
         const portador = players.find(p => p.id === portadorId);
         if (portador && portador.steps[stepIdx]) {
@@ -43,12 +43,97 @@ function getBallPosEnPaso(stepIdx) {
         }
     }
     // Pelota suelta: usa su propio path
-    const path = ball.steps[stepIdx];
+    const path = ballObj.steps[stepIdx];
     if (path && path.length > 0) {
         const last = path[path.length - 1];
         return { x: last.x, y: last.y };
     }
     return null;
+}
+
+// Un jugador es un objeto de equipo 'red'/'blue' (a diferencia de una
+// pelota -team:'ball'- o un objeto de utilería -ver esUtileria() en
+// estado.js-).
+function esJugador(obj) {
+    return !!obj && (obj.team === 'red' || obj.team === 'blue');
+}
+
+// --------------------------------------------------------
+// SNAPSHOT DE PORTADORES (para deshacer/rehacer con varias pelotas)
+// --------------------------------------------------------
+// Antes se guardaba una única "foto" de ball.portadorPorPaso. Con
+// balls[] hace falta guardar la de CADA pelota, identificada por su id
+// (para poder restaurarla aunque el orden del arreglo cambie mientras
+// tanto por un agregado/eliminado).
+function snapshotPortadores() {
+    return balls.map(b => ({ id: b.id, arr: JSON.parse(JSON.stringify(b.portadorPorPaso)) }));
+}
+function restaurarPortadores(snapshot) {
+    if (!snapshot) return;
+    snapshot.forEach(entry => {
+        const b = balls.find(x => x.id === entry.id);
+        if (b) b.portadorPorPaso = JSON.parse(JSON.stringify(entry.arr));
+    });
+}
+
+// --------------------------------------------------------
+// PROPAGACIÓN DEL PORTADOR HACIA ADELANTE (corrige bug de edición)
+// --------------------------------------------------------
+// Cada paso "hereda" el portador del paso anterior al crearse (ver
+// addNewStep en ui.js): portadorPorPaso[N+1] arranca como una COPIA de
+// portadorPorPaso[N] en ese momento. El problema: si más tarde editamos
+// el pase en el paso N (p.ej. "el jugador 1 le pasa al jugador 3" en vez
+// de al jugador 2), esa copia en el paso N+1 queda vieja/huérfana -sigue
+// apuntando al jugador 2-, y la pelota se "olvida" de seguir al nuevo
+// portador cuando ese paso se mueve.
+//
+// La solución: al cambiar el portador en el paso `desdeStep`, recorremos
+// los pasos siguientes y, mientras sigan teniendo el portador VIEJO tal
+// cual (es decir, nunca fueron tocados a mano después = solo heredaron
+// el valor), los actualizamos al portador NUEVO. Nos detenemos apenas
+// encontramos un paso distinto: ahí hubo una acción propia del usuario
+// (otro pase, otra suelta) que no debemos pisar.
+//
+// Devuelve el detalle de los pasos afectados (para poder deshacer el
+// cambio con precisión desde undoLastMove).
+function propagarCambioDePortador(ballObj, desdeStep, portadorViejo) {
+    const portadorNuevo = ballObj.portadorPorPaso[desdeStep] ?? null;
+    if (portadorNuevo === portadorViejo) return [];
+
+    // Posición real donde quedó la pelota al final del paso editado: la
+    // usamos como ancla si el nuevo estado es "suelta" (sin portador).
+    const pathEdit  = ballObj.steps[desdeStep];
+    const posSuelta = pathEdit ? pathEdit[pathEdit.length - 1] : null;
+    const afectados = [];
+
+    for (let j = desdeStep + 1; j < ballObj.steps.length; j++) {
+        if ((ballObj.portadorPorPaso[j] ?? null) !== portadorViejo) break;
+
+        // Guardamos el estado previo de este paso por si hay que deshacer
+        afectados.push({
+            step:     j,
+            portador: ballObj.portadorPorPaso[j] ?? null,
+            steps:    JSON.parse(JSON.stringify(ballObj.steps[j]))
+        });
+
+        ballObj.portadorPorPaso[j] = portadorNuevo;
+
+        // Solo recalculamos la posición anclada si ese paso nunca fue
+        // tocado a mano (un único punto = heredado; con más de un punto
+        // hay un trazo propio dibujado ahí, y no lo tocamos).
+        if (ballObj.steps[j] && ballObj.steps[j].length === 1) {
+            if (portadorNuevo) {
+                const portador = players.find(p => p.id === portadorNuevo);
+                if (portador && portador.steps[j]) {
+                    const pLast = portador.steps[j][portador.steps[j].length - 1];
+                    ballObj.steps[j] = [{ x: pLast.x + 13*sF, y: pLast.y - 13*sF, isScreen: false, angle: 0 }];
+                }
+            } else if (posSuelta) {
+                ballObj.steps[j] = [{ x: posSuelta.x, y: posSuelta.y, isScreen: false, angle: 0 }];
+            }
+        }
+    }
+    return afectados;
 }
 
 // --------------------------------------------------------
@@ -60,16 +145,24 @@ function handleStart(e) {
     const pos = getPos(e);
     let found = null, minDistance = 35 * sF;
 
-    // Calcular posición real de la pelota (puede estar imantada)
-    const ballPos = getBallPosEnPaso(currentStep);
+    // Posición real (imantada o suelta) de cada pelota activa en este paso
+    const ballPosMap = new Map();
+    balls.forEach(b => { if (b.active) ballPosMap.set(b, getBallPosEnPaso(b, currentStep)); });
 
-    const all = ball.active ? [...players, ball] : [...players];
+    // Los objetos de utilería solo son clicables/arrastrables en el Paso Inicial
+    const propsClicables = (currentStep === 0) ? props : [];
+    const all = [...players, ...balls.filter(b => b.active), ...propsClicables];
+
     all.forEach(obj => {
         let checkX, checkY;
-        if (obj === ball) {
-            if (!ballPos) return;
-            checkX = ballPos.x;
-            checkY = ballPos.y;
+        if (obj.team === 'ball') {
+            const bp = ballPosMap.get(obj);
+            if (!bp) return;
+            checkX = bp.x;
+            checkY = bp.y;
+        } else if (esUtileria(obj)) {
+            checkX = obj.x;
+            checkY = obj.y;
         } else {
             const last = obj.steps[currentStep][obj.steps[currentStep].length - 1];
             checkX = last.x;
@@ -86,10 +179,20 @@ function handleStart(e) {
         if (dist < minDistance) { minDistance = dist; found = obj; }
     });
 
+    // --- Objeto de utilería: arrastre simple, sin pasos ni deshacer ---
+    if (found && esUtileria(found)) {
+        activeObj  = found;
+        isDragging = true;
+        updateFloatingUI();
+        playSound('grabJersey');
+        draw();
+        return;
+    }
+
     if (found) {
         // Snapshot para undo (del estado real, no del minicírculo)
         found._undoSnapshot     = JSON.parse(JSON.stringify(found.steps[currentStep]));
-        found._portadorSnapshot = JSON.parse(JSON.stringify(ball.portadorPorPaso));
+        found._portadorSnapshot = snapshotPortadores();
 
         // Si lo que agarramos era un minicírculo (fuera de foco en Media
         // Cancha), arrancamos el arrastre desde su posición visual: así
@@ -100,16 +203,17 @@ function handleStart(e) {
             found.steps[currentStep] = [{ x: mini.cx, y: mini.cy, isScreen: false, angle: 0 }];
         }
 
-        // Si agarramos la pelota imantada, actualizamos su path
+        // Si agarramos una pelota imantada, actualizamos su path
         // para que arranque desde su posición real (sobre el jugador)
-        if (found === ball && ball.portadorPorPaso[currentStep]) {
-            if (ballPos) {
-                ball.steps[currentStep] = [{
-                    x: ballPos.x, y: ballPos.y, isScreen: false, angle: 0
+        if (found.team === 'ball' && found.portadorPorPaso[currentStep]) {
+            const bp = ballPosMap.get(found);
+            if (bp) {
+                found.steps[currentStep] = [{
+                    x: bp.x, y: bp.y, isScreen: false, angle: 0
                 }];
             }
             // Desimantamos al soltar del jugador anterior
-            ball.portadorPorPaso[currentStep] = null;
+            found.portadorPorPaso[currentStep] = null;
         }
 
         // Si es paso > 0 y el path tiene solo el punto heredado, lo expandimos
@@ -124,7 +228,7 @@ function handleStart(e) {
         activeObj  = found;
         isDragging = true;
         updateFloatingUI();
-        if (activeObj === ball) playSound('bounceBall'); else playSound('grabJersey');
+        if (activeObj.team === 'ball') playSound('bounceBall'); else playSound('grabJersey');
     } else {
         activeObj = null;
         updateFloatingUI();
@@ -137,12 +241,21 @@ function handleMove(e) {
     e.preventDefault();
 
     let pos           = getPos(e);
-    const path        = activeObj.steps[currentStep];
-    const last        = path[path.length - 1];
     const radioMargen = 12 * sF;
-
     pos.x = Math.max(radioMargen, Math.min(canvas.width  - radioMargen, pos.x));
     pos.y = Math.max(radioMargen, Math.min(canvas.height - radioMargen, pos.y));
+
+    // --- Objeto de utilería: posición única (x,y), sin pasos ---
+    if (esUtileria(activeObj)) {
+        activeObj.x = pos.x;
+        activeObj.y = pos.y;
+        solicitarRedibujo();
+        if (typeof updatePropFloatingUI === "function") updatePropFloatingUI();
+        return;
+    }
+
+    const path = activeObj.steps[currentStep];
+    const last = path[path.length - 1];
 
     if (currentStep === 0) {
         path[0] = { x: pos.x, y: pos.y, isScreen: last.isScreen, angle: last.angle };
@@ -153,19 +266,31 @@ function handleMove(e) {
         }
     }
 
-    // Motor magnético: jugador que lleva la pelota → pelota sigue sin path propio
-    if (activeObj !== ball && ball.portadorPorPaso[currentStep] === activeObj.id) {
+    // Motor magnético: jugador que lleva alguna(s) pelota(s) → esas
+    // pelotas siguen sin path propio (recorremos TODAS: nada impide que
+    // dos pelotas distintas estén imantadas al mismo jugador a la vez).
+    if (activeObj.team !== 'ball') {
         const playerLast = path[path.length - 1];
-        ball.steps[currentStep] = [{
-            x: playerLast.x + (13 * sF), y: playerLast.y - (13 * sF),
-            isScreen: false, angle: 0
-        }];
+        balls.forEach(b => {
+            if (b.portadorPorPaso[currentStep] === activeObj.id) {
+                b.steps[currentStep] = [{
+                    x: playerLast.x + (13 * sF), y: playerLast.y - (13 * sF),
+                    isScreen: false, angle: 0
+                }];
+            }
+        });
     }
 
     solicitarRedibujo();
-    // La pelota nunca usa el menú flotante (es solo para jugadores):
-    // nos ahorramos ese trabajo extra en cada movimiento.
-    if (activeObj !== ball) updateFloatingUI();
+    // Las pelotas no usan el menú flotante de jugador (cortina/imán, es
+    // solo para jugadores) pero sí necesitan que su propio panel -el
+    // botón "🗑️ Eliminar"- la siga en tiempo real durante el arrastre;
+    // si no, el botón queda fijo en la posición inicial de la pelota.
+    if (activeObj.team !== 'ball') {
+        updateFloatingUI();
+    } else if (typeof updatePropFloatingUI === "function") {
+        updatePropFloatingUI();
+    }
 }
 
 // Agrupa los redibujados en el siguiente frame disponible, en vez de uno
@@ -185,6 +310,14 @@ function solicitarRedibujo() {
 function handleEnd() {
     if (!isDragging || !activeObj) { isDragging = false; return; }
 
+    // --- Objeto de utilería: soltar simple, sin pasos ni deshacer ---
+    if (esUtileria(activeObj)) {
+        isDragging = false;
+        playSound('dropJersey');
+        draw();
+        return;
+    }
+
     const path   = activeObj.steps[currentStep];
     const inicio = path[0];
     const fin    = path[path.length - 1];
@@ -193,21 +326,26 @@ function handleEnd() {
     // Simplificar trazado
     if (path.length > 2) activeObj.steps[currentStep] = simplifyPath(path);
 
-    // Si el jugador que llevaba la pelota terminó de moverse → actualizamos el punto de la pelota
-    if (activeObj !== ball && ball.portadorPorPaso[currentStep] === activeObj.id) {
+    // Si el jugador que llevaba alguna pelota terminó de moverse →
+    // actualizamos el punto de esa(s) pelota(s) (puede haber más de una)
+    if (activeObj.team !== 'ball') {
         const playerLast = activeObj.steps[currentStep][activeObj.steps[currentStep].length - 1];
-        ball.steps[currentStep] = [{
-            x: playerLast.x + (13 * sF), y: playerLast.y - (13 * sF),
-            isScreen: false, angle: 0
-        }];
+        balls.forEach(b => {
+            if (b.portadorPorPaso[currentStep] === activeObj.id) {
+                b.steps[currentStep] = [{
+                    x: playerLast.x + (13 * sF), y: playerLast.y - (13 * sF),
+                    isScreen: false, angle: 0
+                }];
+            }
+        });
     }
 
-    // Lógica de imán al soltar la pelota
-    if (activeObj === ball) {
+    // Lógica de imán al soltar la pelota activa
+    if (activeObj.team === 'ball') {
         playSound('bounceBall');
 
-        const portadorAntes = ball.portadorPorPaso[currentStep] ?? null;
-        const bLast       = ball.steps[currentStep][ball.steps[currentStep].length - 1];
+        const portadorAntes = activeObj.portadorPorPaso[currentStep] ?? null;
+        const bLast       = activeObj.steps[currentStep][activeObj.steps[currentStep].length - 1];
         let minDistance   = 28 * sF;
         let jugadorCercano = null;
 
@@ -231,36 +369,41 @@ function handleEnd() {
         if (seImantaAlAro) {
             // Imantamos al aro: la pelota queda apoyada justo en su
             // posición, sin portador (no la lleva ningún jugador).
-            ball.portadorPorPaso[currentStep] = null;
-            const bPath = ball.steps[currentStep];
+            activeObj.portadorPorPaso[currentStep] = null;
+            const bPath = activeObj.steps[currentStep];
             if (bPath.length > 1) {
                 bPath[bPath.length - 1] = { x: aroCercano.x, y: aroCercano.y, isScreen: false, angle: 0 };
             } else {
-                ball.steps[currentStep] = [{ x: aroCercano.x, y: aroCercano.y, isScreen: false, angle: 0 }];
+                activeObj.steps[currentStep] = [{ x: aroCercano.x, y: aroCercano.y, isScreen: false, angle: 0 }];
             }
-            activarPulsoIman();
+            activarPulsoIman(activeObj);
         } else if (jugadorCercano && !jugadorCercano.steps[currentStep][jugadorCercano.steps[currentStep].length - 1].isScreen) {
             // Imantamos al jugador nuevo:
             // Conservamos el path recorrido durante el drag y solo ajustamos
             // el último punto para que quede exactamente sobre el jugador.
-            ball.portadorPorPaso[currentStep] = jugadorCercano.id;
+            activeObj.portadorPorPaso[currentStep] = jugadorCercano.id;
             const pLast  = jugadorCercano.steps[currentStep][jugadorCercano.steps[currentStep].length - 1];
             const snapX  = pLast.x + (13 * sF);
             const snapY  = pLast.y - (13 * sF);
-            const bPath  = ball.steps[currentStep];
+            const bPath  = activeObj.steps[currentStep];
             if (bPath.length > 1) {
                 // Hay trayectoria: ajustamos solo el último punto
                 bPath[bPath.length - 1] = { x: snapX, y: snapY, isScreen: false, angle: 0 };
             } else {
                 // La pelota no se movió (estaba pegada y no hubo drag real):
                 // dejamos un punto único sobre el nuevo jugador
-                ball.steps[currentStep] = [{ x: snapX, y: snapY, isScreen: false, angle: 0 }];
+                activeObj.steps[currentStep] = [{ x: snapX, y: snapY, isScreen: false, angle: 0 }];
             }
-            if (portadorAntes !== jugadorCercano.id) activarPulsoIman();
+            if (portadorAntes !== jugadorCercano.id) activarPulsoIman(activeObj);
         } else {
-            ball.portadorPorPaso[currentStep] = null;
-            if (portadorAntes !== null) activarPulsoIman();
+            activeObj.portadorPorPaso[currentStep] = null;
+            if (portadorAntes !== null) activarPulsoIman(activeObj);
         }
+
+        // Si el portador cambió, propagamos el cambio hacia adelante a
+        // los pasos siguientes que lo habían heredado sin tocar (corrige
+        // el bug de la pelota que "se olvida" de seguir al nuevo portador).
+        var afectadosPropagacion = propagarCambioDePortador(activeObj, currentStep, portadorAntes);
     } else {
         playSound('dropJersey');
     }
@@ -269,10 +412,11 @@ function handleEnd() {
     if (huboMovimiento && activeObj._undoSnapshot) {
         undoStack = undoStack.filter(item => !(item.obj === activeObj && item.step === currentStep));
         undoStack.push({
-            obj:             activeObj,
-            step:            currentStep,
-            snapshot:        activeObj._undoSnapshot,
-            portadorSnapshot: activeObj._portadorSnapshot
+            obj:              activeObj,
+            step:             currentStep,
+            snapshot:         activeObj._undoSnapshot,
+            portadorSnapshot: activeObj._portadorSnapshot,
+            propagados:       afectadosPropagacion || []
         });
         // Un movimiento nuevo invalida el historial de "rehacer" pendiente
         redoStack = [];
@@ -495,13 +639,17 @@ function undoLastMove() {
                     id:   p.id,
                     data: JSON.parse(JSON.stringify(p.steps[currentStep]))
                 })),
-                ballSnapshot: JSON.parse(JSON.stringify(ball.steps[currentStep])),
-                portador:     ball.portadorPorPaso[currentStep] ?? null
+                ballsSnapshot: balls.map(b => ({
+                    id:       b.id,
+                    data:     JSON.parse(JSON.stringify(b.steps[currentStep])),
+                    portador: b.portadorPorPaso[currentStep] ?? null
+                }))
             });
 
-            [...players, ball].forEach(p => p.steps.pop());
-            ball.portadorPorPaso.pop();
+            players.forEach(p => p.steps.pop());
+            balls.forEach(b => { b.steps.pop(); b.portadorPorPaso.pop(); });
             currentStep--;
+            stepCount--;
             renderTimeline();
             updateStepUI();
             draw();
@@ -518,26 +666,38 @@ function undoLastMove() {
         obj:              lastAction.obj,
         step:             lastAction.step,
         snapshot:         JSON.parse(JSON.stringify(lastAction.obj.steps[lastAction.step])),
-        portadorSnapshot: JSON.parse(JSON.stringify(ball.portadorPorPaso))
+        portadorSnapshot: snapshotPortadores()
     });
 
     lastAction.obj.steps[lastAction.step] = JSON.parse(JSON.stringify(lastAction.snapshot));
 
-    // Restaurar estado del imán
+    // Restaurar estado del imán (de TODAS las pelotas)
     if (lastAction.portadorSnapshot) {
-        ball.portadorPorPaso = JSON.parse(JSON.stringify(lastAction.portadorSnapshot));
-        // Re-pegar la pelota si en el snapshot este jugador la tenía
-        const portadorId = ball.portadorPorPaso[lastAction.step];
-        if (portadorId) {
-            const portador = players.find(p => p.id === portadorId);
-            if (portador) {
-                const pLast = portador.steps[lastAction.step][portador.steps[lastAction.step].length - 1];
-                ball.steps[lastAction.step] = [{
-                    x: pLast.x + (13 * sF), y: pLast.y - (13 * sF),
-                    isScreen: false, angle: 0
-                }];
+        restaurarPortadores(lastAction.portadorSnapshot);
+        // Re-pegar cada pelota si en el snapshot algún jugador la tenía
+        balls.forEach(b => {
+            const portadorId = b.portadorPorPaso[lastAction.step];
+            if (portadorId) {
+                const portador = players.find(p => p.id === portadorId);
+                if (portador) {
+                    const pLast = portador.steps[lastAction.step][portador.steps[lastAction.step].length - 1];
+                    b.steps[lastAction.step] = [{
+                        x: pLast.x + (13 * sF), y: pLast.y - (13 * sF),
+                        isScreen: false, angle: 0
+                    }];
+                }
             }
-        }
+        });
+    }
+
+    // Revertir la propagación hacia adelante: si el movimiento deshecho
+    // había cambiado el portador y arrastrado consigo pasos posteriores
+    // que lo heredaban, esos pasos vuelven a su estado previo también.
+    if (lastAction.propagados && lastAction.propagados.length > 0) {
+        lastAction.propagados.forEach(pr => {
+            lastAction.obj.portadorPorPaso[pr.step] = pr.portador;
+            lastAction.obj.steps[pr.step]           = JSON.parse(JSON.stringify(pr.steps));
+        });
     }
 
     activeObj  = null;
@@ -561,12 +721,17 @@ function redoLastMove() {
             obj:              accion.obj,
             step:             accion.step,
             snapshot:         JSON.parse(JSON.stringify(accion.obj.steps[accion.step])),
-            portadorSnapshot: JSON.parse(JSON.stringify(ball.portadorPorPaso))
+            portadorSnapshot: snapshotPortadores()
         });
 
         accion.obj.steps[accion.step] = JSON.parse(JSON.stringify(accion.snapshot));
+        // portadorSnapshot es una foto COMPLETA (todos los pasos) tomada
+        // en el momento posterior a la edición original -incluida la
+        // propagación hacia adelante-, así que restaura correctamente el
+        // portador tanto del paso editado como de los pasos propagados,
+        // sin necesidad de volver a correr propagarCambioDePortador acá.
         if (accion.portadorSnapshot) {
-            ball.portadorPorPaso = JSON.parse(JSON.stringify(accion.portadorSnapshot));
+            restaurarPortadores(accion.portadorSnapshot);
         }
     } else if (accion.type === 'deleteStep') {
         // Reconstruimos el paso que se había quitado con "deshacer"
@@ -575,9 +740,17 @@ function redoLastMove() {
             const last = p.steps[p.steps.length - 1];
             p.steps.push(snap ? JSON.parse(JSON.stringify(snap.data)) : JSON.parse(JSON.stringify(last)));
         });
-        ball.steps.push(JSON.parse(JSON.stringify(accion.ballSnapshot)));
-        ball.portadorPorPaso.push(accion.portador ?? null);
+        balls.forEach(b => {
+            // accion.ballsSnapshot puede no existir en un redoStack muy
+            // viejo (no debería pasar en la práctica, pero por las dudas
+            // degradamos con gracia en vez de romper la ejecución)
+            const snap = accion.ballsSnapshot ? accion.ballsSnapshot.find(s => s.id === b.id) : null;
+            const last = b.steps[b.steps.length - 1];
+            b.steps.push(snap ? JSON.parse(JSON.stringify(snap.data)) : JSON.parse(JSON.stringify(last)));
+            b.portadorPorPaso.push(snap ? (snap.portador ?? null) : null);
+        });
         currentStep = accion.step;
+        stepCount++;
         renderTimeline();
         updateStepUI();
     }
@@ -662,7 +835,12 @@ function actualizarBotonesUndoRedo() {
 // --------------------------------------------------------
 
 function updateFloatingUI() {
-    if (modoPizarraRapida || !activeObj || activeObj === ball || isEditionFinished) {
+    // Mantiene sincronizada la UI flotante de utilería/pelotas sin
+    // importar por cuál de las dos rutas (jugador o no) termine esta
+    // función: se llama primero, siempre.
+    updatePropFloatingUI();
+
+    if (modoPizarraRapida || !esJugador(activeObj) || isEditionFinished) {
         mostrarConFade(floatingUI, false, 'flex');
         return;
     }
@@ -683,7 +861,8 @@ function updateFloatingUI() {
         }
     });
 
-    const esteEsPortador = ball.portadorPorPaso[currentStep] === activeObj.id;
+    // Este jugador es "portador" si CUALQUIERA de las pelotas está imantada a él
+    const esteEsPortador = balls.some(b => b.portadorPorPaso[currentStep] === activeObj.id);
 
     // Botón cortina / indicador de imán
     rotBtn.style.display = "block";
@@ -725,4 +904,122 @@ function updateFloatingUI() {
         spinBtn.classList.remove('oculto-fade');
         spinBtn.style.display = 'none';
     }
+}
+
+// --------------------------------------------------------
+// CONTROLES FLOTANTES DE UTILERÍA Y PELOTAS (v142)
+// --------------------------------------------------------
+// Análogo a updateFloatingUI() (jugadores) pero para objetos de
+// utilería (color/tamaño/rotar/eliminar) y para pelotas (solo eliminar).
+// Igual que la utilería, solo disponible en el Paso Inicial: eliminar
+// una pelota en un paso intermedio dejaría sus arreglos steps[]/
+// portadorPorPaso[] desincronizados del resto de la jugada.
+
+const PALETA_UTILERIA = [
+    { nombre: 'Naranja', hex: '#ff7a00' },
+    { nombre: 'Amarillo', hex: '#ffc107' },
+    { nombre: 'Azul',     hex: '#0044CC' },
+    { nombre: 'Rojo',     hex: '#c01c33' }
+];
+const TAMANOS_ESCALERA = ['chica', 'mediana', 'grande'];
+
+function crearBotonPropFlotante(icono, titulo, onClick) {
+    const btn = document.createElement('button');
+    btn.className   = 'f-btn snd-btn';
+    btn.textContent = icono;
+    btn.title       = titulo;
+    btn.onclick     = onClick;
+    return btn;
+}
+
+function eliminarPropActivo() {
+    if (!esUtileria(activeObj)) return;
+    const idx = props.indexOf(activeObj);
+    if (idx !== -1) props.splice(idx, 1);
+    activeObj  = null;
+    isDragging = false;
+    updateFloatingUI();
+    draw();
+}
+
+function eliminarBallActivo() {
+    if (!activeObj || activeObj.team !== 'ball' || currentStep !== 0) return;
+    const idx = balls.indexOf(activeObj);
+    if (idx !== -1) balls.splice(idx, 1); // no rompe el render/arrastre de las demás
+    activeObj  = null;
+    isDragging = false;
+    updateFloatingUI();
+    draw();
+}
+
+function ciclarTamanoProp() {
+    if (!activeObj || activeObj.type !== 'escalera') return;
+    const idx = TAMANOS_ESCALERA.indexOf(activeObj.size);
+    activeObj.size = TAMANOS_ESCALERA[(idx + 1) % TAMANOS_ESCALERA.length];
+    draw();
+    updatePropFloatingUI();
+}
+
+function agregarBotonesColorProp(cont) {
+    PALETA_UTILERIA.forEach(c => {
+        const b = crearBotonPropFlotante('', c.nombre, () => {
+            activeObj.color = c.hex;
+            draw();
+            updatePropFloatingUI();
+        });
+        b.style.background = c.hex;
+        if (activeObj.color === c.hex) {
+            b.style.boxShadow = '0 0 0 3px #fff, 0 0 10px rgba(0,0,0,0.8)';
+        }
+        cont.appendChild(b);
+    });
+}
+
+function updatePropFloatingUI() {
+    const cont = document.getElementById('prop-floating-ui');
+    if (!cont) return;
+
+    const esProp = esUtileria(activeObj);
+    const esBola = !!activeObj && activeObj.team === 'ball';
+
+    // Tanto los objetos de utilería como las pelotas solo se pueden
+    // agregar/mover/eliminar en el Paso Inicial: si el usuario ya avanzó
+    // a otro paso, este panel de controles no debe mostrarse.
+    const debeOcultarse = modoPizarraRapida || isEditionFinished || !activeObj ||
+        currentStep !== 0 || (!esProp && !esBola);
+
+    if (debeOcultarse) {
+        mostrarConFade(cont, false, 'flex');
+        return;
+    }
+
+    const x = esProp ? activeObj.x : activeObj.steps[currentStep][activeObj.steps[currentStep].length - 1].x;
+    const y = esProp ? activeObj.y : activeObj.steps[currentStep][activeObj.steps[currentStep].length - 1].y;
+
+    cont.style.position  = "absolute";
+    cont.style.left      = x + "px";
+    cont.style.top       = (y - 56) + "px";
+    cont.style.transform = "translateX(-50%)";
+    mostrarConFade(cont, true, 'flex');
+
+    cont.innerHTML = '';
+
+    if (esBola) {
+        cont.appendChild(crearBotonPropFlotante('🗑️', 'Eliminar pelota', eliminarBallActivo));
+        return;
+    }
+
+    if (activeObj.type === 'cono' || activeObj.type === 'obstaculo') {
+        agregarBotonesColorProp(cont);
+    }
+    if (activeObj.type === 'escalera') {
+        cont.appendChild(crearBotonPropFlotante('📐', 'Tamaño: ' + activeObj.size, ciclarTamanoProp));
+    }
+    if (activeObj.type === 'escalera' || activeObj.type === 'valla' || activeObj.type === 'obstaculo') {
+        cont.appendChild(crearBotonPropFlotante('🔄', 'Girar 45°', () => {
+            activeObj.angle = ((activeObj.angle || 0) + 45) % 360;
+            draw();
+        }));
+    }
+    cont.appendChild(crearBotonPropFlotante('🗑️', 'Eliminar', eliminarPropActivo));
 }

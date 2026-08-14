@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Pizarra Oeste v141</title>
+    <title>Pizarra Oeste v142</title>
     <link rel="icon" type="image/svg+xml" href="logo.svg">
     <link rel="stylesheet" href="estilos.css">
 
@@ -136,8 +136,11 @@
                 <option value="custom">-- FORMACIÓN --</option>
             </select>
 
-            <button id="ballBtn" class="snd-btn" onclick="toggleBall()" title="Pelota"
+            <button id="ballBtn" class="snd-btn" onclick="addBall()" title="Agregar Pelota"
                 style="padding:10px 2px; font-size:14px; margin-top:2px;">🏀</button>
+
+            <button id="utileriaBtn" class="snd-btn" onclick="toggleUtileriaBar()" title="Utilería y Objetos Tácticos"
+                style="padding:10px 2px; font-size:13px; margin-top:2px; background:#333; color:white;">🧰<span class="utileria-btn-text"> UTILERÍA</span></button>
 
             <div class="icon-row">
                 <button id="undoBtn" class="snd-btn icon-btn" onclick="undoLastMove()" title="Deshacer"
@@ -211,7 +214,24 @@
                 <div id="floating-ui">
                     <button id="rot-btn" class="f-btn snd-btn" title="Cortina">🛡️</button>
                 </div>
+
+                <!-- Controles flotantes de un objeto de Utilería o de una
+                     pelota seleccionada (color/tamaño/girar/eliminar).
+                     Se puebla dinámicamente desde updatePropFloatingUI()
+                     en interaccion.js -análogo a #floating-ui, pero para
+                     estos objetos en vez de jugadores-. -->
+                <div id="prop-floating-ui"></div>
             </div>
+        </div>
+
+        <!-- Barra flotante superior de Utilería y Objetos Tácticos de
+             Entrenamiento: solo visible/activa en el Paso Inicial (ver
+             updateStepUI() en ui.js, que la cierra sola al salir de ahí). -->
+        <div id="utileria-bar">
+            <button class="utileria-item-btn snd-btn" onclick="agregarUtileria('cono')" title="Cono">🟡<span>CONO</span></button>
+            <button class="utileria-item-btn snd-btn" onclick="agregarUtileria('escalera')" title="Escalera de Agilidad">🪜<span>ESCALERA</span></button>
+            <button class="utileria-item-btn snd-btn" onclick="agregarUtileria('valla')" title="Valla">🚧<span>VALLA</span></button>
+            <button class="utileria-item-btn snd-btn" onclick="agregarUtileria('obstaculo')" title="Obstáculo">🛡️<span>OBSTÁCULO</span></button>
         </div>
 
         <div id="fullscreen-floating-menu">
@@ -322,7 +342,7 @@
     <div class="confirm-box">
         <img src="logo.svg" alt="Escudo Casanova Oeste" style="width:90px; height:90px; object-fit:contain; margin-bottom:14px;">
         <div class="confirm-title" style="font-size:16px;">Pizarra Táctica de Basquetbol</div>
-        <div class="confirm-text" style="font-size:12px; color:#999; margin-bottom:12px;">Versión 141</div>
+        <div class="confirm-text" style="font-size:12px; color:#999; margin-bottom:12px;">Versión 142</div>
         <div class="confirm-text" style="font-size:13px; text-align:left;">
             Esta aplicación está diseñada para la planificación, análisis y desarrollo de estrategias tácticas de basquetbol bajo reglamento FIBA para el club CASANOVA OESTE.
         </div>

@@ -102,6 +102,23 @@ function cerrarAcercaDe() {
 }
 
 // --------------------------------------------------------
+// BARRA FLOTANTE DE UTILERÍA (v142)
+// --------------------------------------------------------
+// Solo se usa/está disponible en el Paso Inicial -ver updateStepUI(),
+// que la cierra sola al salir de ahí- y se puebla con agregarUtileria()
+// (jugadores.js) al tocar cada objeto.
+
+function toggleUtileriaBar() {
+    const bar = document.getElementById('utileria-bar');
+    if (bar) bar.classList.toggle('abierto');
+}
+
+function cerrarBarraUtileria() {
+    const bar = document.getElementById('utileria-bar');
+    if (bar) bar.classList.remove('abierto');
+}
+
+// --------------------------------------------------------
 // PANTALLA DE CARGA
 // --------------------------------------------------------
 
@@ -391,13 +408,18 @@ function resetAEstadoVacio() {
     undoStack         = [];
     redoStack         = [];
     currentStep       = 0;
+    stepCount         = 1;
     players           = [];
-    ball = {
+    balls = [{
+        id:     'ball-0',
         active: true,
-        team: 'ball',
-        steps: [[{ x: 0, y: 0, isScreen: false, angle: 0 }]],
+        team:   'ball',
+        steps:  [[{ x: 0, y: 0, isScreen: false, angle: 0 }]],
         portadorPorPaso: [null]
-    };
+    }];
+    nextBallId = 1;
+    props      = [];
+    nextPropId = 1;
 
     // Reset total también de Pizarra Rápida (ambas caras), por prolijidad:
     // este reset solo ocurre al cargar una jugada de otro modo, algo que
@@ -606,14 +628,27 @@ function updateStepUI() {
     if (delBtn) delBtn.style.display = (currentStep > 0 && !isEditionFinished) ? "" : "none";
 
     const esPasoInicial       = (currentStep === 0 && !isEditionFinished);
-    const controlesOcultables = [rs, bs, fs, document.getElementById('ballBtn')];
+    const controlesOcultables = [rs, bs, fs, document.getElementById('ballBtn'), document.getElementById('utileriaBtn')];
     controlesOcultables.forEach(ctrl => {
         if (!ctrl) return;
         ctrl.style.display = esPasoInicial ? "" : "none";
     });
 
-    // Deshacer/Rehacer/Historial no tienen ningún uso en el paso 0
-    const mostrarHistorial = currentStep > 0;
+    // La barra flotante de Utilería (y cualquier objeto de utilería que
+    // haya quedado seleccionado) tampoco tienen sentido fuera del Paso
+    // Inicial: se agregan/mueven/eliminan únicamente ahí.
+    if (!esPasoInicial) {
+        if (typeof cerrarBarraUtileria === "function") cerrarBarraUtileria();
+        if (esUtileria(activeObj)) { activeObj = null; isDragging = false; }
+    }
+    if (typeof updatePropFloatingUI === "function") updatePropFloatingUI();
+
+    // Deshacer/Rehacer/Historial no tienen ningún uso en el paso 0 NI
+    // durante la reproducción de una jugada finalizada (isEditionFinished):
+    // sin este segundo chequeo, al clickear un paso de la lista mientras
+    // se reproduce una jugada terminada, currentStep > 0 hacía que estos
+    // controles de EDICIÓN reaparecieran indebidamente.
+    const mostrarHistorial = currentStep > 0 && !isEditionFinished;
     const undoRow = document.getElementById('undoBtn')?.closest('.icon-row');
     if (undoRow) undoRow.style.display = mostrarHistorial ? "" : "none";
     const histToggle = document.getElementById('historialToggle');
@@ -638,7 +673,7 @@ function renderTimeline() {
         return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
 
-    ball.steps.forEach((_, i) => {
+    for (let i = 0; i < stepCount; i++) {
         const btn = document.createElement('button');
         const color = stepColors[i % stepColors.length];
         btn.className  = `step-btn snd-btn ${i === currentStep ? 'active' : ''}`;
@@ -661,7 +696,7 @@ function renderTimeline() {
             attachButtonSounds();
         };
         timelineList.appendChild(btn);
-    });
+    }
 
     if (addStepBtn) {
         addStepBtn.style.display = isEditionFinished ? "none" : "";
@@ -687,22 +722,26 @@ function addNewStep() {
         p.steps.push([{ x: last.x, y: last.y, isScreen: last.isScreen, angle: last.angle }]);
     });
 
-    // La pelota hereda el punto final de su portador (o su propia posición si está suelta)
-    const portadorActual = ball.portadorPorPaso[currentStep] ?? null;
-    if (portadorActual) {
-        const portador     = players.find(p => p.id === portadorActual);
-        const portadorLast = portador
-            ? portador.steps[currentStep][portador.steps[currentStep].length - 1]
-            : ball.steps[currentStep][ball.steps[currentStep].length - 1];
-        ball.steps.push([{ x: portadorLast.x + 13*sF, y: portadorLast.y - 13*sF, isScreen: false, angle: 0 }]);
-    } else {
-        const last = ball.steps[currentStep][ball.steps[currentStep].length - 1];
-        ball.steps.push([{ x: last.x, y: last.y, isScreen: false, angle: 0 }]);
-    }
-    // Propagamos el portador al nuevo paso (el jugador sigue teniendo la pelota)
-    ball.portadorPorPaso.push(portadorActual);
+    // Cada pelota hereda el punto final de su propio portador (o su
+    // propia posición si está suelta) -son independientes entre sí-
+    balls.forEach(b => {
+        const portadorActual = b.portadorPorPaso[currentStep] ?? null;
+        if (portadorActual) {
+            const portador     = players.find(p => p.id === portadorActual);
+            const portadorLast = portador
+                ? portador.steps[currentStep][portador.steps[currentStep].length - 1]
+                : b.steps[currentStep][b.steps[currentStep].length - 1];
+            b.steps.push([{ x: portadorLast.x + 13*sF, y: portadorLast.y - 13*sF, isScreen: false, angle: 0 }]);
+        } else {
+            const last = b.steps[currentStep][b.steps[currentStep].length - 1];
+            b.steps.push([{ x: last.x, y: last.y, isScreen: false, angle: 0 }]);
+        }
+        // Propagamos el portador al nuevo paso (el jugador sigue teniendo esta pelota)
+        b.portadorPorPaso.push(portadorActual);
+    });
 
     currentStep++;
+    stepCount++;
     updateStepUI();
     renderTimeline();
     draw();
@@ -713,9 +752,9 @@ function deleteLastStep() {
     if (currentStep === 0) return;
     redoStack = [];
     players.forEach(p => p.steps.pop());
-    ball.steps.pop();
-    ball.portadorPorPaso.pop();
+    balls.forEach(b => { b.steps.pop(); b.portadorPorPaso.pop(); });
     currentStep--;
+    stepCount--;
     updateStepUI();
     renderTimeline();
     draw();
@@ -729,6 +768,7 @@ function deleteLastStep() {
 function finishEdition() {
     isEditionFinished = true;
     activeObj         = null;
+    if (typeof cerrarBarraUtileria === "function") cerrarBarraUtileria();
     updateFloatingUI();
 
     document.getElementById('playback-controls').style.display = "flex";
@@ -889,7 +929,7 @@ async function playFullPlay(loopMode) {
     shouldStopLoop = false;
 
     do {
-        for (let i = 0; i < ball.steps.length; i++) {
+        for (let i = 0; i < stepCount; i++) {
             if (shouldStopLoop) break;
             currentStep = i;
             renderTimeline();
@@ -903,16 +943,16 @@ async function playFullPlay(loopMode) {
                     const t    = f / totalFrames;
                     const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
 
-                    [...players, ball].forEach(p => {
+                    [...players, ...balls].forEach(p => {
                         if (!p.steps[i]) return;
                         const s = pathEfectivo(p, i);
                         if (s.length === 0) return;
 
-                        // La pelota omite su path propio SOLO si no tiene recorrido
+                        // Una pelota omite su path propio SOLO si no tiene recorrido
                         // (un único punto = siempre estuvo pegada a un jugador).
                         // Si tiene más de un punto significa que viajó antes de imantarse:
                         // en ese caso sí interpolamos su path y _render() usa ax/ay.
-                        if (p === ball && imantadoA && s.length <= 1) return;
+                        if (p.team === 'ball' && p.portadorPorPaso[i] && s.length <= 1) return;
 
                         const progFlot = ease * (s.length - 1);
                         const idxBase  = Math.floor(progFlot);
@@ -978,12 +1018,22 @@ function confirmNewPlay() {
     activeObj         = null;
     undoStack         = [];
     redoStack         = [];
+    if (typeof cerrarBarraUtileria === "function") cerrarBarraUtileria();
 
     if (canvas) {
         const hRef = (courtMode === 'full') ? canvas.height / 2 : canvas.height;
-        ball.steps          = [[{ x: canvas.width / 2, y: yPorFraccion(0.45, hRef), isScreen: false, angle: 0 }]];
-        ball.portadorPorPaso = [null];
+        balls = [{
+            id:     'ball-0',
+            active: true,
+            team:   'ball',
+            steps:  [[{ x: canvas.width / 2, y: yPorFraccion(0.45, hRef), isScreen: false, angle: 0 }]],
+            portadorPorPaso: [null]
+        }];
+        nextBallId = 1;
     }
+    props      = [];
+    nextPropId = 1;
+    stepCount  = 1;
 
     players = [];
     syncPlayers();
@@ -1036,6 +1086,7 @@ function aplicarModoPizarraLibre() {
     trazoActual     = null;
     dibujandoLibre  = false;
     borrandoConGoma = false;
+    if (typeof cerrarBarraUtileria === "function") cerrarBarraUtileria();
 
     actualizarHerramientaUI();
     redibujarLienzoLibre();
@@ -1144,7 +1195,9 @@ function exportarImagenPizarra() {
 function exportPlay() {
     const d = {
         a: rs.value, d: bs.value,
-        b: ball, p: players,
+        b: balls, p: players,
+        u: props,        // utilería (nuevo en v142; ausente en archivos más viejos)
+        t: stepCount,    // cantidad total de pasos (nuevo en v142)
         s: { w: canvas.width, h: canvas.height },
         m: courtMode
     };
@@ -1180,12 +1233,37 @@ function aplicarJugadaImportada(d) {
     const sX = canvas.width  / d.s.w;
     const sY = canvas.height / d.s.h;
 
-    ball = d.b;
-    ball.steps.forEach(s => s.forEach(p => { p.x *= sX; p.y *= sY; }));
-    // Compatibilidad con jugadas guardadas antes de portadorPorPaso
-    if (!ball.portadorPorPaso) {
-        ball.portadorPorPaso = ball.steps.map(() => null);
+    // Compatibilidad: hasta v141 se guardaba una única pelota (objeto),
+    // no un arreglo. La convertimos a balls[] con un único elemento.
+    const bolasImportadas = Array.isArray(d.b) ? d.b : (d.b ? [d.b] : []);
+    balls = bolasImportadas.map((b, i) => {
+        b.id   = b.id || ('ball-' + i);
+        b.team = 'ball';
+        if (b.active === undefined) b.active = true;
+        b.steps.forEach(s => s.forEach(p => { p.x *= sX; p.y *= sY; }));
+        // Compatibilidad con jugadas guardadas antes de portadorPorPaso
+        if (!b.portadorPorPaso) b.portadorPorPaso = b.steps.map(() => null);
+        return b;
+    });
+    if (balls.length === 0) {
+        // Por si el archivo trae un arreglo vacío: dejamos al menos una
+        // pelota de arranque para no partir de una cancha sin ninguna.
+        const hRef = (courtMode === 'full') ? canvas.height / 2 : canvas.height;
+        balls = [{
+            id: 'ball-0', active: true, team: 'ball',
+            steps: [[{ x: canvas.width / 2, y: yPorFraccion(0.45, hRef), isScreen: false, angle: 0 }]],
+            portadorPorPaso: [null]
+        }];
     }
+    nextBallId = balls.length;
+
+    // Utilería (nuevo en v142): ausente en jugadas guardadas antes.
+    props = Array.isArray(d.u) ? d.u.map((p, i) => {
+        p.id = p.id || ('prop-' + i);
+        p.x *= sX; p.y *= sY;
+        return p;
+    }) : [];
+    nextPropId = props.length;
 
     players = d.p;
     players.forEach(pl => {
@@ -1193,9 +1271,15 @@ function aplicarJugadaImportada(d) {
         if (!pl.label) pl.label = '';
     });
 
+    // Compatibilidad: si el archivo no trae el total de pasos guardado
+    // (versiones previas a v142), lo derivamos de la cantidad de pasos
+    // del primer jugador o pelota disponible.
+    stepCount = d.t || (players[0] && players[0].steps.length) || (balls[0] && balls[0].steps.length) || 1;
+
     undoStack   = [];
     redoStack   = [];
     currentStep = 0;
+    activeObj   = null;
     updateFormationOptions();
     renderTimeline();
     updateStepUI();
@@ -1292,12 +1376,12 @@ async function exportVideo() {
     const velocidadOriginal = factorVelocidad;
     factorVelocidad = 1;
 
-    for (let i = 0; i < ball.steps.length; i++) {
+    for (let i = 0; i < stepCount; i++) {
         currentStep = i;
         renderTimeline();
 
         if (i === 0) {
-            [...players, ball].forEach(p => { delete p.ax; delete p.ay; delete p.as; delete p.aa; });
+            [...players, ...balls].forEach(p => { delete p.ax; delete p.ay; delete p.as; delete p.aa; });
             renderAnim();
             await new Promise(r => setTimeout(r, 700));
             continue;
@@ -1309,12 +1393,12 @@ async function exportVideo() {
                 const t    = f / totalFrames;
                 const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
 
-                [...players, ball].forEach(p => {
+                [...players, ...balls].forEach(p => {
                     if (!p.steps[i]) return;
                     const s = pathEfectivo(p, i); if (s.length === 0) return;
 
                     // Misma lógica que playFullPlay: pelota sin recorrido → la pinta _render()
-                    if (p === ball && imantadoA && s.length <= 1) return;
+                    if (p.team === 'ball' && p.portadorPorPaso[i] && s.length <= 1) return;
                     const progFlot = ease * (s.length - 1);
                     const idxBase  = Math.floor(progFlot);
                     const idxSig   = Math.min(s.length - 1, idxBase + 1);
