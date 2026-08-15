@@ -317,6 +317,7 @@ function handleEnd() {
         isDragging = false;
         playSound('dropJersey');
         draw();
+        guardarBorradorSilencioso(); // se soltó un objeto de utilería (fin de arrastre)
         return;
     }
 
@@ -429,6 +430,7 @@ function handleEnd() {
     delete activeObj._portadorSnapshot;
     isDragging = false;
     draw();
+    guardarBorradorSilencioso(); // se soltó una ficha o la pelota (fin de arrastre)
 }
 
 canvas.addEventListener('mousedown',  handleStart);
@@ -488,7 +490,11 @@ function handleDrawMove(e) {
 }
 
 function handleDrawEnd() {
-    if (borrandoConGoma) { borrandoConGoma = false; return; }
+    if (borrandoConGoma) {
+        borrandoConGoma = false;
+        guardarBorradorSilencioso(); // fin del gesto de borrado con goma
+        return;
+    }
     if (!dibujandoLibre) return;
     dibujandoLibre = false;
 
@@ -502,6 +508,7 @@ function handleDrawEnd() {
     redibujarLienzoLibre();
     actualizarBotonesUndoRedo();
     playSound('dropJersey');
+    guardarBorradorSilencioso(); // se terminó de dibujar un trazo libre
 }
 
 // Goma "de contacto": tocar/pasar por encima de un trazo lo borra por
@@ -574,6 +581,7 @@ function aceptarDorsalModal() {
     savedLabels[jugador.team][parseInt(jugador.id.split('-')[1])] = nuevoDorsal;
     localStorage.setItem('pizarraLabels', JSON.stringify(savedLabels));
     draw();
+    guardarBorradorSilencioso(); // se editó el dorsal de un jugador
 
     cerrarDorsalModal();
 }
@@ -656,6 +664,7 @@ function undoLastMove() {
             updateStepUI();
             draw();
             updateRedoButton();
+            guardarBorradorSilencioso(); // deshacer borró el paso completo
         }
         return;
     }
@@ -708,6 +717,7 @@ function undoLastMove() {
     updateFloatingUI();
     updateUndoButton();
     updateRedoButton();
+    guardarBorradorSilencioso(); // deshacer un movimiento puntual
 }
 
 function redoLastMove() {
@@ -763,6 +773,7 @@ function redoLastMove() {
     updateFloatingUI();
     updateUndoButton();
     updateRedoButton();
+    guardarBorradorSilencioso(); // rehacer un movimiento o un paso
 }
 
 let _undoBtnCache = null, _redoBtnCache = null;
@@ -806,6 +817,7 @@ function undoTrazoLibre() {
     l.deshechos.push(l.trazos.pop());
     redibujarLienzoLibre();
     actualizarBotonesUndoRedo();
+    guardarBorradorSilencioso(); // deshacer un trazo libre
 }
 
 function redoTrazoLibre() {
@@ -814,6 +826,7 @@ function redoTrazoLibre() {
     l.trazos.push(l.deshechos.pop());
     redibujarLienzoLibre();
     actualizarBotonesUndoRedo();
+    guardarBorradorSilencioso(); // rehacer un trazo libre
 }
 
 // Único punto de entrada para refrescar el estado visual de Deshacer/
@@ -883,6 +896,7 @@ function updateFloatingUI() {
             if (!last.isScreen) last.angle = 0;
             draw();
             updateFloatingUI();
+            guardarBorradorSilencioso(); // se puso/quitó una cortina
         };
     }
 
@@ -897,7 +911,7 @@ function updateFloatingUI() {
     if (last.isScreen && !esteEsPortador) {
         spinBtn.textContent   = "🗘";
         spinBtn.title         = "Rotar Cortina";
-        spinBtn.onclick = () => { last.angle = (last.angle + 45) % 360; draw(); };
+        spinBtn.onclick = () => { last.angle = (last.angle + 45) % 360; draw(); guardarBorradorSilencioso(); };
         mostrarConFade(spinBtn, true, 'block');
     } else {
         // Ocultamos al instante (no con fundido): si no, al pasar de un
@@ -943,6 +957,7 @@ function eliminarPropActivo() {
     isDragging = false;
     updateFloatingUI();
     draw();
+    guardarBorradorSilencioso(); // se eliminó un objeto de utilería
 }
 
 function eliminarBallActivo() {
@@ -953,6 +968,7 @@ function eliminarBallActivo() {
     isDragging = false;
     updateFloatingUI();
     draw();
+    guardarBorradorSilencioso(); // se eliminó una pelota
 }
 
 function ciclarTamanoProp() {
@@ -961,6 +977,7 @@ function ciclarTamanoProp() {
     activeObj.size = TAMANOS_ESCALERA[(idx + 1) % TAMANOS_ESCALERA.length];
     draw();
     updatePropFloatingUI();
+    guardarBorradorSilencioso(); // cambió el tamaño de una escalera
 }
 
 function agregarBotonesColorProp(cont) {
@@ -969,6 +986,7 @@ function agregarBotonesColorProp(cont) {
             activeObj.color = c.hex;
             draw();
             updatePropFloatingUI();
+            guardarBorradorSilencioso(); // cambió el color de un objeto de utilería
         });
         b.style.background = c.hex;
         if (activeObj.color === c.hex) {
@@ -1048,6 +1066,7 @@ function updatePropFloatingUI() {
         cont.appendChild(crearBotonPropFlotante('🔄', 'Girar 45°', () => {
             activeObj.angle = ((activeObj.angle || 0) + 45) % 360;
             draw();
+            guardarBorradorSilencioso(); // se rotó un objeto de utilería
         }));
     }
     cont.appendChild(crearBotonPropFlotante('🗑️', 'Eliminar', eliminarPropActivo));

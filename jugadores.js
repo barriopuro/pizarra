@@ -122,6 +122,7 @@ function syncPlayers() {
     updateFormationOptions();
     draw();
     attachButtonSounds();
+    guardarBorradorSilencioso(); // cambió la cantidad de jugadores por equipo
 }
 
 // --- GUARDAR ETIQUETAS ---
@@ -210,6 +211,7 @@ function applyFormation() {
     });
 
     draw();
+    guardarBorradorSilencioso(); // se aplicó una formación
 }
 
 // --- AGREGAR PELOTA (balls[], v142) ---
@@ -243,6 +245,7 @@ function addBall() {
     updateFloatingUI();
     draw();
     playSound('bounceBall');
+    guardarBorradorSilencioso(); // se agregó una pelota
 }
 
 // --- UTILERÍA Y OBJETOS TÁCTICOS DE ENTRENAMIENTO (v142) ---
@@ -282,4 +285,5 @@ function agregarUtileria(tipo) {
     updateFloatingUI();
     draw();
     playSound('grabJersey');
+    guardarBorradorSilencioso(); // se agregó un objeto de utilería
 }

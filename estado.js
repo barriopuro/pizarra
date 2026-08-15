@@ -141,6 +141,106 @@ const logoCanchaImg = new Image();
 logoCanchaImg.src   = "logocancha.svg";
 logoCanchaImg.onload = () => { if (typeof draw === "function") draw(); };
 
+// ========================================================
+// AUTOGUARDADO / RESTAURACIÓN SILENCIOSA (nuevo en v143)
+// ========================================================
+// "Borrador de emergencia" en localStorage: si la app se cierra sin
+// querer, se recibe una llamada, o se refresca la página, al reabrir
+// se encuentra exactamente la última jugada en el estado en que había
+// quedado, sin ningún cartel ni confirmación de por medio. No reemplaza
+// a "Guardar/Cargar Jugada" (que sigue produciendo un archivo .json
+// aparte, pensado para compartir): esto es automático y en segundo plano.
+//
+// CRÍTICO PARA LA FLUIDEZ (60 FPS): guardarBorradorSilencioso() NUNCA
+// se llama durante el arrastre (pointermove/touchmove) ni mientras se
+// dibuja un trazo en curso -eso rompería la fluidez-. Solo se invoca al
+// FINALIZAR una acción concreta y puntual (soltar una ficha, terminar
+// un trazo, agregar/borrar un paso, cambiar de modo de cancha, y otras
+// acciones de un solo click: agregar/eliminar pelota o utilería,
+// deshacer/rehacer, etc.). Ver los llamados a esta función en
+// interaccion.js, ui.js y jugadores.js.
+const AUTOSAVE_KEY = 'pizarra_borrador_actual';
+
+// Arma el "paquete" a guardar. Reutiliza el mismo formato compacto que
+// ya usa exportPlay() en ui.js (a/d/b/p/u/t/s/m) y le suma los campos
+// propios del autoguardado (cs/ef/pl/lz/ct/ht) para poder reabrir
+// exactamente en el mismo estado -incluida la Pizarra Rápida-, algo que
+// un archivo .json exportado a mano no necesita guardar.
+function serializarBorradorActual() {
+    if (!courtMode || !canvas || canvas.width <= 0 || canvas.height <= 0) return null;
+    return {
+        a:  rs ? rs.value : 5,
+        d:  bs ? bs.value : 0,
+        b:  balls,
+        p:  players,
+        u:  props,
+        t:  stepCount,
+        s:  { w: canvas.width, h: canvas.height },
+        m:  courtMode,
+        cs: currentStep,
+        ef: isEditionFinished,
+        pl: modoPizarraRapida,
+        lz: lienzosLibres,
+        ct: colorTrazoActivo,
+        ht: herramientaActiva
+    };
+}
+
+function guardarBorradorSilencioso() {
+    // No hay nada útil que guardar todavía mientras se está eligiendo el
+    // modo de cancha o durante la pantalla de carga inicial.
+    if (!cargaCompleta || !courtMode) return;
+    try {
+        const datos = serializarBorradorActual();
+        if (!datos) return;
+        localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(datos));
+    } catch (e) {
+        // localStorage lleno, en modo privado, o no disponible: el
+        // autoguardado es una mejora, no algo crítico. Fallamos en
+        // silencio, sin interrumpir al usuario con ningún error.
+    }
+}
+
+// Se dispara al presionar "Nueva Jugada" (o al confirmar el borrado):
+// si no, al cerrar y reabrir la app después de vaciar la pizarra, el
+// borrador viejo la volvería a llenar sola.
+function borrarBorradorGuardado() {
+    try { localStorage.removeItem(AUTOSAVE_KEY); } catch (e) { /* nada que hacer */ }
+}
+
+// --- LECTURA TEMPRANA DEL BORRADOR, PARA RESTAURACIÓN SILENCIOSA ---
+// Se lee y valida ACÁ, apenas arranca estado.js (antes que cualquier
+// otro módulo), para poder saltear directo la pantalla "ELEGÍ EL MODO
+// DE CANCHA" si ya había una jugada en curso. `courtMode` y
+// `lienzosLibres` se sobreescriben directamente en este mismo momento
+// (antes de que exista ningún canvas todavía) porque init() -en
+// cancha.js- necesita encontrarlos ya en su valor final para reescalar
+// bien los trazos de Pizarra Rápida en el primer dibujo del canvas (ver
+// el bloque "Reescala el lienzo libre de LA CARA ACTIVA..." en init()).
+// El resto de los campos (fichas, pelota, utilería, paso actual, etc.)
+// se aplican más tarde, ya con el canvas listo, a través del mismo
+// mecanismo que usa "Cargar Jugada" (pendingImport + aplicarJugada-
+// Importada(), ambos en ui.js) -ver checkOrientationForMode().
+let borradorAlIniciar = null;
+try {
+    const crudoBorrador = localStorage.getItem(AUTOSAVE_KEY);
+    if (crudoBorrador) {
+        const datosBorrador = JSON.parse(crudoBorrador);
+        if (datosBorrador && (datosBorrador.m === 'full' || datosBorrador.m === 'half') &&
+            datosBorrador.s && datosBorrador.b && datosBorrador.p) {
+            borradorAlIniciar = datosBorrador;
+            courtMode = datosBorrador.m;
+            if (datosBorrador.lz && datosBorrador.lz.full && datosBorrador.lz.half) {
+                lienzosLibres = datosBorrador.lz;
+            }
+        }
+    }
+} catch (e) {
+    // Borrador corrupto o localStorage no disponible: arrancamos normal,
+    // con la pantalla de selección de modo de cancha de siempre.
+    borradorAlIniciar = null;
+}
+
 // --- INICIALIZACIÓN DE SELECTORES ---
 if (rs && bs) {
     for (let i = 0; i <= 5; i++) {

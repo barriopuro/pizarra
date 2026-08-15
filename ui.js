@@ -8,7 +8,11 @@
 
 // Jugada leída de un archivo que quedó esperando a que termine un cambio
 // de modo de cancha (cuando el archivo fue guardado en el otro modo).
-let pendingImport = null;
+// Arranca directamente con el borrador del autoguardado si había uno
+// (ver borradorAlIniciar en estado.js): así, apenas init() termine de
+// preparar el canvas, se aplica solo -sin ningún cartel- exactamente
+// igual que si el usuario hubiera elegido "Cargar Jugada" a mano.
+let pendingImport = (typeof borradorAlIniciar !== "undefined" && borradorAlIniciar) ? borradorAlIniciar : null;
 
 // Marca que la app se está mostrando después de un cambio de modo manual
 // (preservando la jugada), para refrescar la UI una vez que init()
@@ -219,6 +223,9 @@ function checkOrientationForMode() {
             updateStepUI();
             renderTimeline();
             draw();
+            // Cambio de modo de cancha confirmado (o revertido por
+            // "Cancelar"): autoguardado silencioso del nuevo estado.
+            if (typeof guardarBorradorSilencioso === "function") guardarBorradorSilencioso();
         }
 
         ajustarAlturaBarras();
@@ -746,6 +753,7 @@ function addNewStep() {
     renderTimeline();
     draw();
     attachButtonSounds();
+    guardarBorradorSilencioso(); // se agregó un paso a la línea de tiempo
 }
 
 function deleteLastStep() {
@@ -759,6 +767,7 @@ function deleteLastStep() {
     renderTimeline();
     draw();
     attachButtonSounds();
+    guardarBorradorSilencioso(); // se borró un paso de la línea de tiempo
 }
 
 // --------------------------------------------------------
@@ -787,6 +796,7 @@ function finishEdition() {
     verificarMenuFlotante();
     attachButtonSounds();
     ajustarAlturaBarras();
+    guardarBorradorSilencioso(); // pasó a modo reproducción (jugada finalizada)
 }
 
 function backToEdit() {
@@ -818,6 +828,7 @@ function backToEdit() {
     draw();
     renderTimeline();
     attachButtonSounds();
+    guardarBorradorSilencioso(); // volvió a modo edición
     ajustarAlturaBarras();
 }
 
@@ -1046,6 +1057,11 @@ function confirmNewPlay() {
     updateStepUI();
     renderTimeline();
     draw();
+
+    // "Nueva Jugada" borra explícitamente el borrador guardado: si no,
+    // al cerrar y reabrir la app después de vaciar la pizarra, el
+    // autoguardado la volvería a llenar sola con la jugada anterior.
+    if (typeof borrarBorradorGuardado === "function") borrarBorradorGuardado();
 }
 
 // --------------------------------------------------------
@@ -1096,6 +1112,7 @@ function aplicarModoPizarraLibre() {
     updateFloatingUI();
     verificarMenuFlotante();
     attachButtonSounds();
+    guardarBorradorSilencioso(); // cambió el modo Táctico/Pizarra Rápida
 }
 
 // --- SELECCIÓN DE COLOR / HERRAMIENTA ---
@@ -1150,6 +1167,7 @@ function limpiarPizarraLibreActiva() {
     trazoActual = null;
     redibujarLienzoLibre();
     actualizarBotonesUndoRedo();
+    guardarBorradorSilencioso(); // se vació el lienzo de dibujo libre activo
 }
 
 // --- EXPORTAR IMAGEN (Modo Pizarra Rápida) ---
@@ -1278,13 +1296,38 @@ function aplicarJugadaImportada(d) {
 
     undoStack   = [];
     redoStack   = [];
-    currentStep = 0;
+    // El paso en el que quedó trabajando el entrenador: "Cargar Jugada"
+    // siempre vuelve al Paso Inicial (comportamiento de siempre), pero el
+    // AUTOGUARDADO sí trae guardado en qué paso había quedado (d.cs) y lo
+    // reabre exactamente ahí -ver serializarBorradorActual() en estado.js-.
+    // Ausente en un archivo .json de toda la vida → cae a 0, sin cambios.
+    currentStep = (typeof d.cs === "number" && d.cs >= 0 && d.cs < stepCount) ? d.cs : 0;
     activeObj   = null;
+    // Ídem con el estado de reproducción: si el autoguardado había
+    // quedado con la jugada "Finalizada" (viendo la reproducción), la
+    // reabrimos en ese mismo modo en vez de volver siempre a Editar.
+    isEditionFinished = !!d.ef;
     updateFormationOptions();
     renderTimeline();
     updateStepUI();
     draw();
     attachButtonSounds();
+    if (isEditionFinished) finishEdition();
+
+    // Campos exclusivos del autoguardado (ausentes en un archivo .json
+    // exportado a mano): estado de la Pizarra Rápida. Los trazos en sí
+    // (lienzosLibres) ya quedaron restaurados ANTES de init() -ver
+    // estado.js-, acá solo falta sincronizar la interfaz con ellos.
+    if (d.pl !== undefined) {
+        modoPizarraRapida = !!d.pl;
+        if (d.ct) colorTrazoActivo  = d.ct;
+        if (d.ht) herramientaActiva = d.ht;
+        aplicarModoPizarraLibre();
+    }
+
+    // La jugada recién cargada (a mano, o restaurada del autoguardado)
+    // pasa a ser el nuevo "borrador actual".
+    if (typeof guardarBorradorSilencioso === "function") guardarBorradorSilencioso();
 }
 
 // --------------------------------------------------------
