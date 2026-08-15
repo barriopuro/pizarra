@@ -577,20 +577,33 @@ select:hover:not(:disabled) {
 /* Controles flotantes de un objeto de Utilería o de una pelota
    seleccionada (color/tamaño/girar/eliminar). A diferencia de
    #floating-ui (ancho fijo, siempre 1 botón), la cantidad de círculos
-   varía según el tipo de objeto -hasta 6 para el Obstáculo (color x4 +
-   girar + eliminar)-, así que el ancho es flexible y permite envolver. */
+   varía según el tipo de objeto -hasta 4 para el Obstáculo (color x2 +
+   girar + eliminar)-. SIEMPRE en una sola fila (nowrap): partirse en 2
+   filas hacía que la segunda terminara tapando al objeto seleccionado.
+   Si en una pantalla muy angosta no entran igual, se puede deslizar
+   horizontalmente en vez de romper el layout. */
 #prop-floating-ui {
     position: absolute;
     z-index: 10;
     display: none;
     pointer-events: auto;
     flex-direction: row;
-    flex-wrap: wrap;
-    gap: 6px;
+    flex-wrap: nowrap;
+    gap: 5px;
     justify-content: center;
     align-items: center;
-    max-width: 230px;
+    max-width: 92vw;
+    overflow-x: auto;
     box-sizing: border-box;
+}
+/* Botones más chicos específicamente acá (no tocamos .f-btn en general,
+   que también usa #floating-ui para jugadores): con hasta 4-5 círculos
+   en fila, más chicos entran cómodos sin invadir el objeto de abajo. */
+#prop-floating-ui .f-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 15px;
+    flex: 0 0 auto;
 }
 
 /* ========================================================
@@ -647,10 +660,12 @@ select:hover:not(:disabled) {
     border: 1px solid #444;
     display: flex;
     flex-direction: row;
-    flex-wrap: wrap;
-    gap: 8px;
+    flex-wrap: nowrap;
+    gap: 6px;
     justify-content: center;
-    max-width: 260px;
+    max-width: calc(100% - 16px);
+    overflow-x: auto;
+    box-sizing: border-box;
     backdrop-filter: blur(4px);
     box-shadow: 0 4px 15px rgba(0,0,0,0.5);
     opacity: 0;
@@ -665,8 +680,9 @@ select:hover:not(:disabled) {
     transition: opacity 0.2s ease, transform 0.2s ease, visibility 0s linear 0s;
 }
 .utileria-item-btn {
-    width: 56px;
-    height: 56px;
+    width: 50px;
+    height: 50px;
+    flex: 0 0 auto;
     border-radius: 8px;
     background: #222;
     border: 1px solid #555;
@@ -676,14 +692,14 @@ select:hover:not(:disabled) {
     align-items: center;
     justify-content: center;
     gap: 2px;
-    font-size: 22px;
+    font-size: 19px;
     padding: 4px;
     line-height: 1;
 }
 .utileria-item-btn span {
-    font-size: 8.5px;
+    font-size: 7.5px;
     font-weight: bold;
-    letter-spacing: 0.2px;
+    letter-spacing: 0.1px;
     white-space: nowrap;
 }
 

@@ -239,6 +239,7 @@ function addBall() {
     // (por ahora solo "Eliminar"), lista para arrastrarla a su lugar.
     activeObj  = nuevaBola;
     isDragging = false;
+    if (typeof activarPulsoSeleccion === "function") activarPulsoSeleccion(nuevaBola);
     updateFloatingUI();
     draw();
     playSound('bounceBall');
@@ -277,6 +278,7 @@ function agregarUtileria(tipo) {
     // objetos seguidos sin tener que volver a tocar el botón 🧰 cada vez.
     activeObj  = nuevoObjeto;
     isDragging = false;
+    if (typeof activarPulsoSeleccion === "function") activarPulsoSeleccion(nuevoObjeto);
     updateFloatingUI();
     draw();
     playSound('grabJersey');

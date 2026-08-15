@@ -183,6 +183,7 @@ function handleStart(e) {
     if (found && esUtileria(found)) {
         activeObj  = found;
         isDragging = true;
+        activarPulsoSeleccion(found);
         updateFloatingUI();
         playSound('grabJersey');
         draw();
@@ -227,6 +228,7 @@ function handleStart(e) {
 
         activeObj  = found;
         isDragging = true;
+        activarPulsoSeleccion(found);
         updateFloatingUI();
         if (activeObj.team === 'ball') playSound('bounceBall'); else playSound('grabJersey');
     } else {
@@ -915,11 +917,12 @@ function updateFloatingUI() {
 // una pelota en un paso intermedio dejaría sus arreglos steps[]/
 // portadorPorPaso[] desincronizados del resto de la jugada.
 
+// Solo 2 colores (antes 4): con menos botones el panel entra cómodo en
+// una sola fila incluso en celular, y de paso evitamos el rojo/azul que
+// ya identifican a los equipos en cancha (podría confundirse con eso).
 const PALETA_UTILERIA = [
-    { nombre: 'Naranja', hex: '#ff7a00' },
-    { nombre: 'Amarillo', hex: '#ffc107' },
-    { nombre: 'Azul',     hex: '#0044CC' },
-    { nombre: 'Rojo',     hex: '#c01c33' }
+    { nombre: 'Naranja',  hex: '#ff7a00' },
+    { nombre: 'Amarillo', hex: '#ffc107' }
 ];
 const TAMANOS_ESCALERA = ['chica', 'mediana', 'grande'];
 
@@ -996,9 +999,35 @@ function updatePropFloatingUI() {
     const x = esProp ? activeObj.x : activeObj.steps[currentStep][activeObj.steps[currentStep].length - 1].x;
     const y = esProp ? activeObj.y : activeObj.steps[currentStep][activeObj.steps[currentStep].length - 1].y;
 
+    // Separación entre el panel y el objeto: para utilería usamos su
+    // tamaño real (una escalera grande necesita más despegue que un
+    // cono, si no el panel termina tapándola y provocando toques
+    // accidentales); para la pelota un valor fijo alcanza de sobra.
+    const separacion = esProp && typeof medioTamanoProp === "function"
+        ? medioTamanoProp(activeObj) + 38
+        : 56;
+
+    let topPos = y - separacion;
+    // Si el objeto está cerca del borde superior y el panel no entra
+    // arriba, lo mostramos abajo en su lugar (mejor que cortarlo).
+    if (topPos < 4) {
+        const abajo = esProp && typeof medioTamanoProp === "function"
+            ? medioTamanoProp(activeObj) + 18
+            : 20;
+        topPos = y + abajo;
+    }
+
+    // Clamp horizontal aproximado: que el panel no quede cortado contra
+    // los bordes del canvas en pantallas angostas (celular).
+    let leftPos = x;
+    if (canvas) {
+        const mitadPanel = 95; // ancho aproximado máximo del panel / 2
+        leftPos = Math.max(mitadPanel, Math.min(canvas.width - mitadPanel, x));
+    }
+
     cont.style.position  = "absolute";
-    cont.style.left      = x + "px";
-    cont.style.top       = (y - 56) + "px";
+    cont.style.left      = leftPos + "px";
+    cont.style.top       = topPos + "px";
     cont.style.transform = "translateX(-50%)";
     mostrarConFade(cont, true, 'flex');
 

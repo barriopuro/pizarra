@@ -26,6 +26,76 @@ function activarPulsoIman(ballObj) {
     });
 }
 
+// --- HALO DE SELECCIÓN (v142.1) ---
+// Reemplaza al viejo círculo punteado blanco que envolvía a TODO objeto
+// seleccionado (jugadores, pelota y utilería): en objetos grandes -una
+// valla, una escalera- ese círculo terminaba siendo enorme y confuso,
+// sobre todo en pantallas chicas. En su lugar usamos el mismo lenguaje
+// visual que ya tenía la pelota al imantarse/desimantarse: un anillo
+// rojo que se expande y se desvanece solo en ~350ms. Se guarda como
+// propiedad (_pulsoSeleccionHasta) del objeto puntual, así que cada uno
+// pulsa de forma independiente sin pisarse entre sí.
+function activarPulsoSeleccion(obj) {
+    if (!obj) return;
+    obj._pulsoSeleccionHasta = performance.now() + 350;
+    requestAnimationFrame(function tick() {
+        draw();
+        if (performance.now() < obj._pulsoSeleccionHasta) requestAnimationFrame(tick);
+    });
+}
+
+// Dibuja el halo en (cx,cy) si "hasta" (un timestamp de performance.now())
+// todavía no venció. radioBase es el tamaño de referencia del objeto:
+// se lo usa como punto de partida de la expansión, no como tamaño final.
+function dibujarHaloSeleccion(cx, cy, radioBase, hasta) {
+    if (!hasta || performance.now() >= hasta) return;
+    const restante = (hasta - performance.now()) / 350;
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, restante) * 0.55;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radioBase * (1.25 + (1 - restante) * 0.7), 0, Math.PI * 2);
+    ctx.strokeStyle = "#c01c33";
+    ctx.lineWidth = 2.2 * sF;
+    ctx.stroke();
+    ctx.restore();
+}
+
+// Radio CHICO y discreto para el halo de un objeto de utilería: a
+// propósito NO usa el tamaño real del objeto (una escalera grande daría
+// un halo enorme, exactamente el problema que queremos evitar). Es solo
+// un destello breve de confirmación, no un indicador de tamaño.
+function radioHaloProp(obj) {
+    switch (obj.type) {
+        case 'cono':      return 16 * sF;
+        case 'escalera': {
+            const escalas = { chica: 0.7, mediana: 1, grande: 1.35 };
+            return 18 * sF * (escalas[obj.size] || 1);
+        }
+        case 'valla':     return 20 * sF;
+        case 'obstaculo': return 18 * sF;
+        default:          return 16 * sF;
+    }
+}
+
+// Media-medida REAL de un objeto de utilería (a diferencia de
+// radioHaloProp, acá sí interesa el tamaño real, incluido el eje largo
+// de la escalera). Se usa para separar el panel de controles flotantes
+// lo suficiente como para que no tape al objeto -ver
+// updatePropFloatingUI() en interaccion.js-.
+function medioTamanoProp(obj) {
+    switch (obj.type) {
+        case 'cono': return 15 * sF;
+        case 'escalera': {
+            const escalas = { chica: 0.7, mediana: 1, grande: 1.35 };
+            const factor  = escalas[obj.size] || 1;
+            return Math.max(100 * sF * factor, 26 * sF * factor) / 2;
+        }
+        case 'valla':     return Math.max(56 * sF, 30 * sF) / 2;
+        case 'obstaculo': return Math.max(34 * sF, 24 * sF) / 2;
+        default:          return 15 * sF;
+    }
+}
+
 // --- MAPEO INTELIGENTE DE CANCHA (MINICÍRCULOS) ---
 // Convención: una ficha "vive" siempre en su coordenada real, aunque esa
 // coordenada quede fuera del canvas visible. En Media Cancha, si la Y de
@@ -589,15 +659,6 @@ function getBallAnimPos(ballObj) {
 // agregar/mover/eliminar en el Paso Inicial -ver updateStepUI() en ui.js
 // y los controles en interaccion.js-.
 
-function dibujarCirculoSeleccionProp(p, radioAprox) {
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, radioAprox, 0, Math.PI * 2);
-    ctx.strokeStyle = "rgba(255,255,255,0.85)";
-    ctx.lineWidth = 2.5 * sF; ctx.setLineDash([4, 4]); ctx.stroke();
-    ctx.restore();
-}
-
 function dibujarCono(p) {
     const r = 15 * sF; // mismo radio de referencia que un jugador
     ctx.save();
@@ -621,7 +682,7 @@ function dibujarCono(p) {
     ctx.fillStyle = 'rgba(255,255,255,0.92)';
     ctx.fillRect(-r * 0.5, r * 0.18, r * 1.0, r * 0.16);
     ctx.restore();
-    if (activeObj === p) dibujarCirculoSeleccionProp(p, r * 1.15);
+    if (activeObj === p) dibujarHaloSeleccion(p.x, p.y, radioHaloProp(p), p._pulsoSeleccionHasta);
 }
 
 function dibujarEscalera(p) {
@@ -652,7 +713,7 @@ function dibujarEscalera(p) {
         ctx.stroke();
     }
     ctx.restore();
-    if (activeObj === p) dibujarCirculoSeleccionProp(p, Math.max(largo, ancho) * 0.62);
+    if (activeObj === p) dibujarHaloSeleccion(p.x, p.y, radioHaloProp(p), p._pulsoSeleccionHasta);
 }
 
 function dibujarValla(p) {
@@ -681,7 +742,7 @@ function dibujarValla(p) {
         ctx.fillRect(-ancho / 2 + (ancho / franjas) * i, -barraAlto / 2, ancho / franjas, barraAlto);
     }
     ctx.restore();
-    if (activeObj === p) dibujarCirculoSeleccionProp(p, Math.max(ancho, alto) * 0.75);
+    if (activeObj === p) dibujarHaloSeleccion(p.x, p.y, radioHaloProp(p), p._pulsoSeleccionHasta);
 }
 
 function dibujarObstaculo(p) {
@@ -700,7 +761,7 @@ function dibujarObstaculo(p) {
     ctx.fillStyle = 'rgba(255,255,255,0.15)';
     ctx.fillRect(-ancho / 2, -alto / 2, ancho, alto * 0.35);
     ctx.restore();
-    if (activeObj === p) dibujarCirculoSeleccionProp(p, Math.max(ancho, alto) * 0.85);
+    if (activeObj === p) dibujarHaloSeleccion(p.x, p.y, radioHaloProp(p), p._pulsoSeleccionHasta);
 }
 
 function dibujarProps() {
@@ -850,14 +911,9 @@ function _render(modoAnim, paraVideo) {
         }
 
         if (!modoAnim) {
-            // Círculo de selección
+            // Halo de selección (en vez del viejo círculo punteado)
             if (activeObj === p) {
-                ctx.save();
-                ctx.beginPath();
-                ctx.arc(last.x, last.y, radius*1.6, 0, Math.PI*2);
-                ctx.strokeStyle = "rgba(255,255,255,0.85)";
-                ctx.lineWidth = 3*sF; ctx.setLineDash([4,4]); ctx.stroke();
-                ctx.restore();
+                dibujarHaloSeleccion(last.x, last.y, radius, p._pulsoSeleccionHasta);
             }
             // Trazo del paso activo (si arrancó fuera de foco -recién
             // "traído" de un minicírculo- no arrastramos una línea gigante)
@@ -908,14 +964,6 @@ function _render(modoAnim, paraVideo) {
                 const last = path[path.length-1];
                 ballX = last.x; ballY = last.y;
 
-                // Círculo de selección sobre la pelota
-                ctx.save();
-                ctx.beginPath();
-                ctx.arc(ballX, ballY, radius*0.9, 0, Math.PI*2);
-                ctx.strokeStyle = "rgba(255,255,255,0.85)";
-                ctx.lineWidth = 3*sF; ctx.setLineDash([4,4]); ctx.stroke();
-                ctx.restore();
-
                 // Trazo de la pelota suelta en el paso activo
                 if (currentStep > 0 && ballObj.steps[currentStep].length > 1) {
                     drawSmoothPath(pathEfectivo(ballObj, currentStep), activeColor, 3.5*sF, true);
@@ -945,19 +993,10 @@ function _render(modoAnim, paraVideo) {
             ctx.fillText("🏀", 0, 0);
             ctx.restore();
 
-            // Pulso sutil al imantar/desimantar ESTA pelota (dura ~350ms)
-            const pulsoHasta = ballObj._pulsoImanHasta || 0;
-            if (performance.now() < pulsoHasta) {
-                const restante = (pulsoHasta - performance.now()) / 350;
-                ctx.save();
-                ctx.globalAlpha = Math.max(0, restante) * 0.55;
-                ctx.beginPath();
-                ctx.arc(ballX, ballY, radius * (1.25 + (1 - restante) * 0.7), 0, Math.PI * 2);
-                ctx.strokeStyle = "#c01c33";
-                ctx.lineWidth = 2.2 * sF;
-                ctx.stroke();
-                ctx.restore();
-            }
+            // Halo de imán (al pasar/soltar la pelota) o de selección
+            // reciente: dibujamos el que venza más tarde de los dos.
+            const pulsoHasta = Math.max(ballObj._pulsoImanHasta || 0, ballObj._pulsoSeleccionHasta || 0);
+            dibujarHaloSeleccion(ballX, ballY, radius, pulsoHasta);
         }
     });
 
