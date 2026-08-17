@@ -548,13 +548,41 @@ function handleDrawEnd() {
 // Goma "de contacto": tocar/pasar por encima de un trazo lo borra por
 // completo (como pasar el trapo sobre una línea del acrílico), en vez de
 // borrar píxel por píxel.
+//
+// OJO: la distancia se mide contra los SEGMENTOS entre puntos de control
+// (no solo contra los puntos en sí). Los puntos de control de un trazo
+// quedan bastante espaciados -sobre todo tras simplifyPath() al soltar
+// el trazo-, así que dos puntos consecutivos pueden estar a 40-50px de
+// distancia con una recta larga en el medio; medir solo contra los
+// puntos hacía que pasar la goma por la mitad de esa recta no tocara
+// nada. Midiendo contra el segmento, cualquier lugar del trazo (visto en
+// pantalla) responde al toque de la goma.
 function borrarTrazosEnPunto(pos) {
     const l = lienzoActivo();
     const radio = RADIO_GOMA;
     const antes = l.trazos.length;
 
     l.trazos = l.trazos.filter(t => {
-        return !t.puntos.some(pt => Math.hypot(pt.x - pos.x, pt.y - pos.y) < radio);
+        const pts = t.puntos;
+        if (!pts || pts.length === 0) return true;
+
+        if (pts.length === 1) {
+            return Math.hypot(pts[0].x - pos.x, pts[0].y - pos.y) >= radio;
+        }
+
+        for (let i = 1; i < pts.length; i++) {
+            if (_distanciaPuntoASegmento(pos, pts[i - 1], pts[i]) < radio) return false;
+        }
+
+        // La muesca perpendicular del trazo en "T" no forma parte de los
+        // puntos de control (se calcula aparte al dibujar), así que hay
+        // que chequearla por separado para que la goma también la borre.
+        if (t.tipo === 't' && typeof _finTPuntos === 'function') {
+            const seg = _finTPuntos(pts, t.grosor);
+            if (seg && _distanciaPuntoASegmento(pos, seg.a, seg.b) < radio) return false;
+        }
+
+        return true;
     });
 
     if (l.trazos.length !== antes) {
@@ -562,6 +590,18 @@ function borrarTrazosEnPunto(pos) {
         actualizarBotonesUndoRedo();
         playSound('dropJersey');
     }
+}
+
+// Distancia de un punto `p` al segmento a-b (no a la recta infinita que
+// lo contiene: el punto más cercano queda "clampeado" entre a y b).
+function _distanciaPuntoASegmento(p, a, b) {
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const largo2 = dx * dx + dy * dy;
+    if (largo2 === 0) return Math.hypot(p.x - a.x, p.y - a.y);
+    let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / largo2;
+    t = Math.max(0, Math.min(1, t));
+    const cx = a.x + t * dx, cy = a.y + t * dy;
+    return Math.hypot(p.x - cx, p.y - cy);
 }
 
 drawCanvas.addEventListener('mousedown',  handleDrawStart);

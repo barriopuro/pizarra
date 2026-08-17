@@ -4,6 +4,16 @@
 // DEBE cargarse primero que todos los demás módulos.
 // ========================================================
 
+// --- VERSIÓN DE LA APP ---
+// Única fuente de verdad para el número de versión: de acá lo toman
+// tanto el título de la pestaña (ver más abajo) como el modal "Acerca
+// de..." (ver abrirAcercaDe() en ui.js). Cambiar UN número acá alcanza
+// para actualizar los dos lugares -a diferencia del og:title en el
+// <head> de index.html, que por ser leído por robots sin JavaScript
+// (WhatsApp, etc.) queda fijo y aparte, sin número de versión-.
+const VERSION_APP = 144;
+document.title = `Pizarra Oeste v${VERSION_APP}`;
+
 // --- REFERENCIAS AL DOM ---
 const canvas        = document.getElementById('canvas');
 const ctx           = canvas.getContext('2d');

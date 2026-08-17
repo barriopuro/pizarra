@@ -590,20 +590,36 @@ function drawWavyPath(ctxDestino, puntosControl, color, width) {
     ctxDestino.stroke();
 }
 
-// Remata un trazo con una línea corta perpendicular al final del
-// recorrido (trazo en "T"): representa un avance que termina en una
-// cortina/bloqueo (screen).
-function _dibujarFinT(ctxDestino, puntos, ancho) {
-    if (!puntos || puntos.length < 2) return;
+// Calcula los dos extremos de la muesca perpendicular final del trazo en
+// "T" (cortina/bloqueo). Separado de _dibujarFinT() para poder reusar la
+// misma geometría también al detectar el contacto de la goma sobre ella
+// (ver borrarTrazosEnPunto() en interaccion.js).
+function _finTPuntos(puntos, ancho) {
+    if (!puntos || puntos.length < 2) return null;
     const p2 = puntos[puntos.length - 1];
     const p1 = puntos[puntos.length - 2];
     const dx = p2.x - p1.x, dy = p2.y - p1.y;
     const largoTangente = Math.hypot(dx, dy) || 1;
     const nx = -dy / largoTangente, ny = dx / largoTangente;
-    const largo = Math.max(16, ancho * 3.2);
+    // Un poco más larga que antes (era ancho*3.2, mínimo 16): con trazos
+    // finos la cortina casi no se distinguía del final de una línea
+    // común.
+    const largo = Math.max(22, ancho * 4.5);
+    return {
+        a: { x: p2.x - nx * largo / 2, y: p2.y - ny * largo / 2 },
+        b: { x: p2.x + nx * largo / 2, y: p2.y + ny * largo / 2 }
+    };
+}
+
+// Remata un trazo con una línea corta perpendicular al final del
+// recorrido (trazo en "T"): representa un avance que termina en una
+// cortina/bloqueo (screen).
+function _dibujarFinT(ctxDestino, puntos, ancho) {
+    const seg = _finTPuntos(puntos, ancho);
+    if (!seg) return;
     ctxDestino.beginPath();
-    ctxDestino.moveTo(p2.x - nx * largo / 2, p2.y - ny * largo / 2);
-    ctxDestino.lineTo(p2.x + nx * largo / 2, p2.y + ny * largo / 2);
+    ctxDestino.moveTo(seg.a.x, seg.a.y);
+    ctxDestino.lineTo(seg.b.x, seg.b.y);
     ctxDestino.stroke();
 }
 

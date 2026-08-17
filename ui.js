@@ -112,6 +112,8 @@ document.addEventListener('click', (e) => {
 
 function abrirAcercaDe() {
     const modal = document.getElementById('acercaDeModal');
+    const ver   = document.getElementById('acercaDeVersion');
+    if (ver) ver.textContent = `Versión ${VERSION_APP}`; // ver estado.js
     if (modal) modal.classList.add('abierto');
 }
 

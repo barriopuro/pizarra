@@ -3,9 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Pizarra Oeste v144</title>
+    <title>Pizarra Oeste</title>
     <link rel="icon" type="image/svg+xml" href="logo.svg">
     <link rel="stylesheet" href="estilos.css">
+
+    <!-- Vista previa al compartir el link (WhatsApp, Telegram, etc.) -->
+    <!-- SIN número de versión a propósito: a diferencia del título de la
+         pestaña y el "Acerca de...", estas etiquetas las lee un robot que
+         no ejecuta JavaScript -no se pueden armar dinámicamente desde
+         estado.js como esos dos-, así que conviene que el texto acá sea
+         algo que no haga falta actualizar en cada versión. -->
+    <meta property="og:title" content="Pizarra Oeste">
+    <meta property="og:description" content="Herramienta de creación de sistemas y entrenamientos de básquet / Pizarra táctica de juego">
+    <meta property="og:image" content="https://barriopuro.github.io/pizarra/icon-512.png">
+    <meta property="og:url" content="https://barriopuro.github.io/pizarra/">
+    <meta property="og:type" content="website">
 
     <!-- PWA -->
     <link rel="manifest" href="manifest.json">
@@ -379,7 +391,7 @@
     <div class="confirm-box">
         <img src="logo.svg" alt="Escudo Casanova Oeste" style="width:90px; height:90px; object-fit:contain; margin-bottom:14px;">
         <div class="confirm-title" style="font-size:16px;">Pizarra Táctica de Basquetbol</div>
-        <div class="confirm-text" style="font-size:12px; color:#999; margin-bottom:12px;">Versión 144</div>
+        <div id="acercaDeVersion" class="confirm-text" style="font-size:12px; color:#999; margin-bottom:12px;">Versión 144</div>
         <div class="confirm-text" style="font-size:13px; text-align:left;">
             Esta aplicación está diseñada para la planificación, análisis y desarrollo de estrategias tácticas de basquetbol bajo reglamento FIBA para el club CASANOVA OESTE.
         </div>
