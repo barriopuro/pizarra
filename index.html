@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Pizarra Oeste v143</title>
+    <title>Pizarra Oeste v144</title>
     <link rel="icon" type="image/svg+xml" href="logo.svg">
     <link rel="stylesheet" href="estilos.css">
 
@@ -47,6 +47,7 @@
 
     <!-- Módulos en orden de dependencia -->
     <script src="estado.js"      defer></script>
+    <script src="sistemas.js"    defer></script>
     <script src="audio.js"       defer></script>
     <script src="jugadores.js"   defer></script>
     <script src="cancha.js"      defer></script>
@@ -211,6 +212,11 @@
                 <canvas id="canvas"></canvas>
                 <canvas id="drawCanvas"></canvas>
 
+                <!-- Aviso temporal (toast): feedback breve, p.ej. cuando
+                     handleStart() en interaccion.js bloquea combinar dos
+                     acciones sobre la misma pelota en un mismo paso. -->
+                <div id="avisoTemporal" class="aviso-temporal"></div>
+
                 <div id="floating-ui">
                     <button id="rot-btn" class="f-btn snd-btn" title="Cortina">🛡️</button>
                 </div>
@@ -255,6 +261,20 @@
                 <button class="plib-color-btn snd-btn" data-color="#c01c33" style="background:#c01c33;" onclick="elegirColorTrazo('#c01c33')" title="Rojo"></button>
                 <button class="plib-color-btn snd-btn" data-color="#0044CC" style="background:#0044CC;" onclick="elegirColorTrazo('#0044CC')" title="Azul"></button>
                 <button class="plib-color-btn snd-btn" data-color="#ffc107" style="background:#ffc107;" onclick="elegirColorTrazo('#ffc107')" title="Amarillo"></button>
+            </div>
+            <div class="floating-trazos">
+                <button class="plib-trazo-btn-mini snd-btn activo" data-trazo="continuo" onclick="elegirTipoTrazo('continuo')" title="Continuo: avance sin pelota">
+                    <svg viewBox="0 0 32 16" width="20" height="10"><line x1="2" y1="8" x2="30" y2="8" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+                </button>
+                <button class="plib-trazo-btn-mini snd-btn" data-trazo="punteado" onclick="elegirTipoTrazo('punteado')" title="Punteado: pase o tiro al aro">
+                    <svg viewBox="0 0 32 16" width="20" height="10"><line x1="2" y1="8" x2="30" y2="8" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="5,4.5"/></svg>
+                </button>
+                <button class="plib-trazo-btn-mini snd-btn" data-trazo="ondulado" onclick="elegirTipoTrazo('ondulado')" title="Ondulado: avance con pelota (dribble)">
+                    <svg viewBox="0 0 32 16" width="20" height="10"><path d="M2 8 Q 6 1 10 8 T 18 8 T 26 8 L 30 8" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round"/></svg>
+                </button>
+                <button class="plib-trazo-btn-mini snd-btn" data-trazo="t" onclick="elegirTipoTrazo('t')" title="Con cortina: avance con bloqueo/screen al final">
+                    <svg viewBox="0 0 32 16" width="20" height="10"><line x1="2" y1="8" x2="25" y2="8" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><line x1="25" y1="2" x2="25" y2="14" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+                </button>
             </div>
         </div>
     </div>
@@ -313,6 +333,22 @@
                     <button class="plib-color-btn snd-btn" data-color="#ffc107" style="background:#ffc107;" onclick="elegirColorTrazo('#ffc107')" title="Amarillo"></button>
                 </div>
 
+                <div class="plib-section-label">Trazo</div>
+                <div id="plibTrazos" class="plib-trazos">
+                    <button class="plib-trazo-btn snd-btn activo" data-trazo="continuo" onclick="elegirTipoTrazo('continuo')" title="Continuo: avance sin pelota">
+                        <svg viewBox="0 0 32 16" width="26" height="13"><line x1="2" y1="8" x2="30" y2="8" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+                    </button>
+                    <button class="plib-trazo-btn snd-btn" data-trazo="punteado" onclick="elegirTipoTrazo('punteado')" title="Punteado: pase o tiro al aro">
+                        <svg viewBox="0 0 32 16" width="26" height="13"><line x1="2" y1="8" x2="30" y2="8" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="5,4.5"/></svg>
+                    </button>
+                    <button class="plib-trazo-btn snd-btn" data-trazo="ondulado" onclick="elegirTipoTrazo('ondulado')" title="Ondulado: avance con pelota (dribble)">
+                        <svg viewBox="0 0 32 16" width="26" height="13"><path d="M2 8 Q 6 1 10 8 T 18 8 T 26 8 L 30 8" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round"/></svg>
+                    </button>
+                    <button class="plib-trazo-btn snd-btn" data-trazo="t" onclick="elegirTipoTrazo('t')" title="Con cortina: avance con bloqueo/screen al final">
+                        <svg viewBox="0 0 32 16" width="26" height="13"><line x1="2" y1="8" x2="25" y2="8" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><line x1="25" y1="2" x2="25" y2="14" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+                    </button>
+                </div>
+
                 <div class="icon-row">
                     <button id="plibPincelBtn" class="snd-btn icon-btn plib-tool-btn activo" data-herramienta="pincel" onclick="elegirHerramienta('pincel')" title="Pincel">🖌️<span class="plib-tool-text">PINCEL</span></button>
                     <button id="plibGomaBtn"   class="snd-btn icon-btn plib-tool-btn"        data-herramienta="goma"   onclick="elegirHerramienta('goma')"   title="Goma de borrar">🧽<span class="plib-tool-text">GOMA</span></button>
@@ -335,6 +371,7 @@
     <button id="nuevaJugadaMenuItem" class="snd-btn menu-archivo-item" onclick="cerrarMenuArchivo(); newPlay();">📄 Nueva Jugada</button>
     <button class="snd-btn menu-archivo-item menu-solo-tactico" onclick="cerrarMenuArchivo(); exportPlay();">💾 Guardar Jugada</button>
     <button class="snd-btn menu-archivo-item menu-solo-tactico" onclick="cerrarMenuArchivo(); document.getElementById('importFile').click();">📂 Cargar Jugada</button>
+    <button class="snd-btn menu-archivo-item menu-solo-tactico" onclick="cerrarMenuArchivo(); abrirBibliotecaJugadas();">📚 Biblioteca de Jugadas</button>
     <button class="snd-btn menu-archivo-item" onclick="cerrarMenuArchivo(); abrirAcercaDe();">ℹ️ Acerca de...</button>
 </div>
 
@@ -342,7 +379,7 @@
     <div class="confirm-box">
         <img src="logo.svg" alt="Escudo Casanova Oeste" style="width:90px; height:90px; object-fit:contain; margin-bottom:14px;">
         <div class="confirm-title" style="font-size:16px;">Pizarra Táctica de Basquetbol</div>
-        <div class="confirm-text" style="font-size:12px; color:#999; margin-bottom:12px;">Versión 143</div>
+        <div class="confirm-text" style="font-size:12px; color:#999; margin-bottom:12px;">Versión 144</div>
         <div class="confirm-text" style="font-size:13px; text-align:left;">
             Esta aplicación está diseñada para la planificación, análisis y desarrollo de estrategias tácticas de basquetbol bajo reglamento FIBA para el club CASANOVA OESTE.
         </div>
@@ -356,6 +393,29 @@
         </div>
         <div class="confirm-buttons" style="margin-top:20px;">
             <button class="confirm-btn accept-btn" style="width:100%;" onclick="cerrarAcercaDe()">CERRAR</button>
+        </div>
+    </div>
+</div>
+
+<div id="bibliotecaModal" class="confirm-modal" onclick="if(event.target===this) cerrarBibliotecaJugadas();">
+    <div class="biblioteca-box">
+        <div class="biblioteca-header">
+            <div>
+                <div class="biblioteca-titulo">📚 Biblioteca de Jugadas</div>
+                <div class="biblioteca-subtitulo">Sistemas Clásicos</div>
+            </div>
+            <button class="biblioteca-cerrar-btn snd-btn" onclick="cerrarBibliotecaJugadas()" title="Cerrar">✕</button>
+        </div>
+
+        <div id="bibliotecaFiltros" class="biblioteca-filtros">
+            <button class="biblioteca-filtro-chip snd-btn activo" data-categoria="todos"  onclick="filtrarBiblioteca('todos')">Todos</button>
+            <button class="biblioteca-filtro-chip snd-btn"        data-categoria="ataque" onclick="filtrarBiblioteca('ataque')">Ataque</button>
+            <button class="biblioteca-filtro-chip snd-btn"        data-categoria="zona"   onclick="filtrarBiblioteca('zona')">vs. Zona</button>
+            <button class="biblioteca-filtro-chip snd-btn"        data-categoria="salida" onclick="filtrarBiblioteca('salida')">Salida</button>
+        </div>
+
+        <div id="bibliotecaLista" class="biblioteca-lista">
+            <!-- Tarjetas generadas dinámicamente por renderBibliotecaJugadas() en ui.js -->
         </div>
     </div>
 </div>

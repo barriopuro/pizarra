@@ -510,11 +510,21 @@ function drawCourtOnCanvas() {
 }
 
 // --- TRAYECTORIA SUAVIZADA ---
-function drawSmoothPath(path, color, width, dashed=false) {
+// `tipo`: 'continuo' (default, avance sin pelota) | 'punteado' (pase/tiro)
+// | 'ondulado' (avance con pelota en mano / dribble -ver esPasoDribble()-).
+function drawSmoothPath(path, color, width, tipo='continuo') {
     if (!path || path.length < 2) return;
+    if (tipo === 'ondulado') {
+        drawWavyPath(ctx, path, color, width);
+        return;
+    }
     ctx.beginPath();
     ctx.strokeStyle = color; ctx.lineWidth = width;
-    ctx.setLineDash(dashed ? [5,5] : []);
+    // El patrón de guiones escala con el ancho de línea (no un [5,5] fijo):
+    // con sF grande (canvas de alta resolución/zoom) un guion fijo de 5px
+    // queda diminuto en relación al grosor de la línea y se termina
+    // percibiendo como un trazo continuo en vez de punteado.
+    ctx.setLineDash(tipo === 'punteado' ? [width * 1.8, width * 1.4] : []);
     ctx.moveTo(path[0].x, path[0].y);
     for (let i = 1; i < path.length-1; i++) {
         const c = path[i], n = path[i+1];
@@ -522,6 +532,123 @@ function drawSmoothPath(path, color, width, dashed=false) {
     }
     ctx.lineTo(path[path.length-1].x, path[path.length-1].y);
     ctx.stroke(); ctx.setLineDash([]);
+}
+
+// --------------------------------------------------------
+// TRAZO ONDULADO (avance con pelota en mano / dribble, y tipo "ondulado"
+// de Pizarra Rápida): a partir de una lista de puntos "de control" -sean
+// pocos (un trazo de jugador/pelota) o muchos (un trazo a mano alzada)-
+// genera una versión ondulada siguiendo la misma forma general del
+// recorrido, como el símbolo clásico de dribble en una pizarra táctica.
+// --------------------------------------------------------
+function _densificarPuntos(puntos, paso) {
+    if (!puntos || puntos.length < 2) return puntos;
+    const out = [puntos[0]];
+    for (let i = 1; i < puntos.length; i++) {
+        const a = puntos[i - 1], b = puntos[i];
+        const d = Math.hypot(b.x - a.x, b.y - a.y);
+        const pasos = Math.max(1, Math.round(d / paso));
+        for (let j = 1; j <= pasos; j++) {
+            const t = j / pasos;
+            out.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+        }
+    }
+    return out;
+}
+
+function _puntosOndulados(puntos, amplitud, longitudOnda) {
+    const densos = _densificarPuntos(puntos, 6);
+    let dist = 0;
+    const out = [];
+    for (let i = 0; i < densos.length; i++) {
+        const p    = densos[i];
+        const prev = densos[i - 1] || p;
+        const next = densos[i + 1] || p;
+        if (i > 0) dist += Math.hypot(p.x - prev.x, p.y - prev.y);
+        const tx = next.x - prev.x, ty = next.y - prev.y;
+        const largoTangente = Math.hypot(tx, ty) || 1;
+        // Normal perpendicular a la tangente local, usada para desplazar
+        // cada punto hacia uno u otro lado del recorrido original.
+        const nx = -ty / largoTangente, ny = tx / largoTangente;
+        const offset = Math.sin((dist / longitudOnda) * Math.PI * 2) * amplitud;
+        out.push({ x: p.x + nx * offset, y: p.y + ny * offset });
+    }
+    return out;
+}
+
+function drawWavyPath(ctxDestino, puntosControl, color, width) {
+    if (!puntosControl || puntosControl.length < 2) return;
+    const amplitud     = Math.max(3.5, width * 0.9);
+    const longitudOnda = Math.max(16, width * 5.5);
+    const ondulado      = _puntosOndulados(puntosControl, amplitud, longitudOnda);
+    if (ondulado.length < 2) return;
+    ctxDestino.beginPath();
+    ctxDestino.strokeStyle = color; ctxDestino.lineWidth = width;
+    ctxDestino.lineCap = 'round'; ctxDestino.lineJoin = 'round';
+    ctxDestino.moveTo(ondulado[0].x, ondulado[0].y);
+    for (let i = 1; i < ondulado.length; i++) ctxDestino.lineTo(ondulado[i].x, ondulado[i].y);
+    ctxDestino.stroke();
+}
+
+// Remata un trazo con una línea corta perpendicular al final del
+// recorrido (trazo en "T"): representa un avance que termina en una
+// cortina/bloqueo (screen).
+function _dibujarFinT(ctxDestino, puntos, ancho) {
+    if (!puntos || puntos.length < 2) return;
+    const p2 = puntos[puntos.length - 1];
+    const p1 = puntos[puntos.length - 2];
+    const dx = p2.x - p1.x, dy = p2.y - p1.y;
+    const largoTangente = Math.hypot(dx, dy) || 1;
+    const nx = -dy / largoTangente, ny = dx / largoTangente;
+    const largo = Math.max(16, ancho * 3.2);
+    ctxDestino.beginPath();
+    ctxDestino.moveTo(p2.x - nx * largo / 2, p2.y - ny * largo / 2);
+    ctxDestino.lineTo(p2.x + nx * largo / 2, p2.y + ny * largo / 2);
+    ctxDestino.stroke();
+}
+
+// --------------------------------------------------------
+// ¿EL JUGADOR AVANZA CON LA PELOTA EN LA MANO EN ESTE PASO? (dribble)
+// --------------------------------------------------------
+// Distinto de un PASE (la pelota tiene su propio recorrido ese paso, con
+// trazo punteado aparte) o de una simple recepción quieta: acá la pelota
+// queda "pegada" a este jugador durante TODO el paso -sin trazo propio,
+// bPath.length <= 1- y él es su portador al cierre del paso. En ese caso
+// el trazo del jugador se dibuja ondulado en vez de continuo.
+function esPasoDribble(jugador, paso) {
+    return balls.some(b => {
+        if (!b.active) return false;
+        if ((b.portadorPorPaso[paso] ?? null) !== jugador.id) return false;
+        const bPath = b.steps[paso];
+        return !bPath || bPath.length <= 1;
+    });
+}
+
+// Combina esPasoDribble() con el chequeo de que el jugador realmente SE
+// MOVIÓ este paso (2+ puntos en su propio trazo): un jugador puede tener
+// la pelota "pegada" (esPasoDribble true) sin haber driblado todavía si
+// no se movió nada. Usado tanto para elegir el tipo de trazo como -en
+// interaccion.js- para bloquear acciones que combinarían dos movimientos
+// distintos de la pelota dentro de un mismo paso (ver notas ahí).
+function huboDribleEsteP(jugador, paso) {
+    const path = jugador.steps[paso];
+    return !!(path && path.length > 1 && esPasoDribble(jugador, paso));
+}
+
+// ¿Esta pelota tiene, en este paso, su PROPIO recorrido dibujado (2+
+// puntos) que termina imantada a `jugador`? Es la contraparte de
+// huboDribleEsteP(): mientras esa detecta "el jugador se movió con la
+// pelota pegada", esta detecta "la pelota se movió sola y terminó pegada
+// al jugador" (un pase o una recepción con trayectoria propia). Ambas se
+// usan en interaccion.js para bloquear la combinación de dos acciones
+// distintas sobre la misma pelota dentro de un mismo paso.
+function recibioPaseEsteP(jugador, paso) {
+    return balls.some(b => {
+        if (!b.active) return false;
+        if ((b.portadorPorPaso[paso] ?? null) !== jugador.id) return false;
+        const bPath = b.steps[paso];
+        return !!(bPath && bPath.length > 1);
+    });
 }
 
 // --------------------------------------------------------
@@ -835,7 +962,8 @@ function _render(modoAnim, paraVideo) {
                 if (!path || path.length === 0) return;
                 // Trazo: solo si hay desplazamiento real (más de 1 punto)
                 if (si > 0 && path.length > 1) {
-                    drawSmoothPath(pathEfectivo(p, si), color, esPasoActual ? 3.5*sF : 2*sF, false);
+                    const tipoTrazoJugador = huboDribleEsteP(p, si) ? 'ondulado' : 'continuo';
+                    drawSmoothPath(pathEfectivo(p, si), color, esPasoActual ? 3.5*sF : 2*sF, tipoTrazoJugador);
                 }
                 // Fantasma en pasos anteriores (no en el actual)
                 if (!modoAnim && !esPasoActual) {
@@ -862,7 +990,7 @@ function _render(modoAnim, paraVideo) {
                 // Siempre dibujamos el trazo propio de la pelota si tiene recorrido,
                 // tanto si está suelta como si al final del path se imantó a un jugador.
                 if (bPath && si > 0 && bPath.length > 1) {
-                    drawSmoothPath(pathEfectivo(ballObj, si), color, esPasoActual ? 3.5*sF : 2*sF, true);
+                    drawSmoothPath(pathEfectivo(ballObj, si), color, esPasoActual ? 3.5*sF : 2*sF, 'punteado');
                 }
                 // Fantasma de posición final en pasos anteriores
                 if (!modoAnim && !esPasoActual) {
@@ -920,7 +1048,8 @@ function _render(modoAnim, paraVideo) {
             if (currentStep > 0 && path.length > 1) {
                 const trazo = pathEfectivo(p, currentStep);
                 if (trazo[0].y <= canvas.height) {
-                    drawSmoothPath(trazo, activeColor, 3.5*sF, false);
+                    const tipoTrazoJugador = huboDribleEsteP(p, currentStep) ? 'ondulado' : 'continuo';
+                    drawSmoothPath(trazo, activeColor, 3.5*sF, tipoTrazoJugador);
                 }
             }
         }
@@ -966,7 +1095,7 @@ function _render(modoAnim, paraVideo) {
 
                 // Trazo de la pelota suelta en el paso activo
                 if (currentStep > 0 && ballObj.steps[currentStep].length > 1) {
-                    drawSmoothPath(pathEfectivo(ballObj, currentStep), activeColor, 3.5*sF, true);
+                    drawSmoothPath(pathEfectivo(ballObj, currentStep), activeColor, 3.5*sF, 'punteado');
                 }
             } else {
                 const pos = getBallDrawPos(ballObj, currentStep);
@@ -1030,6 +1159,11 @@ function dibujarTrazoLibre(ctxDestino, trazo) {
     // guardar proporción con el tamaño de la cancha, como sí lo son los
     // jugadores (radius = 15*sF)-.
     const ancho = trazo.grosor;
+    // 'continuo' | 'punteado' | 'ondulado' | 't' -ver selector de trazo en
+    // #pizarra-libre-controls/#floatMenuDerLibre y elegirTipoTrazo() en
+    // ui.js-. Los trazos guardados ANTES de este selector no tienen
+    // `tipo`: se tratan como 'continuo', el comportamiento de siempre.
+    const tipo = trazo.tipo || 'continuo';
 
     ctxDestino.save();
     ctxDestino.strokeStyle = trazo.color;
@@ -1039,13 +1173,23 @@ function dibujarTrazoLibre(ctxDestino, trazo) {
     ctxDestino.lineJoin    = 'round';
 
     if (pts.length === 1) {
-        // Toque sin arrastre: un puntito, no una línea invisible.
+        // Toque sin arrastre: un puntito, no una línea invisible (el tipo
+        // de trazo no aplica todavía: no hay recorrido que distinguir).
         ctxDestino.beginPath();
         ctxDestino.arc(pts[0].x, pts[0].y, ancho / 2, 0, Math.PI * 2);
         ctxDestino.fill();
         ctxDestino.restore();
         return;
     }
+
+    if (tipo === 'ondulado') {
+        // Avance con pelota en mano / dribble.
+        drawWavyPath(ctxDestino, pts, trazo.color, ancho);
+        ctxDestino.restore();
+        return;
+    }
+
+    if (tipo === 'punteado') ctxDestino.setLineDash([ancho * 1.6, ancho * 1.6]);
 
     ctxDestino.beginPath();
     ctxDestino.moveTo(pts[0].x, pts[0].y);
@@ -1055,6 +1199,10 @@ function dibujarTrazoLibre(ctxDestino, trazo) {
     }
     ctxDestino.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
     ctxDestino.stroke();
+    ctxDestino.setLineDash([]);
+
+    if (tipo === 't') _dibujarFinT(ctxDestino, pts, ancho); // remate perpendicular (cortina/bloqueo)
+
     ctxDestino.restore();
 }
 

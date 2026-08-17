@@ -50,6 +50,21 @@ function confirmModalAccept() {
     if (cb) cb();
 }
 
+// --- AVISO TEMPORAL (toast) ---
+// Mensaje breve flotante sobre la cancha, para feedback puntual que no
+// amerita interrumpir con un alert() -por ejemplo, una acción bloqueada
+// a mitad de un arrastre, ver handleStart() en interaccion.js-. Se
+// autooculta solo, no requiere que el usuario la cierre.
+let _avisoTemporalTimeout = null;
+function mostrarAvisoTemporal(texto) {
+    const el = document.getElementById('avisoTemporal');
+    if (!el) return;
+    el.textContent = texto;
+    el.classList.add('visible');
+    clearTimeout(_avisoTemporalTimeout);
+    _avisoTemporalTimeout = setTimeout(() => el.classList.remove('visible'), 2600);
+}
+
 // --------------------------------------------------------
 // MENÚ DESPLEGABLE "ARCHIVO" (Nueva / Guardar / Cargar)
 // --------------------------------------------------------
@@ -103,6 +118,114 @@ function abrirAcercaDe() {
 function cerrarAcercaDe() {
     const modal = document.getElementById('acercaDeModal');
     if (modal) modal.classList.remove('abierto');
+}
+
+// --------------------------------------------------------
+// BIBLIOTECA DE JUGADAS PREDISEÑADAS (Sistemas Clásicos, v143)
+// --------------------------------------------------------
+// Los datos de cada jugada viven en sistemas.js (arreglo global
+// SISTEMAS_JUGADAS), cargado como módulo aparte para poder ir sumando
+// jugadas sin tocar este archivo. Acá solo vive la interfaz: abrir/
+// cerrar el panel, filtrar por categoría, dibujar las tarjetas, y
+// cargar la jugada elegida en la cancha -reutilizando exactamente el
+// mismo mecanismo que ya usa "Cargar Jugada" (aplicarJugadaImportada(),
+// más el cambio de modo de cancha silencioso si la jugada es del otro
+// modo)-, con un cartel de confirmación previo si la cancha actual
+// tiene algo hecho.
+
+let bibliotecaCategoriaActiva = 'todos';
+
+function abrirBibliotecaJugadas() {
+    if (modoPizarraRapida) return; // el ítem de menú ya se oculta en este modo; guarda extra
+    bibliotecaCategoriaActiva = 'todos';
+    document.querySelectorAll('#bibliotecaFiltros .biblioteca-filtro-chip').forEach(chip => {
+        chip.classList.toggle('activo', chip.dataset.categoria === 'todos');
+    });
+    renderBibliotecaJugadas();
+    const modal = document.getElementById('bibliotecaModal');
+    if (modal) modal.classList.add('abierto');
+}
+
+function cerrarBibliotecaJugadas() {
+    const modal = document.getElementById('bibliotecaModal');
+    if (modal) modal.classList.remove('abierto');
+}
+
+function filtrarBiblioteca(categoria) {
+    bibliotecaCategoriaActiva = categoria;
+    document.querySelectorAll('#bibliotecaFiltros .biblioteca-filtro-chip').forEach(chip => {
+        chip.classList.toggle('activo', chip.dataset.categoria === categoria);
+    });
+    renderBibliotecaJugadas();
+}
+
+function renderBibliotecaJugadas() {
+    const lista = document.getElementById('bibliotecaLista');
+    if (!lista) return;
+    const datos = (typeof SISTEMAS_JUGADAS !== "undefined") ? SISTEMAS_JUGADAS : [];
+    const filtradas = (bibliotecaCategoriaActiva === 'todos')
+        ? datos
+        : datos.filter(j => j.categoria === bibliotecaCategoriaActiva);
+
+    if (filtradas.length === 0) {
+        lista.innerHTML = '<div class="biblioteca-vacio">No hay jugadas en esta categoría todavía.</div>';
+        return;
+    }
+
+    lista.innerHTML = filtradas.map(j => `
+        <div class="biblioteca-card">
+            <div class="biblioteca-card-titulo">${j.nombre}</div>
+            <div class="biblioteca-card-etiqueta">${j.etiqueta}</div>
+            <div class="biblioteca-card-desc">${j.descripcion}</div>
+            <button class="biblioteca-card-btn snd-btn" onclick="pedirCargaJugadaBiblioteca('${j.id}')">Cargar en Cancha</button>
+        </div>
+    `).join('');
+    attachButtonSounds();
+}
+
+// Heurística de "primera etapa" para saber si la cancha actual tiene
+// algo hecho que valga la pena proteger con una confirmación: pasos
+// agregados, utilería puesta, más de una pelota en cancha, o la jugada
+// ya finalizada/en reproducción. Una cancha recién abierta (formación
+// por defecto, Paso Inicial) no dispara el cartel.
+function hayBorradorEnCancha() {
+    return stepCount > 1 || props.length > 0 || balls.length > 1 || isEditionFinished || currentStep > 0;
+}
+
+function pedirCargaJugadaBiblioteca(id) {
+    const datos = (typeof SISTEMAS_JUGADAS !== "undefined") ? SISTEMAS_JUGADAS : [];
+    const jugada = datos.find(j => j.id === id);
+    if (!jugada) return;
+
+    if (hayBorradorEnCancha()) {
+        abrirConfirmModal(
+            "¿CARGAR ESTA JUGADA?",
+            "Se reemplazará el borrador actual en pantalla.",
+            "CARGAR",
+            () => cargarJugadaDeBiblioteca(jugada)
+        );
+    } else {
+        cargarJugadaDeBiblioteca(jugada);
+    }
+}
+
+function cargarJugadaDeBiblioteca(jugada) {
+    cerrarBibliotecaJugadas();
+    // Clonamos: aplicarJugadaImportada() reescala coordenadas en el
+    // lugar, y no queremos mutar los datos originales de
+    // SISTEMAS_JUGADAS -si no, la próxima vez que se cargue la misma
+    // jugada arrastraría el reescalado de la sesión anterior-.
+    const d = JSON.parse(JSON.stringify(jugada.jugada));
+    if (d.m && d.m !== courtMode) {
+        // La jugada de la Biblioteca está pensada para el otro modo de
+        // cancha: cambiamos de modo solos y la aplicamos apenas termine
+        // (mismo mecanismo que usa "Cargar Jugada" con un archivo .json
+        // guardado en el otro modo -ver importPlay()-).
+        pendingImport = d;
+        cambiarModoSilencioso(d.m);
+    } else {
+        aplicarJugadaImportada(d);
+    }
 }
 
 // --------------------------------------------------------
@@ -1145,12 +1268,30 @@ function elegirHerramienta(herramienta) {
     if (drawCanvas) drawCanvas.style.cursor = (herramienta === 'goma') ? 'cell' : 'crosshair';
 }
 
-// Sincroniza los botones de color/herramienta con el estado actual (hace
-// falta al reactivar el modo, o al cambiar de cara).
+// --- SELECCIÓN DE TIPO DE TRAZO (continuo / punteado / ondulado / T) ---
+// Igual mecánica que elegirColorTrazo/elegirHerramienta: por data-trazo
+// (no por el botón clickeado), para sincronizar por igual la barra
+// principal y el menú flotante mini sin duplicar lógica.
+function elegirTipoTrazo(tipo) {
+    tipoTrazoActivo = tipo; // 'continuo' | 'punteado' | 'ondulado' | 't'
+    document.querySelectorAll('[data-trazo]').forEach(b => {
+        b.classList.toggle('activo', b.dataset.trazo === tipo);
+    });
+    // Elegir un tipo de trazo da a entender que se quiere dibujar: si
+    // estábamos con la goma puesta, volvemos solos al pincel (mismo
+    // criterio que ya usa elegirColorTrazo).
+    elegirHerramienta('pincel');
+}
+
+// Sincroniza los botones de color/herramienta/tipo de trazo con el estado
+// actual (hace falta al reactivar el modo, o al cambiar de cara).
 function actualizarHerramientaUI() {
     elegirHerramienta(herramientaActiva);
     document.querySelectorAll('.plib-color-btn').forEach(b => {
         b.classList.toggle('activo', b.dataset.color === colorTrazoActivo);
+    });
+    document.querySelectorAll('[data-trazo]').forEach(b => {
+        b.classList.toggle('activo', b.dataset.trazo === tipoTrazoActivo);
     });
 }
 
@@ -1322,6 +1463,7 @@ function aplicarJugadaImportada(d) {
         modoPizarraRapida = !!d.pl;
         if (d.ct) colorTrazoActivo  = d.ct;
         if (d.ht) herramientaActiva = d.ht;
+        if (d.tt) tipoTrazoActivo   = d.tt;
         aplicarModoPizarraLibre();
     }
 

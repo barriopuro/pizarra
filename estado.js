@@ -112,6 +112,13 @@ let colorTrazoActivo  = "#000000";
 let grosorTrazoActivo = 5; // grosor único (medio), ya no es seleccionable
 let herramientaActiva = 'pincel'; // 'pincel' | 'goma'
 
+// Tipo de trazo con el que se dibuja en Pizarra Rápida (selector nuevo):
+// 'continuo'  -> avance sin pelota (default)
+// 'punteado'  -> pase o tiro al aro
+// 'ondulado'  -> avance con pelota / dribble
+// 't'         -> avance con cortina/bloqueo al final del recorrido
+let tipoTrazoActivo = 'continuo';
+
 // Trazo que se está dibujando en este momento (mientras dura el
 // mousedown/touchstart -> mouseup/touchend), o null si no hay ninguno activo.
 let trazoActual    = null;
@@ -182,7 +189,8 @@ function serializarBorradorActual() {
         pl: modoPizarraRapida,
         lz: lienzosLibres,
         ct: colorTrazoActivo,
-        ht: herramientaActiva
+        ht: herramientaActiva,
+        tt: tipoTrazoActivo
     };
 }
 

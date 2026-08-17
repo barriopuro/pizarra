@@ -574,6 +574,35 @@ select:hover:not(:disabled) {
 #floating-ui { position: absolute; z-index: 10; display: none; pointer-events: auto; flex-direction: row; gap: 6px; justify-content: center; width: 84px; height: 38px; box-sizing: border-box; }
 .f-btn { background: #fff; color: #000; width: 38px; height: 38px; border-radius: 50%; border: 2px solid #c01c33; font-weight: bold; font-size: 20px; line-height: 1; padding: 0; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px rgba(0,0,0,0.8); }
 
+/* --- AVISO TEMPORAL (toast) --- ver mostrarAvisoTemporal() en ui.js */
+.aviso-temporal {
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-8px);
+    background: rgba(20,20,20,0.94);
+    color: #fff;
+    border: 1px solid #c01c33;
+    padding: 9px 16px;
+    border-radius: 9px;
+    font-size: 12.5px;
+    font-weight: bold;
+    text-align: center;
+    max-width: 88%;
+    z-index: 60;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0s linear 0.2s;
+}
+.aviso-temporal.visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0s linear 0s;
+}
+
 /* Controles flotantes de un objeto de Utilería o de una pelota
    seleccionada (color/tamaño/girar/eliminar). A diferencia de
    #floating-ui (ancho fijo, siempre 1 botón), la cantidad de círculos
@@ -1171,6 +1200,36 @@ body.pizarra-libre-activa #menuArchivoDropdown .menu-solo-tactico {
     background: #c01c33 !important;
     color: #fff !important;
 }
+
+/* --- Selector de tipo de trazo (continuo/punteado/ondulado/T), misma
+   barra que el Color y el Pincel/Goma. Cuatro botones chicos en fila,
+   cada uno con un ícono SVG que representa el tipo de línea. --- */
+.plib-trazos {
+    display: flex;
+    gap: 6px;
+    padding: 0 2px;
+    flex-wrap: wrap;
+}
+.plib-trazo-btn {
+    width: 40px;
+    height: 30px;
+    padding: 0;
+    min-width: 0;
+    border-radius: 6px;
+    border: 2px solid #444;
+    background: #222;
+    color: #ccc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+}
+.plib-trazo-btn.activo {
+    border-color: #fff;
+    color: #fff;
+    background: #c01c33;
+    box-shadow: 0 0 0 2px rgba(192,28,51,0.4);
+}
 /* Ícono arriba / texto abajo, forzado por igual en Pincel y en Goma: sin
    esto, el ancho distinto de cada emoji + palabra hace que uno de los
    dos textos rompa línea y el otro no, dando una altura inconsistente
@@ -1255,6 +1314,23 @@ body.pizarra-libre-activa #menuArchivoDropdown .menu-solo-tactico {
     width: 26px;
     height: 26px;
 }
+#app-wrapper.modo-full .plib-trazos {
+    flex-shrink: 0;
+    flex-wrap: nowrap;
+    height: 40px;
+    box-sizing: border-box;
+    align-items: center;
+    gap: 5px;
+    background: #1a1a1a;
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 0 6px;
+}
+#app-wrapper.modo-full .plib-trazo-btn {
+    width: 32px;
+    height: 26px;
+    flex-shrink: 0;
+}
 #app-wrapper.modo-full .plib-tool-text,
 #app-wrapper.modo-full .plib-btn-text {
     display: none;
@@ -1290,6 +1366,8 @@ body.pizarra-libre-activa #menuArchivoDropdown .menu-solo-tactico {
     border: 1px solid #444;
     display: flex;
     flex-direction: row;
+    flex-wrap: wrap;
+    max-width: min(88vw, 320px);
     align-items: center;
     gap: 6px;
     backdrop-filter: blur(4px);
@@ -1324,6 +1402,32 @@ body.pizarra-libre-activa #menuArchivoDropdown .menu-solo-tactico {
 .floating-colores .plib-color-btn {
     width: 22px;
     height: 22px;
+}
+.floating-trazos {
+    display: flex;
+    gap: 4px;
+    padding-left: 6px;
+    margin-left: 2px;
+    border-left: 1px solid #555;
+}
+.plib-trazo-btn-mini {
+    width: 28px;
+    height: 22px;
+    padding: 0;
+    min-width: 0;
+    border-radius: 5px;
+    border: 2px solid #444;
+    background: #222;
+    color: #ccc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+}
+.plib-trazo-btn-mini.activo {
+    border-color: #fff;
+    color: #fff;
+    background: #c01c33;
 }
 
 
@@ -1434,4 +1538,150 @@ body.pizarra-libre-activa #menuArchivoDropdown .menu-solo-tactico {
 
     background: #c01c33;
     color: white;
+}
+
+/* ========================================================
+   BIBLIOTECA DE JUGADAS PREDISEÑADAS (Sistemas Clásicos)
+   Reutiliza el fondo/transición de .confirm-modal (mismo overlay
+   fijo con fade-in), pero con su propia caja: más ancha, con header,
+   chips de filtro y una lista de tarjetas con scroll interno -a
+   diferencia de .confirm-box, que es un cartel chico de una sola
+   pregunta-.
+   ======================================================== */
+
+#bibliotecaModal .biblioteca-box {
+    width: min(480px, 92vw);
+    max-height: min(640px, 86vh);
+    background: #1b1b1b;
+    border: 3px solid #c01c33;
+    border-radius: 18px;
+    box-shadow: 0 0 30px rgba(0,0,0,0.6);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transform: scale(0.9) translateY(12px);
+    transition: transform 0.24s cubic-bezier(0.34, 1.3, 0.64, 1);
+}
+#bibliotecaModal.abierto .biblioteca-box {
+    transform: scale(1) translateY(0);
+}
+
+.biblioteca-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 18px 18px 12px;
+    border-bottom: 1px solid #333;
+    flex-shrink: 0;
+}
+.biblioteca-titulo {
+    font-size: 17px;
+    font-weight: bold;
+    color: #fff;
+}
+.biblioteca-subtitulo {
+    font-size: 11px;
+    color: #c01c33;
+    font-weight: bold;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    margin-top: 2px;
+}
+.biblioteca-cerrar-btn {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    flex-shrink: 0;
+    background: #333;
+    color: #ddd;
+    font-size: 14px;
+    line-height: 1;
+    border-radius: 8px;
+}
+
+.biblioteca-filtros {
+    display: flex;
+    gap: 8px;
+    padding: 12px 18px;
+    overflow-x: auto;
+    flex-shrink: 0;
+    border-bottom: 1px solid #333;
+}
+.biblioteca-filtro-chip {
+    width: auto;
+    flex-shrink: 0;
+    background: #2a2a2a;
+    color: #bbb;
+    border: 1px solid #444;
+    border-radius: 999px;
+    padding: 7px 14px;
+    font-size: 11px;
+    font-weight: bold;
+}
+.biblioteca-filtro-chip.activo {
+    background: #c01c33;
+    color: #fff;
+    border-color: #ff4444;
+}
+
+.biblioteca-lista {
+    padding: 14px 18px 18px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    scrollbar-width: thin;
+    scrollbar-color: #c01c33 #1a1a1a;
+}
+.biblioteca-lista::-webkit-scrollbar { width: 8px; }
+.biblioteca-lista::-webkit-scrollbar-track { background: #1a1a1a; }
+.biblioteca-lista::-webkit-scrollbar-thumb { background: #c01c33; border-radius: 4px; }
+
+.biblioteca-vacio {
+    text-align: center;
+    color: #888;
+    font-size: 13px;
+    padding: 30px 10px;
+}
+
+.biblioteca-card {
+    background: #232323;
+    border: 1px solid #3a3a3a;
+    border-radius: 12px;
+    padding: 14px;
+    text-align: left;
+}
+.biblioteca-card-titulo {
+    font-size: 14px;
+    font-weight: bold;
+    color: #fff;
+    margin-bottom: 4px;
+}
+.biblioteca-card-etiqueta {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: bold;
+    color: #c01c33;
+    background: rgba(192,28,51,0.12);
+    border: 1px solid rgba(192,28,51,0.4);
+    border-radius: 5px;
+    padding: 2px 7px;
+    margin-bottom: 8px;
+}
+.biblioteca-card-desc {
+    font-size: 12px;
+    color: #aaa;
+    line-height: 1.4;
+    margin-bottom: 12px;
+}
+.biblioteca-card-btn {
+    width: 100%;
+    background: #c01c33;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 12px;
+    font-weight: bold;
 }

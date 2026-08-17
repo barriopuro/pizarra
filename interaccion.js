@@ -191,6 +191,40 @@ function handleStart(e) {
     }
 
     if (found) {
+        // --------------------------------------------------------------
+        // BLOQUEO: no permitir combinar dos acciones distintas sobre la
+        // MISMA pelota (o el mismo jugador) dentro de un mismo paso.
+        // --------------------------------------------------------------
+        // El motor de trayectorias (pathEfectivo()/finEfectivo() en
+        // cancha.js) asume que, en cada paso, un objeto hace UNA sola
+        // cosa: o se mueve él (o la pelota) de punta a punta, o queda
+        // "pegado" (glued) sin trazo propio. Si en el mismo paso primero
+        // se driblea con la pelota y LUEGO se la separa del jugador (o al
+        // revés: primero se pasa la pelota a un jugador y LUEGO se lo
+        // arrastra a él), el recálculo dinámico del origen del trazo
+        // (pensado para reanclar pasos QUIETOS al moverse un paso
+        // anterior) confunde el punto real donde arrancó esta segunda
+        // acción con el que tenía el paso antes de la primera, y el
+        // trazo -o la animación- "saltan" de forma rarísima. La forma
+        // robusta de evitarlo, en vez de intentar parchear ese cálculo
+        // para un caso límite, es no dejar que ocurra: si el usuario
+        // quiere encadenar una segunda acción sobre la misma pelota,
+        // que cree un paso nuevo primero (igual que ya hace naturalmente
+        // para cualquier otra secuencia de movimientos).
+        if (found.team === 'ball') {
+            const portadorId = found.portadorPorPaso[currentStep] ?? null;
+            const portador   = portadorId ? players.find(p => p.id === portadorId) : null;
+            if (portador && huboDribleEsteP(portador, currentStep)) {
+                mostrarAvisoTemporal('Este jugador ya dribleó con la pelota en este paso. Creá un paso nuevo para pasarla.');
+                return;
+            }
+        } else {
+            if (recibioPaseEsteP(found, currentStep)) {
+                mostrarAvisoTemporal('Este jugador ya recibió un pase en este paso. Creá un paso nuevo para que avance con la pelota.');
+                return;
+            }
+        }
+
         // Snapshot para undo (del estado real, no del minicírculo)
         found._undoSnapshot     = JSON.parse(JSON.stringify(found.steps[currentStep]));
         found._portadorSnapshot = snapshotPortadores();
@@ -462,7 +496,7 @@ function handleDrawStart(e) {
         return;
     }
 
-    trazoActual    = { color: colorTrazoActivo, grosor: grosorTrazoActivo, puntos: [pos] };
+    trazoActual    = { color: colorTrazoActivo, grosor: grosorTrazoActivo, tipo: tipoTrazoActivo, puntos: [pos] };
     dibujandoLibre = true;
     redibujarLienzoLibre();
 }
