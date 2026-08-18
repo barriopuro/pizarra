@@ -185,6 +185,7 @@ function handleStart(e) {
         isDragging = true;
         activarPulsoSeleccion(found);
         updateFloatingUI();
+        if (typeof dispararTipPasoSiCorresponde === 'function') dispararTipPasoSiCorresponde();
         playSound('grabJersey');
         draw();
         return;
@@ -264,6 +265,12 @@ function handleStart(e) {
         isDragging = true;
         activarPulsoSeleccion(found);
         updateFloatingUI();
+        // Tooltips de ayuda (una sola vez, ver ui.js): "pasos" para
+        // cualquier ficha, "cortina" solo para jugadores (no pelotas).
+        if (typeof dispararTipPasoSiCorresponde === 'function') dispararTipPasoSiCorresponde();
+        if (found.team !== 'ball' && typeof dispararTipCortinaSiCorresponde === 'function') {
+            dispararTipCortinaSiCorresponde();
+        }
         if (activeObj.team === 'ball') playSound('bounceBall'); else playSound('grabJersey');
     } else {
         activeObj = null;

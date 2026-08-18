@@ -200,7 +200,8 @@ function serializarBorradorActual() {
         lz: lienzosLibres,
         ct: colorTrazoActivo,
         ht: herramientaActiva,
-        tt: tipoTrazoActivo
+        tt: tipoTrazoActivo,
+        fv: factorVelocidad
     };
 }
 

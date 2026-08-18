@@ -488,37 +488,177 @@ function activarInterfaz() {
     if (typeof actualizarIconoCambiarModo === 'function') actualizarIconoCambiarModo();
 }
 
-// Aviso de uso único (guardado en el dispositivo, no vuelve a aparecer):
-// una flecha que apunta a un jugador real en la cancha, explicando el
-// doble clic/toque para el dorsal. Se llama después de init(), una vez
-// que ya existen jugadores para poder señalar a uno.
+// ============================================================
+// SISTEMA DE TOOLTIPS DE AYUDA (una sola vez, apuntan a un botón real)
+// ============================================================
+// Los 4 comparten mecánica y estética:
+//  - Se muestran UNA sola vez por dispositivo (bandera en localStorage),
+//    salvo que se disparen "forzados" desde Archivo ▸ "Ver ayudas" (ver
+//    mostrarTodosLosTooltips()).
+//  - Nunca se superponen entre sí: si ya hay uno visible en pantalla, el
+//    siguiente que se dispare espera en una cola y aparece recién cuando
+//    el anterior termina de ocultarse.
+//  - Misma estética que el modal "Acerca de..." (fondo oscuro, borde
+//    rojo, letra blanca) -ver .tooltip-ayuda-globo en estilos.css.
+//  - Apuntan a un botón/elemento real con una flecha, arriba o abajo de
+//    él según dónde haya lugar en pantalla (mismo mecanismo tanto para
+//    un botón fijo como para un punto dinámico sobre la cancha, como el
+//    del dorsal -ver `objetivo` más abajo-).
+
+let _tipAyudaEnPantalla = false;
+const _colaTipsAyuda = [];
+
+function _liberarTurnoTipAyuda() {
+    _tipAyudaEnPantalla = false;
+    const siguiente = _colaTipsAyuda.shift();
+    if (siguiente) siguiente();
+}
+
+// Arma y anima el globo+flecha ya resuelta la posición. `objetivo` es
+// { x, yArriba, yAbajo }: el punto (o rango vertical, si es un botón con
+// alto propio) al que apunta la flecha.
+function _renderTooltipAyuda(html, objetivo) {
+    const espacioArriba = objetivo.yArriba;
+    const espacioAbajo  = window.innerHeight - objetivo.yAbajo;
+    const arriba = espacioArriba >= espacioAbajo; // por defecto arriba si hay lugar similar
+
+    const tip = document.createElement('div');
+    tip.className = 'tooltip-ayuda ' + (arriba ? 'hacia-arriba' : 'hacia-abajo');
+    tip.innerHTML = arriba
+        ? `<div class="tooltip-ayuda-globo">${html}</div><div class="tooltip-ayuda-flecha">👇</div>`
+        : `<div class="tooltip-ayuda-flecha">👆</div><div class="tooltip-ayuda-globo">${html}</div>`;
+    tip.style.left = objetivo.x + 'px';
+    tip.style.top  = (arriba ? objetivo.yArriba - 10 : objetivo.yAbajo + 10) + 'px';
+    document.body.appendChild(tip);
+
+    _tipAyudaEnPantalla = true;
+    requestAnimationFrame(() => tip.classList.add('visible'));
+    setTimeout(() => {
+        tip.classList.remove('visible');
+        setTimeout(() => { tip.remove(); _liberarTurnoTipAyuda(); }, 500);
+    }, 5500);
+}
+
+// `obtenerObjetivo` es una función que devuelve, en el momento exacto en
+// que le toca el turno de mostrarse (no antes: el botón puede moverse o
+// todavía no existir), o bien un elemento del DOM, o bien un punto
+// {x, y} fijo (como la posición de un jugador sobre el canvas) -o `null`
+// si ahora mismo no hay dónde apuntarle, en cuyo caso se omite ese tip
+// sin mostrar nada (mejor eso que apuntar a algo invisible-.
+function mostrarTooltipAyuda(clave, html, obtenerObjetivo, forzar = false) {
+    const storageKey = 'pizarraTip_' + clave;
+    if (!forzar && localStorage.getItem(storageKey) === 'true') return;
+    if (!forzar) localStorage.setItem(storageKey, 'true');
+
+    const intentar = () => {
+        const destino = obtenerObjetivo();
+        if (!destino) { _liberarTurnoTipAyuda(); return; }
+        let objetivo;
+        if (destino instanceof Element) {
+            const r = destino.getBoundingClientRect();
+            objetivo = { x: r.left + r.width / 2, yArriba: r.top, yAbajo: r.bottom };
+        } else {
+            objetivo = { x: destino.x, yArriba: destino.y, yAbajo: destino.y };
+        }
+        _renderTooltipAyuda(html, objetivo);
+    };
+
+    if (_tipAyudaEnPantalla) { _colaTipsAyuda.push(intentar); return; }
+    intentar();
+}
+
+// Textos de los 4 tooltips, centralizados para poder reusarlos tanto en
+// su disparo natural como en el repaso manual (mostrarTodosLosTooltips).
+const TEXTO_TIP_DORSAL    = 'Doble clic (o doble toque) acá<br>para ponerle el dorsal';
+const TEXTO_TIP_PASOS     = 'Cuando termines de editarlos<br>tocá acá para guardar este paso<br>y armar el siguiente';
+const TEXTO_TIP_HISTORIAL = 'Mostrá u ocultá acá los<br>movimientos de los pasos<br>anteriores, para ver mejor<br>el paso que estás editando';
+const TEXTO_TIP_CORTINA   = 'Con este botón le ponés (o le<br>quitás) una cortina/bloqueo<br>al final del recorrido<br>de este jugador';
+
+// Aviso de uso único: una flecha que apunta a un jugador real en la
+// cancha, explicando el doble clic/toque para el dorsal. Se llama
+// después de init(), una vez que ya existen jugadores para poder
+// señalar a uno.
 function mostrarTipDorsal() {
-    if (localStorage.getItem('pizarraDorsalTipVisto') === 'true') return;
+    if (localStorage.getItem('pizarraTip_dorsal') === 'true') return;
     if (!players || players.length === 0 || !canvas) return;
-    localStorage.setItem('pizarraDorsalTipVisto', 'true');
 
     setTimeout(() => {
-        const jugador = players[0];
-        const p = jugador.steps[0][0];
-        const rect = canvas.getBoundingClientRect();
-        const x = rect.left + p.x;
-        const y = rect.top + p.y;
-
-        const tip = document.createElement('div');
-        tip.id = 'dorsal-tip';
-        tip.innerHTML =
-            '<div class="dorsal-tip-globo">Doble clic (o doble toque) acá<br>para ponerle el dorsal</div>' +
-            '<div class="dorsal-tip-flecha">👇</div>';
-        tip.style.left = x + 'px';
-        tip.style.top  = y + 'px';
-        document.body.appendChild(tip);
-
-        requestAnimationFrame(() => tip.classList.add('visible'));
-        setTimeout(() => {
-            tip.classList.remove('visible');
-            setTimeout(() => tip.remove(), 500);
-        }, 5500);
+        mostrarTooltipAyuda('dorsal', TEXTO_TIP_DORSAL, () => {
+            if (!players || players.length === 0 || !canvas) return null;
+            const jugador = players[0];
+            const pasoJugador = jugador.steps[currentStep] || jugador.steps[0];
+            const p = pasoJugador[pasoJugador.length - 1];
+            const rect = canvas.getBoundingClientRect();
+            return { x: rect.left + p.x, y: rect.top + p.y };
+        });
     }, 500);
+}
+
+// Se dispara cada vez que el usuario empieza a mover una ficha (jugador,
+// pelota o utilería) en Modo Táctico: la primera vez, señala el botón
+// "+ PASO" para explicar cómo se guarda el paso y se pasa al siguiente.
+function dispararTipPasoSiCorresponde() {
+    mostrarTooltipAyuda('pasos', TEXTO_TIP_PASOS, () =>
+        (addStepBtn && addStepBtn.offsetParent !== null) ? addStepBtn : null
+    );
+}
+
+// Se dispara al tocar el switch de Historial por primera vez.
+function dispararTipHistorialSiCorresponde() {
+    mostrarTooltipAyuda('historial', TEXTO_TIP_HISTORIAL, () => {
+        const el = document.getElementById('historialToggle');
+        return (el && el.offsetParent !== null) ? el : null;
+    });
+}
+
+// A propósito NO en la primera selección de un jugador -para no
+// superponerse con el tip de "pasos", que suele dispararse en esa misma
+// primera interacción-, sino en la segunda.
+let _contadorSeleccionJugador = parseInt(localStorage.getItem('pizarraContadorSeleccionJugador') || '0', 10);
+function dispararTipCortinaSiCorresponde() {
+    if (localStorage.getItem('pizarraTip_cortina') === 'true') return;
+    _contadorSeleccionJugador++;
+    localStorage.setItem('pizarraContadorSeleccionJugador', String(_contadorSeleccionJugador));
+    if (_contadorSeleccionJugador < 2) return;
+    mostrarTooltipAyuda('cortina', TEXTO_TIP_CORTINA, () =>
+        (rotBtn && rotBtn.style.display !== 'none' && rotBtn.offsetParent !== null) ? rotBtn : null
+    );
+}
+
+// Archivo ▸ "Ver ayudas": repasa los 4 tooltips en secuencia, ignorando
+// si ya se vieron antes. Como todos son de la pantalla de EDICIÓN de
+// Modo Táctico, si hacía falta, primero se acomoda el estado para que
+// los 4 botones existan en pantalla (volviendo a Editar si estaba en
+// reproducción, y seleccionando al primer jugador si no había ninguno
+// seleccionado, para poder señalar el botón de cortina).
+function mostrarTodosLosTooltips() {
+    if (isEditionFinished) backToEdit();
+
+    if (!esJugador(activeObj) && players.length > 0) {
+        activeObj = players[0];
+        updateFloatingUI();
+        draw();
+    }
+
+    mostrarTooltipAyuda('dorsal', TEXTO_TIP_DORSAL, () => {
+        if (!players || players.length === 0 || !canvas) return null;
+        const jugador = players[0];
+        const pasoJugador = jugador.steps[currentStep] || jugador.steps[0];
+        const p = pasoJugador[pasoJugador.length - 1];
+        const rect = canvas.getBoundingClientRect();
+        return { x: rect.left + p.x, y: rect.top + p.y };
+    }, true);
+
+    mostrarTooltipAyuda('pasos', TEXTO_TIP_PASOS, () =>
+        (addStepBtn && addStepBtn.offsetParent !== null) ? addStepBtn : null, true);
+
+    mostrarTooltipAyuda('historial', TEXTO_TIP_HISTORIAL, () => {
+        const el = document.getElementById('historialToggle');
+        return (el && el.offsetParent !== null) ? el : null;
+    }, true);
+
+    mostrarTooltipAyuda('cortina', TEXTO_TIP_CORTINA, () =>
+        (rotBtn && rotBtn.style.display !== 'none' && rotBtn.offsetParent !== null) ? rotBtn : null, true);
 }
 
 function selectCourtMode(modo) {
@@ -909,6 +1049,12 @@ function finishEdition() {
     document.getElementById('edit-controls').style.display     = "none";
     if (addStepBtn) addStepBtn.style.display = "none";
 
+    // Loop activado por defecto al finalizar: es lo que se usa casi
+    // siempre para mostrar la jugada en banco/vestuario en repetición,
+    // así el usuario no tiene que acordarse de tocarlo cada vez.
+    isLooping = true;
+    setLoopButtonsColor(true);
+
     // Deshacer/Rehacer son acciones de EDICIÓN: no deben quedar disponibles
     // en modo reproducción (permitía deshacer movimientos sin haber
     // entrado a "Editar"). Se restauran en backToEdit() vía updateStepUI().
@@ -944,9 +1090,11 @@ function backToEdit() {
     document.getElementById('edit-controls').style.display     = "flex";
     if (addStepBtn) addStepBtn.style.display = "block";
 
-    factorVelocidad = 1;
-    const spdSel = document.getElementById('speedSelect');
-    if (spdSel) spdSel.value = "1";
+    // La velocidad de reproducción NO se resetea acá a propósito: es una
+    // preferencia del usuario (ver changeSpeed()), no un valor de esta
+    // edición puntual. Antes se reseteaba a 1x cada vez que se volvía a
+    // Editar, obligando a resubirla después de cada Finalizar -bug
+    // reportado-.
 
     verificarMenuFlotante();
     updateStepUI();
@@ -1450,6 +1598,15 @@ function aplicarJugadaImportada(d) {
     // quedado con la jugada "Finalizada" (viendo la reproducción), la
     // reabrimos en ese mismo modo en vez de volver siempre a Editar.
     isEditionFinished = !!d.ef;
+    // Velocidad de reproducción: se recuerda entre sesiones igual que el
+    // resto de las preferencias de reproducción/edición (ver bug reportado:
+    // antes volvía a 1x en cada Editar → Finalizar, ver también backToEdit()
+    // más abajo, que ya no la resetea).
+    if (typeof d.fv === "number" && d.fv > 0) {
+        factorVelocidad = d.fv;
+        const spdSel = document.getElementById('speedSelect');
+        if (spdSel) spdSel.value = String(d.fv);
+    }
     updateFormationOptions();
     renderTimeline();
     updateStepUI();

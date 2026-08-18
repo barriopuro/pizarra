@@ -523,41 +523,63 @@ select:hover:not(:disabled) {
 .menu-archivo-item:last-child { border-bottom: none; }
 .menu-archivo-item:hover { background: #333; }
 
-/* --- AVISO ÚNICO: doble clic/toque para asignar dorsal (con flecha) --- */
-#dorsal-tip {
+/* --- TOOLTIPS DE AYUDA (dorsal, pasos, historial, cortina) --- */
+/* ver mostrarTooltipAyuda() en ui.js. Misma estética que .confirm-box
+   ("Acerca de..."): fondo oscuro, borde rojo, letra blanca. */
+.tooltip-ayuda {
     position: fixed;
-    transform: translate(-50%, calc(-100% - 10px)) scale(0.92);
     opacity: 0;
-    transition: opacity 0.4s ease, transform 0.4s ease;
     z-index: 999998;
     pointer-events: none;
     text-align: center;
+    transition: opacity 0.4s ease, transform 0.4s ease;
 }
-#dorsal-tip.visible {
+.tooltip-ayuda.hacia-arriba {
+    transform: translate(-50%, calc(-100% - 10px)) scale(0.92);
+}
+.tooltip-ayuda.hacia-arriba.visible {
     opacity: 1;
     transform: translate(-50%, calc(-100% - 10px)) scale(1);
 }
-.dorsal-tip-globo {
-    background: #c01c33;
-    color: #1a1a1a;
-    border-radius: 10px;
+.tooltip-ayuda.hacia-abajo {
+    transform: translate(-50%, 10px) scale(0.92);
+}
+.tooltip-ayuda.hacia-abajo.visible {
+    opacity: 1;
+    transform: translate(-50%, 10px) scale(1);
+}
+.tooltip-ayuda-globo {
+    background: #1b1b1b;
+    color: #fff;
+    border: 3px solid #c01c33;
+    border-radius: 12px;
     padding: 10px 14px;
     font-size: 13px;
-    font-weight: 900;
-    line-height: 1.35;
-    white-space: nowrap;
+    font-weight: 700;
+    line-height: 1.4;
+    max-width: 220px;
     box-shadow: 0 4px 18px rgba(0,0,0,0.7);
 }
-.dorsal-tip-flecha {
-    font-size: 30px;
+.tooltip-ayuda-flecha {
+    font-size: 26px;
     line-height: 1;
-    margin-top: 2px;
     filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6));
-    animation: dorsal-tip-bounce 0.7s ease-in-out infinite alternate;
 }
-@keyframes dorsal-tip-bounce {
+.tooltip-ayuda.hacia-arriba .tooltip-ayuda-flecha {
+    margin-top: 2px;
+    animation: tooltip-ayuda-bounce-abajo 0.7s ease-in-out infinite alternate;
+}
+.tooltip-ayuda.hacia-abajo .tooltip-ayuda-flecha {
+    margin-bottom: 2px;
+    animation: tooltip-ayuda-bounce-arriba 0.7s ease-in-out infinite alternate;
+}
+@keyframes tooltip-ayuda-bounce-abajo {
     from { transform: translateY(0); }
     to   { transform: translateY(7px); }
+}
+@keyframes tooltip-ayuda-bounce-arriba {
+    from { transform: translateY(0); }
+    to   { transform: translateY(-7px); }
 }
 /* Deshacer/Rehacer llevan texto largo: en Media Cancha (barra angosta de
    140px) necesitan letra más chica para entrar sin generar scroll. En
